@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { FilterToolbar } from './components/FilterToolbar';
@@ -21,8 +21,20 @@ import { INITIAL_MOVIES } from './data/initialMovies';
 import { ActorProfile, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
 import { RotateCcw } from 'lucide-react';
+import { loadSharedCatalog, saveSharedCatalog } from './utils/sharedCatalog';
 
 const STORAGE_KEY = 'cinevault_movies_library_v2';
+const SHARED_TOKEN_STORAGE_KEY = 'cinevault_shared_catalog_token_v1';
+type SharedCatalogStatus = 'disconnected' | 'loading' | 'connected' | 'empty' | 'error';
+
+function readSharedToken(): string {
+  try {
+    return localStorage.getItem(SHARED_TOKEN_STORAGE_KEY) || '';
+  } catch (error) {
+    console.error('Failed to read shared catalog access key:', error);
+    return '';
+  }
+}
 
 export default function App() {
   // Load movies from localStorage or initial sample
@@ -40,6 +52,13 @@ export default function App() {
     }
     return INITIAL_MOVIES;
   });
+  const [sharedToken, setSharedToken] = useState(readSharedToken);
+  const [sharedCatalogStatus, setSharedCatalogStatus] = useState<SharedCatalogStatus>(
+    () => (readSharedToken() ? 'loading' : 'disconnected')
+  );
+  const [sharedCatalogError, setSharedCatalogError] = useState('');
+  const [sharedCatalogReload, setSharedCatalogReload] = useState(0);
+  const sharedCatalogSaveQueue = useRef<Promise<void>>(Promise.resolve());
 
   // Save to localStorage on change
   useEffect(() => {
@@ -49,6 +68,109 @@ export default function App() {
       console.error('Failed to save movies:', e);
     }
   }, [movies]);
+
+  useEffect(() => {
+    if (!sharedToken) {
+      setSharedCatalogStatus('disconnected');
+      return;
+    }
+
+    let cancelled = false;
+    setSharedCatalogStatus('loading');
+    setSharedCatalogError('');
+
+    loadSharedCatalog(sharedToken)
+      .then((sharedMovies) => {
+        if (cancelled) return;
+        if (sharedMovies.length > 0) {
+          setMovies(sharedMovies);
+          setSharedCatalogStatus('connected');
+        } else {
+          setSharedCatalogStatus('empty');
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        console.error('Failed to load shared catalog:', error);
+        setSharedCatalogError(error instanceof Error ? error.message : 'Unable to load shared catalog.');
+        setSharedCatalogStatus('error');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sharedToken, sharedCatalogReload]);
+
+  useEffect(() => {
+    if (!sharedToken || sharedCatalogStatus !== 'connected') return;
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      sharedCatalogSaveQueue.current = sharedCatalogSaveQueue.current
+        .then(() => saveSharedCatalog(sharedToken, movies))
+        .then(() => {
+          if (!cancelled) setSharedCatalogError('');
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to save shared catalog:', error);
+          if (!cancelled) {
+            setSharedCatalogError(
+              error instanceof Error ? error.message : 'Unable to save shared catalog.'
+            );
+          }
+        });
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [movies, sharedToken, sharedCatalogStatus]);
+
+  const handleConnectSharedCatalog = (token: string) => {
+    const trimmedToken = token.trim();
+    if (!trimmedToken) {
+      setSharedCatalogError('Masukkan kunci akses Google Sheets.');
+      return;
+    }
+    try {
+      localStorage.setItem(SHARED_TOKEN_STORAGE_KEY, trimmedToken);
+      setSharedCatalogError('');
+      setSharedToken(trimmedToken);
+      setSharedCatalogReload((reload) => reload + 1);
+    } catch (error) {
+      console.error('Failed to store shared catalog access key:', error);
+      setSharedCatalogError('Tidak dapat menyimpan kunci akses di perangkat ini.');
+      setSharedCatalogStatus('error');
+    }
+  };
+
+  const handleDisconnectSharedCatalog = () => {
+    try {
+      localStorage.removeItem(SHARED_TOKEN_STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to remove shared catalog access key:', error);
+    }
+    setSharedToken('');
+    setSharedCatalogError('');
+    setSharedCatalogStatus('disconnected');
+  };
+
+  const handleInitializeSharedCatalog = async () => {
+    if (!sharedToken) return;
+    setSharedCatalogStatus('loading');
+    setSharedCatalogError('');
+    try {
+      await saveSharedCatalog(sharedToken, movies);
+      setSharedCatalogStatus('connected');
+    } catch (error) {
+      console.error('Failed to initialize shared catalog:', error);
+      setSharedCatalogError(
+        error instanceof Error ? error.message : 'Unable to initialize shared catalog.'
+      );
+      setSharedCatalogStatus('empty');
+    }
+  };
 
   // Active page for bottom navigation
   const [activePage, setActivePage] = useState<ActivePage>('library');
@@ -563,6 +685,12 @@ export default function App() {
         {activePage === 'settings' && (
           <SettingsPage
             movies={movies}
+            sharedCatalogToken={sharedToken}
+            sharedCatalogStatus={sharedCatalogStatus}
+            sharedCatalogError={sharedCatalogError}
+            onConnectSharedCatalog={handleConnectSharedCatalog}
+            onDisconnectSharedCatalog={handleDisconnectSharedCatalog}
+            onInitializeSharedCatalog={handleInitializeSharedCatalog}
             onImportMovies={handleImportMovies}
             onDeleteMovie={handleDeleteMovie}
             onBulkDeleteMovies={handleBulkDeleteMovies}

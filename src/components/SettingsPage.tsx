@@ -15,13 +15,20 @@ import {
   Check,
   Smartphone,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  Cloud
 } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 
 interface SettingsPageProps {
   movies: Movie[];
+  sharedCatalogToken: string;
+  sharedCatalogStatus: 'disconnected' | 'loading' | 'connected' | 'empty' | 'error';
+  sharedCatalogError: string;
+  onConnectSharedCatalog: (token: string) => void;
+  onDisconnectSharedCatalog: () => void;
+  onInitializeSharedCatalog: () => Promise<void>;
   onImportMovies: (newMovies: Movie[], mode: 'merge' | 'replace') => void;
   onDeleteMovie: (movieId: string) => void;
   onBulkDeleteMovies: (movieIds: string[]) => void;
@@ -38,13 +45,20 @@ interface DuplicateGroup {
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
   movies,
+  sharedCatalogToken,
+  sharedCatalogStatus,
+  sharedCatalogError,
+  onConnectSharedCatalog,
+  onDisconnectSharedCatalog,
+  onInitializeSharedCatalog,
   onImportMovies,
   onDeleteMovie,
   onBulkDeleteMovies,
   onResetCatalog,
   onSelectMovie,
 }) => {
-  const [activeTab, setActiveTab] = useState<'csv' | 'duplicates' | 'system'>('csv');
+  const [activeTab, setActiveTab] = useState<'csv' | 'duplicates' | 'system' | 'shared'>('csv');
+  const [sharedTokenInput, setSharedTokenInput] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   // CSV Import State
@@ -726,8 +740,118 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <HardDrive className="w-3.5 h-3.5" />
             <span>Overview</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('shared')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+              activeTab === 'shared'
+                ? 'bg-amber-400 text-zinc-950 shadow-sm'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Cloud className="w-3.5 h-3.5" />
+            <span>Shared</span>
+          </button>
         </div>
       </div>
+
+      {activeTab === 'shared' && (
+        <section className="max-w-2xl mx-auto bg-[#121520] border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-5">
+          <div>
+            <h3 className="text-base font-bold text-zinc-100">Google Sheets Shared Catalog</h3>
+            <p className="mt-1 text-xs text-zinc-400">
+              Hubungkan web dan APK ke katalog yang sama. Kunci akses disimpan di perangkat ini dan tidak ditampilkan kembali.
+            </p>
+          </div>
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              onConnectSharedCatalog(sharedTokenInput);
+              setSharedTokenInput('');
+            }}
+            className="space-y-3"
+          >
+            <label className="block text-xs font-semibold text-zinc-300" htmlFor="shared-catalog-token">
+              Kunci akses bersama
+            </label>
+            <input
+              id="shared-catalog-token"
+              type="password"
+              autoComplete="new-password"
+              value={sharedTokenInput}
+              onChange={(event) => setSharedTokenInput(event.target.value)}
+              placeholder={sharedCatalogToken ? 'Kunci tersimpan di perangkat ini' : 'Masukkan kunci akses'}
+              className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                disabled={!sharedTokenInput.trim() || sharedCatalogStatus === 'loading'}
+                className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-950 font-bold text-xs transition-colors"
+              >
+                Hubungkan
+              </button>
+              {sharedCatalogToken && (
+                <button
+                  type="button"
+                  onClick={onDisconnectSharedCatalog}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-colors"
+                >
+                  Putuskan
+                </button>
+              )}
+            </div>
+          </form>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3.5 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-zinc-400">Status sinkronisasi</span>
+              <span className={`text-xs font-semibold ${
+                sharedCatalogStatus === 'connected'
+                  ? 'text-emerald-400'
+                  : sharedCatalogStatus === 'error'
+                  ? 'text-rose-400'
+                  : 'text-amber-300'
+              }`}>
+                {sharedCatalogStatus === 'connected' ? 'Terhubung' :
+                  sharedCatalogStatus === 'loading' ? 'Menghubungkan...' :
+                  sharedCatalogStatus === 'empty' ? 'Sheet kosong' :
+                  sharedCatalogStatus === 'error' ? 'Ada masalah' : 'Tidak terhubung'}
+              </span>
+            </div>
+            {sharedCatalogStatus === 'connected' && (
+              <p className="text-[11px] text-zinc-400">
+                Perubahan tersimpan otomatis. Perangkat lain memuat pembaruan saat aplikasi dibuka atau dimuat ulang.
+              </p>
+            )}
+            {sharedCatalogStatus === 'empty' && (
+              <div className="space-y-3">
+                <p className="text-[11px] text-zinc-400">
+                  Sheet belum berisi film. Isi dengan {movies.length} film dari perangkat ini untuk memulai katalog bersama.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void onInitializeSharedCatalog()}
+                  disabled={sharedCatalogStatus === 'loading'}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-950 font-bold text-xs transition-colors"
+                >
+                  Salin {movies.length} film ini ke Google Sheets
+                </button>
+              </div>
+            )}
+            {sharedCatalogError && (
+              <p role="alert" className="text-[11px] text-rose-300 break-words">
+                {sharedCatalogError}
+              </p>
+            )}
+          </div>
+
+          <p className="text-[11px] leading-relaxed text-zinc-500">
+            Katalog bersama menggunakan satu kunci akses yang sama di setiap perangkat. Siapa pun yang memiliki kunci dapat mengubah seluruh daftar film.
+          </p>
+        </section>
+      )}
 
       {/* ------------------------------------------------------------------ */}
       {/* TAB 1: CSV EXPORT & IMPORT */}
@@ -1220,16 +1344,24 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-zinc-100">100% Offline Local Storage Active</h3>
-                  <p className="text-[11px] text-zinc-400">All movie files, edits, and imports are saved directly on your device</p>
+                  <h3 className="font-bold text-sm text-zinc-100">
+                    {sharedCatalogStatus === 'connected' ? 'Google Sheets Shared Catalog Active' : 'Local Device Storage Active'}
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">
+                    {sharedCatalogStatus === 'connected'
+                      ? 'Catalog changes sync to Google Sheets; this device also keeps a local copy'
+                      : 'Movie data is saved directly on this device until a shared catalog is connected'}
+                  </p>
                 </div>
               </div>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                localStorage / on-device
+                {sharedCatalogStatus === 'connected' ? 'Google Sheets + local cache' : 'localStorage / on-device'}
               </span>
             </div>
             <p className="text-xs text-zinc-300 leading-relaxed">
-              CineVault operates entirely within your phone's browser or native container. No cloud database or internet connection is required to browse, add, sort, or edit your movies. Even in Airplane mode, your complete movie database and custom entries remain safe on your device.
+              {sharedCatalogStatus === 'connected'
+                ? 'The shared catalog is loaded when CineVault opens and edits are sent to Google Sheets. A local copy remains available on this device.'
+                : 'Without a shared catalog, CineVault stores movie data in this browser or app only. Changes do not automatically appear on other devices.'}
             </p>
           </div>
 
