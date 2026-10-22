@@ -12,7 +12,10 @@ import {
   Loader2,
   Check,
   Search,
-  Sparkles
+  Sparkles,
+  Edit3,
+  Save,
+  Undo2
 } from 'lucide-react';
 import { Movie } from '../types';
 import { searchMovieGenreOnline, OnlineGenreResult } from '../utils/onlineGenreSearch';
@@ -24,6 +27,7 @@ interface MovieDetailModalProps {
   onDeleteMovie?: (movieId: string) => void;
   onFilterByAttribute?: (type: 'genre' | 'minutes' | 'size' | 'studio' | 'year', value: string | number) => void;
   onUpdateMovieGenre?: (movieId: string, newGenre: string) => void;
+  onUpdateMovie?: (updatedMovie: Movie) => void;
 }
 
 export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
@@ -33,8 +37,22 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   onDeleteMovie,
   onFilterByAttribute,
   onUpdateMovieGenre,
+  onUpdateMovie,
 }) => {
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
+
+  // Edit Mode State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editGenre, setEditGenre] = useState('');
+  const [editStudio, setEditStudio] = useState('');
+  const [editYear, setEditYear] = useState<number>(2024);
+  const [editMinutes, setEditMinutes] = useState<number>(110);
+  const [editSize, setEditSize] = useState('4.5 GB');
+  const [editResolution, setEditResolution] = useState('1080p HD');
+  const [editPosterUrl, setEditPosterUrl] = useState('');
+  const [editActors, setEditActors] = useState('');
+  const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
 
   // Online Genre Search State
   const [isSearchingGenre, setIsSearchingGenre] = useState(false);
@@ -43,13 +61,63 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const [searchStatus, setSearchStatus] = useState<string | null>(null);
   const [genreUpdatedToast, setGenreUpdatedToast] = useState<string | null>(null);
 
-  // Reset states when movie changes
+  // Reset & sync states when movie changes
   useEffect(() => {
+    if (movie) {
+      setEditTitle(movie.title);
+      setEditGenre(movie.genre);
+      setEditStudio(movie.studio);
+      setEditYear(movie.year);
+      setEditMinutes(movie.minutes);
+      setEditSize(movie.size);
+      setEditResolution(movie.resolution || '1080p HD');
+      setEditPosterUrl(movie.posterUrl);
+      setEditActors(movie.actors.join(', '));
+      setIsEditing(false);
+      setEditSavedToast(null);
+    }
     setShowGenreSearchPanel(false);
     setOnlineResults([]);
     setSearchStatus(null);
     setGenreUpdatedToast(null);
   }, [movie?.id]);
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!movie || !onUpdateMovie) return;
+    if (!editTitle.trim()) {
+      alert('Movie title cannot be empty.');
+      return;
+    }
+
+    const actorList = editActors
+      .split(/[|,;]/)
+      .map((a) => a.trim())
+      .filter(Boolean);
+
+    const sizeNum = parseFloat(editSize.replace(/[^\d.]/g, '')) || 4.5;
+    const isTB = /tb/i.test(editSize);
+    const sizeBytes = Math.round(sizeNum * (isTB ? 1000000 : 1000));
+
+    const updated: Movie = {
+      ...movie,
+      title: editTitle.trim(),
+      genre: editGenre.trim() || 'Drama',
+      studio: editStudio.trim() || 'Independent Studio',
+      year: Number(editYear) || 2024,
+      minutes: Number(editMinutes) || 110,
+      size: editSize.trim() || '4.5 GB',
+      sizeBytes,
+      resolution: editResolution.trim() || '1080p HD',
+      posterUrl: editPosterUrl.trim() || movie.posterUrl,
+      actors: actorList.length > 0 ? actorList : ['Cast'],
+    };
+
+    onUpdateMovie(updated);
+    setIsEditing(false);
+    setEditSavedToast('Movie details updated successfully!');
+    setTimeout(() => setEditSavedToast(null), 3500);
+  };
 
   const handleSearchGenreOnline = async () => {
     if (!movie) return;

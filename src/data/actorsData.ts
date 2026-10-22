@@ -211,6 +211,31 @@ export function registerCustomActor(profile: ActorProfile): void {
 }
 
 /**
+ * Update an existing actor profile in localStorage
+ */
+export function updateActorProfile(oldName: string, updatedProfile: ActorProfile): void {
+  try {
+    const current = getCustomActors();
+    const oldTrimmed = oldName.trim();
+    const newTrimmed = updatedProfile.name.trim();
+
+    if (oldTrimmed !== newTrimmed && current[oldTrimmed]) {
+      delete current[oldTrimmed];
+    }
+
+    current[newTrimmed] = {
+      dob: updatedProfile.dob,
+      photoUrl: updatedProfile.photoUrl,
+      birthplace: updatedProfile.birthplace,
+    };
+
+    localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(current));
+  } catch (e) {
+    console.error('Failed to update custom actor profile', e);
+  }
+}
+
+/**
  * Helper to get or generate an actor profile with picture and date of birth
  */
 export function getActorProfile(name: string): ActorProfile {

@@ -1,13 +1,14 @@
-import React, { useEffect, useMemo } from 'react';
-import { X, Calendar, Film, HardDrive, Clock, User } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { X, Calendar, Film, HardDrive, Clock, User, Edit3, Save, Undo2 } from 'lucide-react';
 import { Movie } from '../types';
-import { getActorProfile } from '../data/actorsData';
+import { getActorProfile, ActorProfile } from '../data/actorsData';
 
 interface ActorDetailModalProps {
   actorName: string | null;
   movies: Movie[];
   onClose: () => void;
   onSelectMovie: (movie: Movie) => void;
+  onUpdateActor?: (oldName: string, updatedProfile: ActorProfile) => void;
 }
 
 export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
@@ -15,9 +16,31 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   movies,
   onClose,
   onSelectMovie,
+  onUpdateActor,
 }) => {
-  const [zoomedPhotoUrl, setZoomedPhotoUrl] = React.useState<string | null>(null);
-  const [displayLimit, setDisplayLimit] = React.useState<number | 'all'>('all');
+  const [zoomedPhotoUrl, setZoomedPhotoUrl] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState<number | 'all'>('all');
+
+  // Edit mode states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDob, setEditDob] = useState('');
+  const [editPhotoUrl, setEditPhotoUrl] = useState('');
+  const [editBirthplace, setEditBirthplace] = useState('');
+  const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
+
+  // Sync edit fields when actor changes
+  useEffect(() => {
+    if (actorName) {
+      const p = getActorProfile(actorName);
+      setEditName(actorName);
+      setEditDob(p.dob);
+      setEditPhotoUrl(p.photoUrl);
+      setEditBirthplace(p.birthplace ?? '');
+      setIsEditing(false);
+      setEditSavedToast(null);
+    }
+  }, [actorName]);
 
   // ESC key to close
   useEffect(() => {
@@ -56,13 +79,50 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   const totalMinutes = actorMovies.reduce((acc, m) => acc + (m.minutes || 0), 0);
   const totalHours = Math.floor(totalMinutes / 60);
   const remainingMinutes = totalMinutes % 60;
-  const durationFormatted = totalHours > 0 
-    ? `${totalMinutes} min (${totalHours}h ${remainingMinutes}m)` 
+  const durationFormatted = totalHours > 0
+    ? `${totalMinutes} min (${totalHours}h ${remainingMinutes}m)`
     : `${totalMinutes} min`;
 
   if (!actorName) return null;
 
   const profile = getActorProfile(actorName);
+
+  // Enter edit mode: populate fields from current profile
+  const handleStartEdit = () => {
+    setEditName(actorName);
+    setEditDob(profile.dob);
+    setEditPhotoUrl(profile.photoUrl);
+    setEditBirthplace(profile.birthplace ?? '');
+    setEditSavedToast(null);
+    setIsEditing(true);
+  };
+
+  // Cancel edit mode
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditSavedToast(null);
+  };
+
+  // Save edited profile
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onUpdateActor) return;
+    const trimmedName = editName.trim();
+    if (!trimmedName) {
+      alert('Actor name cannot be empty.');
+      return;
+    }
+    const updated: ActorProfile = {
+      name: trimmedName,
+      dob: editDob.trim() || profile.dob,
+      photoUrl: editPhotoUrl.trim(),
+      birthplace: editBirthplace.trim() || undefined,
+    };
+    onUpdateActor(actorName, updated);
+    setIsEditing(false);
+    setEditSavedToast('Actor profile updated successfully!');
+    setTimeout(() => setEditSavedToast(null), 3500);
+  };
 
   return (
     <div
@@ -73,21 +133,41 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
         className="relative w-full max-w-2xl bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/80 flex items-center justify-center transition-colors"
-            title="Close (Esc)"
-          >
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+          {/* Header Buttons: Edit + Close */}
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex items-center gap-2">
+            {onUpdateActor && !isEditing && (
+              <button
+                onClick={handleStartEdit}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-zinc-800/70 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 flex items-center justify-center transition-colors"
+                title="Edit actor profile"
+              >
+                <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/80 flex items-center justify-center transition-colors"
+              title="Close (Esc)"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
 
           {/* Modal Content */}
           <div className="p-4 sm:p-8">
+
+            {/* Success Toast */}
+            {editSavedToast && (
+              <div className="mb-4 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in duration-150">
+                <Save className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>{editSavedToast}</span>
+              </div>
+            )}
+
             {/* Top Section: Picture, Name, Date of Birth, Total Size, Total Duration */}
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 pb-5 sm:pb-6 border-b border-zinc-800">
               {/* Picture */}
-              <div 
+              <div
                 onClick={() => { if (profile.photoUrl) setZoomedPhotoUrl(profile.photoUrl); }}
                 className="w-28 h-28 sm:w-40 sm:h-40 rounded-2xl overflow-hidden bg-zinc-900 border-2 border-zinc-700 shadow-xl shrink-0 relative group cursor-pointer"
                 title="Click to enlarge photo (phone width)"
@@ -115,46 +195,138 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                 </div>
               </div>
 
-            {/* Actor Information */}
-            <div className="flex-1 text-center sm:text-left">
-              <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">
-                Actor Profile
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
-                {actorName}
-              </h2>
+              {/* Actor Information — View or Edit */}
+              <div className="flex-1 text-center sm:text-left w-full">
+                {isEditing ? (
+                  /* ===== EDIT MODE ===== */
+                  <form onSubmit={handleSaveEdit} className="space-y-3 w-full">
+                    <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Edit3 className="w-3 h-3" />
+                      Edit Actor Profile
+                    </div>
 
-              {/* Badges: Date of Birth, Total Size, Total Duration */}
-              <div className="mt-3.5 flex flex-wrap gap-2 justify-center sm:justify-start">
-                {/* DATE OF BIRTH */}
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
-                  <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="text-zinc-400">Date of Birth:</span>
-                  <span className="font-semibold text-zinc-100 font-mono">
-                    {profile.dob}
-                  </span>
-                </div>
+                    {/* Name */}
+                    <div>
+                      <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                        placeholder="Actor name"
+                        required
+                      />
+                    </div>
 
-                {/* TOTAL SIZE */}
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
-                  <HardDrive className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="text-zinc-400">Total Size:</span>
-                  <span className="font-semibold text-amber-300 font-mono">
-                    {totalGB} GB
-                  </span>
-                </div>
+                    {/* Date of Birth */}
+                    <div>
+                      <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Date of Birth</label>
+                      <input
+                        type="text"
+                        value={editDob}
+                        onChange={(e) => setEditDob(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                        placeholder="e.g. January 15, 1985"
+                      />
+                    </div>
 
-                {/* TOTAL DURATION */}
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
-                  <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="text-zinc-400">Total Duration:</span>
-                  <span className="font-semibold text-amber-300 font-mono">
-                    {durationFormatted}
-                  </span>
-                </div>
+                    {/* Photo URL */}
+                    <div>
+                      <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Photo URL</label>
+                      <input
+                        type="text"
+                        value={editPhotoUrl}
+                        onChange={(e) => setEditPhotoUrl(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                        placeholder="https://example.com/photo.jpg"
+                      />
+                    </div>
+
+                    {/* Birthplace */}
+                    <div>
+                      <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Birthplace</label>
+                      <input
+                        type="text"
+                        value={editBirthplace}
+                        onChange={(e) => setEditBirthplace(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                        placeholder="e.g. Los Angeles, California, USA"
+                      />
+                    </div>
+
+                    {/* Save / Cancel buttons */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="submit"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-zinc-950 font-semibold text-xs transition-colors shadow-sm"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        Save Changes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition-colors border border-zinc-700"
+                      >
+                        <Undo2 className="w-3.5 h-3.5" />
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  /* ===== VIEW MODE ===== */
+                  <>
+                    <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">
+                      Actor Profile
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
+                      {actorName}
+                    </h2>
+
+                    {/* Badges: Date of Birth, Birthplace, Total Size, Total Duration */}
+                    <div className="mt-3.5 flex flex-wrap gap-2 justify-center sm:justify-start">
+                      {/* DATE OF BIRTH */}
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
+                        <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="text-zinc-400">Date of Birth:</span>
+                        <span className="font-semibold text-zinc-100 font-mono">
+                          {profile.dob}
+                        </span>
+                      </div>
+
+                      {/* BIRTHPLACE (if available) */}
+                      {profile.birthplace && (
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
+                          <User className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span className="text-zinc-400">Birthplace:</span>
+                          <span className="font-semibold text-zinc-100 font-mono">
+                            {profile.birthplace}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* TOTAL SIZE */}
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
+                        <HardDrive className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="text-zinc-400">Total Size:</span>
+                        <span className="font-semibold text-amber-300 font-mono">
+                          {totalGB} GB
+                        </span>
+                      </div>
+
+                      {/* TOTAL DURATION */}
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
+                        <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="text-zinc-400">Total Duration:</span>
+                        <span className="font-semibold text-amber-300 font-mono">
+                          {durationFormatted}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-          </div>
 
           {/* Bottom Section: Movies Title */}
           <div className="mt-6">
@@ -226,14 +398,14 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
 
       {/* Phone-width Image Zoom / Lightbox Modal */}
       {zoomedPhotoUrl && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-pointer"
           onClick={(e) => {
             e.stopPropagation();
             setZoomedPhotoUrl(null);
           }}
         >
-          <div 
+          <div
             className="relative max-w-[360px] w-full aspect-square rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 bg-black animate-in fade-in zoom-in-95 duration-150 cursor-default"
             onClick={(e) => e.stopPropagation()}
           >

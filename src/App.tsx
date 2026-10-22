@@ -18,6 +18,7 @@ import { StudiosPage } from './components/StudiosPage';
 import { AddMoviePage } from './components/AddMoviePage';
 import { SettingsPage } from './components/SettingsPage';
 import { INITIAL_MOVIES } from './data/initialMovies';
+import { ActorProfile, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
 import { RotateCcw } from 'lucide-react';
 
@@ -247,6 +248,38 @@ export default function App() {
     setSelectedMovie((prev) =>
       prev && prev.id === movieId ? { ...prev, genre: newGenre } : prev
     );
+  };
+
+  // Update complete movie handler
+  const handleUpdateMovie = (updatedMovie: Movie) => {
+    setMovies((prev) =>
+      prev.map((m) => (m.id === updatedMovie.id ? updatedMovie : m))
+    );
+    setSelectedMovie(updatedMovie);
+  };
+
+  // Update actor profile handler
+  const handleUpdateActor = (oldName: string, updatedProfile: ActorProfile) => {
+    updateActorProfile(oldName, updatedProfile);
+    const oldTrimmed = oldName.trim();
+    const newTrimmed = updatedProfile.name.trim();
+
+    if (oldTrimmed.toLowerCase() !== newTrimmed.toLowerCase()) {
+      setMovies((prev) =>
+        prev.map((m) => {
+          if (m.actors.some((a) => a.trim().toLowerCase() === oldTrimmed.toLowerCase())) {
+            return {
+              ...m,
+              actors: m.actors.map((a) =>
+                a.trim().toLowerCase() === oldTrimmed.toLowerCase() ? newTrimmed : a
+              ),
+            };
+          }
+          return m;
+        })
+      );
+      setSelectedActorName(newTrimmed);
+    }
   };
 
   // Import movies from CSV handler
@@ -547,6 +580,7 @@ export default function App() {
         onSelectActor={(actorName) => setSelectedActorName(actorName)}
         onDeleteMovie={handleDeleteMovie}
         onUpdateMovieGenre={handleUpdateMovieGenre}
+        onUpdateMovie={handleUpdateMovie}
       />
 
       {/* Actor Detail Modal (Shows Picture, Date of Birth, and Movies Title) */}
@@ -558,6 +592,7 @@ export default function App() {
           setSelectedActorName(null);
           setSelectedMovie(movie);
         }}
+        onUpdateActor={handleUpdateActor}
       />
 
       {/* Studio Detail Modal (Shows Monogram, Headquarters, Founded, Filmography) */}
