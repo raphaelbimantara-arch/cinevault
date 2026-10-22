@@ -51,6 +51,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [parsedMovies, setParsedMovies] = useState<Movie[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
+  const [parseNotes, setParseNotes] = useState<string[]>([]);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const [isProcessingCsv, setIsProcessingCsv] = useState(false);
 
@@ -143,15 +144,34 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   // ----------------------------------------------------------------------
   // 2. CSV IMPORT LOGIC
   // ----------------------------------------------------------------------
-  const parseCsvText = (text: string): string[][] => {
+  const parseCsvText = (text: string): { rows: string[][]; delimiter: string } => {
+    // Strip UTF-8 BOM
+    const cleanText = text.replace(/^[\uFEFF\uFFFE]/, '');
+
+    // Auto-detect delimiter from the first non-empty line
+    const firstLine = cleanText.split(/\r\n|\r|\n/).find((l) => l.trim().length > 0) || '';
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semiCount = (firstLine.match(/;/g) || []).length;
+    const tabCount = (firstLine.match(/\t/g) || []).length;
+    const pipeCount = (firstLine.match(/\|/g) || []).length;
+
+    let delimiter = ',';
+    if (semiCount > commaCount && semiCount >= tabCount && semiCount >= pipeCount) {
+      delimiter = ';';
+    } else if (tabCount > commaCount && tabCount >= semiCount && tabCount >= pipeCount) {
+      delimiter = '\t';
+    } else if (pipeCount > commaCount && pipeCount >= semiCount && pipeCount >= tabCount) {
+      delimiter = '|';
+    }
+
     const lines: string[][] = [];
     let currentRow: string[] = [];
     let currentCell = '';
     let insideQuotes = false;
 
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      const nextChar = text[i + 1];
+    for (let i = 0; i < cleanText.length; i++) {
+      const char = cleanText[i];
+      const nextChar = cleanText[i + 1];
 
       if (char === '"') {
         if (insideQuotes && nextChar === '"') {
@@ -160,7 +180,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         } else {
           insideQuotes = !insideQuotes;
         }
-      } else if (char === ',' && !insideQuotes) {
+      } else if (char === delimiter && !insideQuotes) {
         currentRow.push(currentCell.trim());
         currentCell = '';
       } else if ((char === '\r' || char === '\n') && !insideQuotes) {
@@ -185,7 +205,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       }
     }
 
-    return lines;
+    return { rows: lines, delimiter };
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,89 +214,186 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
     setCsvFile(file);
     setParseErrors([]);
+    setParseNotes([]);
     setIsProcessingCsv(true);
 
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const text = event.target?.result as string;
-        if (!text) {
-          setParseErrors(['The selected CSV file is empty or cannot be read.']);
+        if (!text || text.trim().length === 0) {
+          setParseErrors(['The selected CSV file is empty. Please select a valid CSV file.']);
           setIsProcessingCsv(false);
           return;
         }
 
-        const rows = parseCsvText(text);
-        if (rows.length < 2) {
-          setParseErrors(['The CSV file must contain a header row and at least 1 row of movie data.']);
+        const { rows } = parseCsvText(text);
+        if (rows.length < 1) {
+          setParseErrors(['No readable rows found in this CSV file.']);
           setIsProcessingCsv(false);
           return;
         }
 
-        const headers = rows[0].map((h) => h.toLowerCase().trim());
-        const titleIdx = headers.indexOf('title');
-        const genreIdx = headers.indexOf('genre');
-        const studioIdx = headers.indexOf('studio');
-        const yearIdx = headers.indexOf('year');
-        const minutesIdx = headers.indexOf('minutes');
-        const sizeIdx = headers.indexOf('size');
-        const resolutionIdx = headers.indexOf('resolution');
-        const posterUrlIdx = headers.indexOf('posterurl') !== -1 ? headers.indexOf('posterurl') : headers.indexOf('poster_url');
-        const backdropUrlIdx = headers.indexOf('backdropurl') !== -1 ? headers.indexOf('backdropurl') : headers.indexOf('backdrop_url');
-        const actorsIdx = headers.indexOf('actors');
-        const idIdx = headers.indexOf('id');
-        const addedDateIdx = headers.indexOf('addeddate') !== -1 ? headers.indexOf('addeddate') : headers.indexOf('added_date');
+        // Clean row headers
+        const rawHeaders = rows[0].map((h) => h.toLowerCase().trim().replace(/^["']|["']$/g, ''));
 
+        const findIdx = (...synonyms: string[]) => {
+          for (const syn of synonyms) {
+            const cleanSyn = syn.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const idx = rawHeaders.findIndex((h) => {
+              const cleanH = h.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return cleanH === cleanSyn || cleanH.includes(cleanSyn);
+            });
+            if (idx !== -1) return idx;
+          }
+          return -1;
+        };
+
+        let titleIdx = findIdx('title', 'judul', 'movie', 'film', 'name', 'nama');
+        const genreIdx = findIdx('genre', 'kategori', 'category', 'genres');
+        const studioIdx = findIdx('studio', 'production', 'distributor', 'rumah produksi', 'studios');
+        const yearIdx = findIdx('year', 'tahun', 'release');
+        const minutesIdx = findIdx('minutes', 'duration', 'durasi', 'menit', 'runtime', 'length');
+        const sizeIdx = findIdx('size', 'ukuran', 'filesize', 'kapasitas');
+        const resolutionIdx = findIdx('resolution', 'resolusi', 'quality', 'kualitas', 'format');
+        const posterUrlIdx = findIdx('posterurl', 'poster', 'cover', 'gambar', 'image', 'photo', 'artwork');
+        const backdropUrlIdx = findIdx('backdropurl', 'backdrop', 'banner');
+        const actorsIdx = findIdx('actors', 'actor', 'aktor', 'cast', 'pemain', 'bintang');
+        const idIdx = findIdx('id', 'kode', 'code');
+        const addedDateIdx = findIdx('addeddate', 'added_date', 'date', 'tanggal');
+
+        // Check if row 0 looks like a header or actual data
+        const isHeaderRow = rawHeaders.some((h) => 
+          ['title', 'judul', 'movie', 'film', 'genre', 'studio', 'year', 'tahun', 'size', 'actors', 'actor'].some((key) => h.includes(key))
+        );
+
+        // If title column was not found by name, default to the first column (column 0)
         if (titleIdx === -1) {
-          setParseErrors(['Column "title" is required in the CSV header.']);
-          setIsProcessingCsv(false);
-          return;
+          titleIdx = 0;
         }
 
+        const startRow = isHeaderRow ? 1 : 0;
         const parsedList: Movie[] = [];
         const errors: string[] = [];
+        const notes: string[] = [];
+        let autoFilledFieldsCount = 0;
 
-        for (let i = 1; i < rows.length; i++) {
+        const defaultPosters = [
+          'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800',
+          'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800',
+          'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800',
+          'https://images.unsplash.com/photo-1574267432553-4b4628081c31?w=800',
+          'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800',
+        ];
+
+        for (let i = startRow; i < rows.length; i++) {
           const row = rows[i];
-          const title = row[titleIdx]?.trim();
-          if (!title) {
+          // Skip completely empty lines
+          if (!row || row.length === 0 || row.every((c) => !c || c.trim().length === 0)) {
             continue;
           }
 
-          const yearVal = yearIdx !== -1 ? parseInt(row[yearIdx], 10) : new Date().getFullYear();
-          const minutesVal = minutesIdx !== -1 ? parseInt(row[minutesIdx], 10) : 120;
-          const genre = (genreIdx !== -1 && row[genreIdx]) ? row[genreIdx] : 'Drama';
-          const studio = (studioIdx !== -1 && row[studioIdx]) ? row[studioIdx] : 'Independent';
-          const size = (sizeIdx !== -1 && row[sizeIdx]) ? row[sizeIdx] : '4.5 GB';
-          const resolution = (resolutionIdx !== -1 && row[resolutionIdx]) ? row[resolutionIdx] : '1080p BluRay';
-          const posterUrl = (posterUrlIdx !== -1 && row[posterUrlIdx]) 
-            ? row[posterUrlIdx] 
-            : 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800';
-          const backdropUrl = (backdropUrlIdx !== -1 && row[backdropUrlIdx]) ? row[backdropUrlIdx] : '';
+          const getCell = (idx: number): string => {
+            if (idx === -1 || idx >= row.length) return '';
+            const val = row[idx]?.trim() || '';
+            if (/^(null|undefined|none|n\/a|-)$/i.test(val)) return '';
+            return val;
+          };
 
-          let actors: string[] = ['Unknown Actor'];
-          if (actorsIdx !== -1 && row[actorsIdx]) {
-            actors = row[actorsIdx]
-              .split(/[|,;]/)
-              .map((a) => a.trim())
-              .filter(Boolean);
-            if (actors.length === 0) actors = ['Cast'];
+          let hadEmptyField = false;
+
+          // 1. Title (if empty, provide fallback rather than crashing)
+          let title = getCell(titleIdx);
+          if (!title) {
+            title = `Untitled Movie #${i + 1}`;
+            hadEmptyField = true;
           }
 
-          const id = (idIdx !== -1 && row[idIdx]) ? row[idIdx] : `csv-${Date.now()}-${i}`;
-          const addedDate = (addedDateIdx !== -1 && row[addedDateIdx]) ? row[addedDateIdx] : new Date().toISOString().split('T')[0];
+          // 2. Genre (if empty, fallback to 'Drama')
+          let genre = getCell(genreIdx);
+          if (!genre) {
+            genre = 'Drama';
+            hadEmptyField = true;
+          }
 
+          // 3. Studio (if empty, fallback to 'Independent Studio')
+          let studio = getCell(studioIdx);
+          if (!studio) {
+            studio = 'Independent Studio';
+            hadEmptyField = true;
+          }
+
+          // 4. Year
+          const rawYear = getCell(yearIdx);
+          let yearVal = parseInt(rawYear.replace(/[^\d]/g, ''), 10);
+          if (isNaN(yearVal) || yearVal < 1888 || yearVal > 2100) {
+            yearVal = 2024;
+            if (rawYear) hadEmptyField = true;
+          }
+
+          // 5. Minutes
+          const rawMinutes = getCell(minutesIdx);
+          let minutesVal = parseInt(rawMinutes.replace(/[^\d]/g, ''), 10);
+          if (isNaN(minutesVal) || minutesVal <= 0) {
+            minutesVal = 115;
+            if (rawMinutes) hadEmptyField = true;
+          }
+
+          // 6. Size
+          let size = getCell(sizeIdx);
+          if (!size) {
+            size = '4.5 GB';
+            hadEmptyField = true;
+          } else if (!/gb|mb|tb/i.test(size) && !isNaN(parseFloat(size))) {
+            size = `${parseFloat(size)} GB`;
+          }
+
+          // 7. Resolution
+          let resolution = getCell(resolutionIdx);
+          if (!resolution) {
+            resolution = '1080p HD';
+          }
+
+          // 8. Poster
+          let posterUrl = getCell(posterUrlIdx);
+          if (!posterUrl || (!posterUrl.startsWith('http') && !posterUrl.startsWith('/') && !posterUrl.startsWith('data:'))) {
+            posterUrl = defaultPosters[i % defaultPosters.length];
+            hadEmptyField = true;
+          }
+
+          // 9. Backdrop
+          const backdropUrl = getCell(backdropUrlIdx);
+
+          // 10. Actors
+          const rawActors = getCell(actorsIdx);
+          let actors: string[] = [];
+          if (rawActors) {
+            actors = rawActors.split(/[|,;]/).map((a) => a.trim()).filter(Boolean);
+          }
+          if (actors.length === 0) {
+            actors = ['Cast'];
+          }
+
+          // 11. ID & Added Date
+          const id = getCell(idIdx) || `csv-${Date.now()}-${i}`;
+          const addedDate = getCell(addedDateIdx) || new Date().toISOString().split('T')[0];
+
+          // Compute size bytes
           const sizeNum = parseFloat(size.replace(/[^\d.]/g, '')) || 4.5;
           const isTB = /tb/i.test(size);
           const sizeBytes = Math.round(sizeNum * (isTB ? 1000000 : 1000));
+
+          if (hadEmptyField) {
+            autoFilledFieldsCount++;
+          }
 
           parsedList.push({
             id,
             title,
             genre,
             studio,
-            year: isNaN(yearVal) ? 2024 : yearVal,
-            minutes: isNaN(minutesVal) ? 110 : minutesVal,
+            year: yearVal,
+            minutes: minutesVal,
             size,
             sizeBytes,
             resolution,
@@ -288,14 +405,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         }
 
         if (parsedList.length === 0) {
-          errors.push('No valid movie rows could be extracted from this CSV.');
+          errors.push('No movie rows found in the CSV file. Please make sure the file contains movie records.');
+        } else if (autoFilledFieldsCount > 0) {
+          notes.push(`Notice: ${autoFilledFieldsCount} movie(s) had some blank fields (e.g., genre, studio, duration, or poster) which were automatically filled with default values.`);
         }
 
         setParsedMovies(parsedList);
         setParseErrors(errors);
+        setParseNotes(notes);
       } catch (err) {
         console.error('CSV parse error:', err);
-        setParseErrors(['Error parsing CSV file: ' + String(err)]);
+        setParseErrors(['Error reading CSV file: ' + String(err)]);
       } finally {
         setIsProcessingCsv(false);
       }
@@ -659,6 +779,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <div className="mt-3 p-3 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs space-y-1">
                   {parseErrors.map((err, idx) => (
                     <div key={idx}>• {err}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Informational Notes (Blank fields filled) */}
+              {parseNotes.length > 0 && (
+                <div className="mt-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs space-y-1">
+                  {parseNotes.map((note, idx) => (
+                    <div key={idx}>ℹ {note}</div>
                   ))}
                 </div>
               )}
