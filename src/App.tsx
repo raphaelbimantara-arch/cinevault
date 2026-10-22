@@ -778,7 +778,6 @@ export default function App() {
         onNavigateMovie={setSelectedMovie}
         onFilterByAttribute={handleFilterByAttribute}
         onSelectActor={(actorName) => setSelectedActorName(actorName)}
-        onDeleteMovie={handleDeleteMovie}
         onUpdateMovie={handleUpdateMovie}
       />
 

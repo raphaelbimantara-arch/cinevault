@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { 
   X, 
-  Trash2,
   Users,
   Film,
   Building2,
@@ -24,7 +23,6 @@ interface MovieDetailModalProps {
   onClose: () => void;
   onNavigateMovie: (movie: Movie) => void;
   onSelectActor?: (actorName: string) => void;
-  onDeleteMovie?: (movieId: string) => void;
   onFilterByAttribute?: (type: 'genre' | 'minutes' | 'size' | 'studio' | 'year', value: string | number) => void;
   onUpdateMovie?: (updatedMovie: Movie) => void;
 }
@@ -35,7 +33,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   onClose,
   onNavigateMovie,
   onSelectActor,
-  onDeleteMovie,
   onFilterByAttribute,
   onUpdateMovie,
 }) => {
@@ -218,7 +215,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         onPointerCancel={swipeHandlers.onPointerCancel}
         style={{ touchAction: 'pan-y' }}
       >
-          {/* Top Header Bar with Edit, Delete, and Close Buttons */}
+          {/* Top Header Bar with Edit and Close Buttons */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex items-center gap-2">
             {onUpdateMovie && !isEditing && (
               <button
@@ -227,20 +224,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 title="Edit movie details"
               >
                 <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-            )}
-            {onDeleteMovie && !isEditing && (
-              <button
-                onClick={() => {
-                  if (window.confirm(`Are you sure you want to delete "${movie.title}" from catalog?`)) {
-                    onDeleteMovie(movie.id);
-                    onClose();
-                  }
-                }}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center transition-colors"
-                title="Delete movie from library"
-              >
-                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             )}
             <button
