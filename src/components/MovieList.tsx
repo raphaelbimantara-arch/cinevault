@@ -77,6 +77,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                   <div className="truncate font-semibold text-[9px] sm:text-sm text-zinc-100 group-hover:text-amber-400 transition-colors" title={movie.title}>
                     {movie.title}
                   </div>
+                </div>
               </td>
               <td className="py-2 px-1 text-center whitespace-nowrap font-mono text-[9px] sm:text-xs text-zinc-300">
                 {movie.year}
