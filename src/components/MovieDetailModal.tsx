@@ -52,6 +52,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const [editSize, setEditSize] = useState('4.5 GB');
   const [editResolution, setEditResolution] = useState('1080p HD');
   const [editPosterUrl, setEditPosterUrl] = useState('');
+  const [editBackdropUrl, setEditBackdropUrl] = useState('');
   const [editActors, setEditActors] = useState('');
   const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
 
@@ -73,6 +74,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditSize(movie.size);
       setEditResolution(movie.resolution || '1080p HD');
       setEditPosterUrl(movie.posterUrl);
+      setEditBackdropUrl(movie.backdropUrl || '');
       setEditActors(movie.actors.join(', '));
       setIsEditing(false);
       setEditSavedToast(null);
@@ -111,6 +113,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       sizeBytes,
       resolution: editResolution.trim() || '1080p HD',
       posterUrl: getImageSource(editPosterUrl.trim() || movie.posterUrl),
+      backdropUrl: getImageSource(editBackdropUrl.trim()),
       actors: actorList.length > 0 ? actorList : ['Cast'],
     };
 
@@ -230,12 +233,12 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 />
               </div>
               <div 
-                onClick={() => setZoomedImageUrl(movie.posterUrl)}
+                onClick={() => setZoomedImageUrl(movie.backdropUrl || movie.posterUrl)}
                 className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group"
                 title="Click to enlarge cover (phone width)"
               >
                 <img
-                  src={getImageSource(movie.posterUrl)}
+                  src={getImageSource(movie.backdropUrl || movie.posterUrl)}
                   alt={`${movie.title} - Back`}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
@@ -346,15 +349,27 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* Poster URL */}
+                {/* Front Cover URL */}
                 <div>
-                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Poster URL</label>
+                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Front Cover URL</label>
                   <input
                     type="text"
                     value={editPosterUrl}
                     onChange={(e) => setEditPosterUrl(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                    placeholder="Image URL or Google Drive sharing link"
+                    placeholder="Front cover image URL or Google Drive link"
+                  />
+                </div>
+
+                {/* Back Cover URL */}
+                <div>
+                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Back Cover URL</label>
+                  <input
+                    type="text"
+                    value={editBackdropUrl}
+                    onChange={(e) => setEditBackdropUrl(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                    placeholder="Back cover image URL or Google Drive link"
                   />
                 </div>
 
