@@ -1,6 +1,7 @@
 import React from 'react';
 import { Film } from 'lucide-react';
 import { Movie } from '../types';
+import { useLongPress } from '../utils/useLongPress';
 
 interface MovieListProps {
   movies: Movie[];
@@ -8,6 +9,7 @@ interface MovieListProps {
   onFilterByAttribute: (type: 'genre' | 'studio' | 'year' | 'minutes' | 'size', value: string | number) => void;
   selectedMovieIds: Set<string>;
   onToggleMovieSelection: (movieId: string) => void;
+  selectionMode: boolean;
 }
 
 export const MovieList: React.FC<MovieListProps> = ({
@@ -15,7 +17,10 @@ export const MovieList: React.FC<MovieListProps> = ({
   onSelectMovie,
   selectedMovieIds,
   onToggleMovieSelection,
+  selectionMode,
 }) => {
+  const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
+
   if (movies.length === 0) {
     return (
       <div className="py-20 text-center rounded-2xl border border-dashed border-zinc-800 bg-[#0d0f16]/60">
@@ -29,7 +34,15 @@ export const MovieList: React.FC<MovieListProps> = ({
   }
 
   return (
-    <div className="bg-[#121520] rounded-xl border border-zinc-800/80 overflow-hidden shadow-lg">
+    <div
+      className="bg-[#121520] rounded-xl border border-zinc-800/80 overflow-hidden shadow-lg"
+      onPointerDown={longPressHandlers.onPointerDown}
+      onPointerMove={longPressHandlers.onPointerMove}
+      onPointerUp={longPressHandlers.onPointerUp}
+      onPointerCancel={longPressHandlers.onPointerCancel}
+      onContextMenu={longPressHandlers.onContextMenu}
+      onClickCapture={longPressHandlers.onClickCapture}
+    >
       <table className="w-full table-fixed text-left border-collapse">
         <thead>
           <tr className="border-b border-zinc-800 bg-[#0d0f16]/90 text-[8px] sm:text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">
@@ -45,23 +58,25 @@ export const MovieList: React.FC<MovieListProps> = ({
           {movies.map((movie) => (
             <tr
               key={movie.id}
+              data-selection-id={movie.id}
               onClick={() => onSelectMovie(movie)}
               className="group hover:bg-[#181d2c] transition-colors cursor-pointer"
             >
               <td className="py-2 px-1.5 sm:px-3">
                 <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedMovieIds.has(movie.id)}
-                    onChange={() => onToggleMovieSelection(movie.id)}
-                    onClick={(event) => event.stopPropagation()}
-                    aria-label={`Select ${movie.title}`}
-                    className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-amber-400"
-                  />
+                  {selectionMode && (
+                    <input
+                      type="checkbox"
+                      checked={selectedMovieIds.has(movie.id)}
+                      onChange={() => onToggleMovieSelection(movie.id)}
+                      onClick={(event) => event.stopPropagation()}
+                      aria-label={`Select ${movie.title}`}
+                      className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-amber-400"
+                    />
+                  )}
                   <div className="truncate font-semibold text-[9px] sm:text-sm text-zinc-100 group-hover:text-amber-400 transition-colors" title={movie.title}>
                     {movie.title}
                   </div>
-                </div>
               </td>
               <td className="py-2 px-1 text-center whitespace-nowrap font-mono text-[9px] sm:text-xs text-zinc-300">
                 {movie.year}

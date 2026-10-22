@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal } from 'lucide-react';
+import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, CheckSquare } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
 import { getActorProfile } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
+import { useLongPress } from '../utils/useLongPress';
 
 interface ActorsPageProps {
   movies: Movie[];
@@ -11,6 +12,7 @@ interface ActorsPageProps {
   onSelectMovie: (movie: Movie) => void;
   onFilterByActor: (actorName: string) => void;
   onOpenActorDetail: (actorName: string) => void;
+  onDeleteActors: (actorNames: string[]) => void;
   onTriggerAddActor?: () => void;
 }
 
@@ -46,11 +48,17 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   onSelectMovie,
   onFilterByActor,
   onOpenActorDetail,
+  onDeleteActors,
   onTriggerAddActor,
 }) => {
   const [search, setSearch] = useState('');
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
   const [cols, setCols] = useState(4);
+  const [selectedActorNames, setSelectedActorNames] = useState<Set<string>>(() => new Set());
+  const selectionMode = selectedActorNames.size > 0;
+  const longPressHandlers = useLongPress((name) => {
+    setSelectedActorNames((prev) => new Set(prev).add(name));
+  }, !selectionMode);
 
   const handleToggleAlphabet = (char: string) => {
     if (char === 'All') {
@@ -132,6 +140,36 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
 
     return result;
   }, [actorStats, search, selectedAlphabets]);
+
+  const handleToggleActorSelection = (name: string) => {
+    setSelectedActorNames((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectVisibleActors = () => {
+    setSelectedActorNames((prev) => {
+      const next = new Set(prev);
+      filteredActors.forEach((actor) => next.add(actor.name));
+      return next;
+    });
+  };
+
+  const handleDeleteSelectedActors = () => {
+    const namesToDelete = actorStats
+      .filter((actor) => selectedActorNames.has(actor.name))
+      .map((actor) => actor.name);
+    if (namesToDelete.length === 0) return;
+    if (!window.confirm(`Delete ${namesToDelete.length} selected actor(s) from the directory and movie credits? This cannot be undone.`)) return;
+    onDeleteActors(namesToDelete);
+    setSelectedActorNames(new Set());
+  };
 
   return (
     <div className="space-y-5">
@@ -271,6 +309,40 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-[#121520] p-2.5 sm:p-3">
+        <button
+          type="button"
+          onClick={handleSelectVisibleActors}
+          disabled={filteredActors.length === 0}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <CheckSquare className="h-3.5 w-3.5" />
+          Select visible ({filteredActors.length})
+        </button>
+        {selectionMode && (
+          <>
+            <span className="text-xs text-zinc-400">{selectedActorNames.size} selected</span>
+            <button
+              type="button"
+              onClick={handleDeleteSelectedActors}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-rose-500"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete selected
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedActorNames(new Set())}
+              className="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+              aria-label="Clear selected actors"
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear
+            </button>
+          </>
+        )}
+      </div>
+
       {/* Actors Cards Grid */}
       {viewMode === 'cover' && (
         <div className="flex items-center gap-3 mb-4 bg-[#121520] border border-zinc-800 rounded-xl p-3">
@@ -287,14 +359,35 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         </div>
       )}
 
-      <div className={`grid ${viewMode === 'cover' ? GRID_COLS_MAP[cols] : viewMode === 'list' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-4`}>
+      <div
+        className={`grid ${viewMode === 'cover' ? GRID_COLS_MAP[cols] : viewMode === 'list' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-4`}
+        onPointerDown={longPressHandlers.onPointerDown}
+        onPointerMove={longPressHandlers.onPointerMove}
+        onPointerUp={longPressHandlers.onPointerUp}
+        onPointerCancel={longPressHandlers.onPointerCancel}
+        onContextMenu={longPressHandlers.onContextMenu}
+        onClickCapture={longPressHandlers.onClickCapture}
+      >
         {filteredActors.map((actor) => {
           return (
             <div
               key={actor.name}
-              onClick={() => onOpenActorDetail(actor.name)}
+              data-selection-id={actor.name}
+              onClick={() => selectionMode
+                ? handleToggleActorSelection(actor.name)
+                : onOpenActorDetail(actor.name)}
               className="bg-[#121520] border border-zinc-800/90 rounded-2xl p-4 flex flex-col justify-between hover:border-amber-500/40 hover:bg-[#151926] transition-all hover:shadow-xl cursor-pointer group"
             >
+              {selectionMode && (
+                <input
+                  type="checkbox"
+                  checked={selectedActorNames.has(actor.name)}
+                  onChange={() => handleToggleActorSelection(actor.name)}
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label={`Select ${actor.name}`}
+                  className="mb-3 h-4 w-4 cursor-pointer accent-amber-400"
+                />
+              )}
               <div>
                 {/* Header: Picture and Name */}
                 <div className="flex items-center gap-3.5">

@@ -174,6 +174,25 @@ export function registerCustomActor(profile: ActorProfile): void {
   }
 }
 
+export function removeCustomActors(names: string[]): void {
+  try {
+    const namesToRemove = new Set(names.map((name) => name.trim().toLowerCase()));
+    const current = getCustomActors();
+    let changed = false;
+    Object.keys(current).forEach((name) => {
+      if (namesToRemove.has(name.trim().toLowerCase())) {
+        delete current[name];
+        changed = true;
+      }
+    });
+    if (changed) {
+      localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(current));
+    }
+  } catch (error) {
+    console.error('Failed to remove custom actor profiles:', error);
+  }
+}
+
 /**
  * Update an existing actor profile in localStorage
  */

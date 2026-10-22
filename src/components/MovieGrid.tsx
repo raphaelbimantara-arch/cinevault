@@ -2,6 +2,7 @@ import React from 'react';
 import { Clock, HardDrive, Building2, Calendar, Film } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
+import { useLongPress } from '../utils/useLongPress';
 
 interface MovieGridProps {
   movies: Movie[];
@@ -9,6 +10,7 @@ interface MovieGridProps {
   onFilterByAttribute: (type: 'genre' | 'studio' | 'year' | 'minutes' | 'size', value: string | number) => void;
   selectedMovieIds: Set<string>;
   onToggleMovieSelection: (movieId: string) => void;
+  selectionMode: boolean;
 }
 
 export const MovieGrid: React.FC<MovieGridProps> = ({
@@ -17,7 +19,10 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   onFilterByAttribute,
   selectedMovieIds,
   onToggleMovieSelection,
+  selectionMode,
 }) => {
+  const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
+
   if (movies.length === 0) {
     return (
       <div className="py-20 text-center rounded-2xl border border-dashed border-zinc-800 bg-[#0d0f16]/60">
@@ -31,27 +36,38 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+    <div
+      className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+      onPointerDown={longPressHandlers.onPointerDown}
+      onPointerMove={longPressHandlers.onPointerMove}
+      onPointerUp={longPressHandlers.onPointerUp}
+      onPointerCancel={longPressHandlers.onPointerCancel}
+      onContextMenu={longPressHandlers.onContextMenu}
+      onClickCapture={longPressHandlers.onClickCapture}
+    >
       {movies.map((movie) => {
         return (
           <div
             key={movie.id}
+            data-selection-id={movie.id}
             className="group relative flex flex-col bg-[#121520] rounded-xl border border-zinc-800/80 overflow-hidden hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-200"
           >
-            <label
-              onClick={(event) => event.stopPropagation()}
-              className="absolute right-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-zinc-600 bg-zinc-950/85 shadow backdrop-blur-sm"
-              title={`Select ${movie.title}`}
-            >
-              <input
-                type="checkbox"
-                checked={selectedMovieIds.has(movie.id)}
-                onChange={() => onToggleMovieSelection(movie.id)}
+            {selectionMode && (
+              <label
                 onClick={(event) => event.stopPropagation()}
-                aria-label={`Select ${movie.title}`}
-                className="h-4 w-4 cursor-pointer accent-amber-400"
-              />
-            </label>
+                className="absolute right-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-zinc-600 bg-zinc-950/85 shadow backdrop-blur-sm"
+                title={`Select ${movie.title}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedMovieIds.has(movie.id)}
+                  onChange={() => onToggleMovieSelection(movie.id)}
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label={`Select ${movie.title}`}
+                  className="h-4 w-4 cursor-pointer accent-amber-400"
+                />
+              </label>
+            )}
             {/* Poster container with aspect 3:4 */}
             <div 
               onClick={() => onSelectMovie(movie)}

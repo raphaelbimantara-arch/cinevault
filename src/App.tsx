@@ -18,9 +18,9 @@ import { StudiosPage } from './components/StudiosPage';
 import { AddMoviePage } from './components/AddMoviePage';
 import { SettingsPage } from './components/SettingsPage';
 import { INITIAL_MOVIES } from './data/initialMovies';
-import { ActorProfile, updateActorProfile } from './data/actorsData';
+import { ActorProfile, removeCustomActors, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
-import { CheckSquare, RotateCcw, Trash2, X } from 'lucide-react';
+import { RotateCcw, Trash2, X } from 'lucide-react';
 import { loadSharedCatalog, saveSharedCatalog } from './utils/sharedCatalog';
 
 const STORAGE_KEY = 'cinevault_movies_library_v2';
@@ -84,6 +84,7 @@ export default function App() {
         if (cancelled) return;
         if (sharedMovies.length > 0) {
           setMovies(sharedMovies);
+          setSelectedMovieIds(new Set());
           setSharedCatalogStatus('connected');
         } else {
           setSharedCatalogStatus('empty');
@@ -355,12 +356,18 @@ export default function App() {
   // Delete movie handler
   const handleDeleteMovie = (id: string) => {
     setMovies((prev) => prev.filter((m) => m.id !== id));
+    setSelectedMovieIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
   // Bulk delete movies (for duplicate finder cleanup)
   const handleBulkDeleteMovies = (movieIds: string[]) => {
     const idSet = new Set(movieIds);
     setMovies((prev) => prev.filter((m) => !idSet.has(m.id)));
+    setSelectedMovieIds((prev) => new Set([...prev].filter((id) => !idSet.has(id))));
   };
 
   const handleToggleMovieSelection = (movieId: string) => {
@@ -371,14 +378,6 @@ export default function App() {
       } else {
         next.add(movieId);
       }
-      return next;
-    });
-  };
-
-  const handleSelectVisibleMovies = () => {
-    setSelectedMovieIds((prev) => {
-      const next = new Set(prev);
-      filteredAndSortedMovies.forEach((movie) => next.add(movie.id));
       return next;
     });
   };
@@ -435,10 +434,25 @@ export default function App() {
     }
   };
 
+  const handleDeleteActors = (actorNames: string[]) => {
+    const namesToDelete = new Set(actorNames.map((name) => name.trim().toLowerCase()));
+    removeCustomActors(actorNames);
+    setMovies((prev) =>
+      prev.map((movie) => ({
+        ...movie,
+        actors: movie.actors.filter((name) => !namesToDelete.has(name.trim().toLowerCase())),
+      }))
+    );
+    setSelectedActorName((current) =>
+      current && namesToDelete.has(current.trim().toLowerCase()) ? null : current
+    );
+  };
+
   // Import movies from CSV handler
   const handleImportMovies = (imported: Movie[], mode: 'merge' | 'replace') => {
     if (mode === 'replace') {
       setMovies(imported);
+      setSelectedMovieIds(new Set());
     } else {
       setMovies((prev) => {
         const existingMap = new Map<string, Movie>();
@@ -471,6 +485,7 @@ export default function App() {
   const handleResetCatalog = () => {
     if (window.confirm('Reset movie catalog to original default library?')) {
       setMovies(INITIAL_MOVIES);
+      setSelectedMovieIds(new Set());
       localStorage.removeItem(STORAGE_KEY);
       setActiveMetadataFilter(null);
       setSelectedCategory('All');
@@ -649,18 +664,8 @@ export default function App() {
               totalCatalogCount={movies.length}
             />
 
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-[#121520] p-2.5 sm:p-3">
-              <button
-                type="button"
-                onClick={handleSelectVisibleMovies}
-                disabled={filteredAndSortedMovies.length === 0}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <CheckSquare className="h-3.5 w-3.5" />
-                Select visible ({filteredAndSortedMovies.length})
-              </button>
-              {selectedMovieCount > 0 && (
-                <>
+            {selectedMovieCount > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-[#121520] p-2.5 sm:p-3">
                   <span className="text-xs text-zinc-400">{selectedMovieCount} selected</span>
                   <button
                     type="button"
@@ -679,9 +684,8 @@ export default function App() {
                     <X className="h-3.5 w-3.5" />
                     Clear
                   </button>
-                </>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Movies Display: Grid or List or Cover View */}
             {viewMode === 'grid' ? (
@@ -691,6 +695,7 @@ export default function App() {
                 onFilterByAttribute={handleFilterByAttribute}
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
+                selectionMode={selectedMovieCount > 0}
               />
             ) : viewMode === 'list' ? (
               <MovieList
@@ -699,6 +704,7 @@ export default function App() {
                 onFilterByAttribute={handleFilterByAttribute}
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
+                selectionMode={selectedMovieCount > 0}
               />
             ) : (
               <MovieCoverGrid
@@ -707,6 +713,7 @@ export default function App() {
                 onFilterByAttribute={handleFilterByAttribute}
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
+                selectionMode={selectedMovieCount > 0}
               />
             )}
           </div>
@@ -721,6 +728,7 @@ export default function App() {
             onSelectMovie={setSelectedMovie}
             onFilterByActor={handleFilterByActor}
             onOpenActorDetail={(name) => setSelectedActorName(name)}
+            onDeleteActors={handleDeleteActors}
             onTriggerAddActor={() => handleTriggerAdd('actor')}
           />
         )}
