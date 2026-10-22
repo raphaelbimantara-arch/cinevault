@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Film, 
-  Building2, 
-  Calendar, 
-  Clock, 
-  HardDrive, 
-  Plus, 
-  Check, 
-  User, 
-  MapPin, 
-  Tv
+import {
+  Film,
+  Building2,
+  Calendar,
+  Clock,
+  HardDrive,
+  Plus,
+  Check,
+  User,
+  Tv,
+  MapPin
 } from 'lucide-react';
 import { Movie } from '../types';
 import { ALL_GENRES, ALL_STUDIOS } from '../data/initialMovies';
@@ -20,9 +20,6 @@ import posterScifi from '../assets/images/poster_scifi_odyssey_1792588295227.jpg
 import posterNoir from '../assets/images/poster_noir_detective_1792588296109.jpg';
 import posterCyberpunk from '../assets/images/poster_cyberpunk_tokyo_1792588297850.jpg';
 import posterSummit from '../assets/images/poster_drama_summit_1792588297246.jpg';
-
-import actorVictor from '../assets/images/actor_victor_lynch_1792589786228.jpg';
-import actorElena from '../assets/images/actor_elena_rostova_1792589785628.jpg';
 
 interface AddDataPageProps {
   initialTab?: 'movie' | 'actor' | 'studio';
@@ -40,15 +37,6 @@ const PRESET_POSTERS = [
   { label: 'Alpine Drama', url: posterSummit },
   { label: 'Cinematic Cinema', url: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=980&auto=format&fit=crop' },
   { label: 'Urban Thriller', url: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?q=80&w=980&auto=format&fit=crop' },
-];
-
-const PRESET_ACTOR_PHOTOS = [
-  { label: 'Victor Lynch', url: actorVictor },
-  { label: 'Elena Rostova', url: actorElena },
-  { label: 'Studio Headshot 1', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop' },
-  { label: 'Studio Headshot 2', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop' },
-  { label: 'Studio Headshot 3', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=600&auto=format&fit=crop' },
-  { label: 'Studio Headshot 4', url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=600&auto=format&fit=crop' },
 ];
 
 // USER REQUEST: resolution only for 720p HD, 1080p HD, 960p HD
@@ -86,10 +74,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
   // ACTOR FORM STATE
   const [actorName, setActorName] = useState('');
   const [actorDob, setActorDob] = useState('June 15, 1985');
-  const [actorBirthplace, setActorBirthplace] = useState('New York, USA');
-  const [actorPhotoUrl, setActorPhotoUrl] = useState(PRESET_ACTOR_PHOTOS[0].url);
-  const [actorCustomPhoto, setActorCustomPhoto] = useState('');
-  const [actorMovieTitle, setActorMovieTitle] = useState('');
   const [actorSuccess, setActorSuccess] = useState(false);
 
   // STUDIO FORM STATE
@@ -139,28 +123,14 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
     e.preventDefault();
     if (!actorName.trim()) return;
 
-    const finalPhoto = actorCustomPhoto.trim() ? actorCustomPhoto.trim() : actorPhotoUrl;
     const profile: ActorProfile = {
       name: actorName.trim(),
       dob: actorDob.trim() || 'January 1, 1980',
-      photoUrl: finalPhoto,
-      birthplace: actorBirthplace.trim() || 'International Cinema',
+      photoUrl: '',
     };
 
     // Register into persistent actor store
     registerCustomActor(profile);
-
-    // If an initial movie title is entered, attach this actor to an existing or dummy movie
-    if (actorMovieTitle.trim()) {
-      const match = existingMovies.find(
-        (m) => m.title.toLowerCase() === actorMovieTitle.trim().toLowerCase()
-      );
-      if (match) {
-        if (!match.actors.includes(profile.name)) {
-          match.actors.push(profile.name);
-        }
-      }
-    }
 
     setActorSuccess(true);
     if (onAddActorSuccess) {
@@ -444,102 +414,20 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
               />
             </div>
 
-            {/* Date of Birth & Birthplace */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
-                  Date of Birth <span className="text-amber-400">*</span>
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                  <input
-                    type="text"
-                    required
-                    value={actorDob}
-                    onChange={(e) => setActorDob(e.target.value)}
-                    placeholder="e.g. November 11, 1974"
-                    className="w-full bg-[#121520] border border-zinc-800 rounded-xl pl-9 pr-3.5 py-2 text-sm text-zinc-100 font-mono placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
-                  Birthplace / Origin
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                  <input
-                    type="text"
-                    value={actorBirthplace}
-                    onChange={(e) => setActorBirthplace(e.target.value)}
-                    placeholder="e.g. Los Angeles, California, USA"
-                    className="w-full bg-[#121520] border border-zinc-800 rounded-xl pl-9 pr-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Associate with existing movie */}
+            {/* Date of Birth */}
             <div>
               <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
-                Associate With Catalog Movie (Optional)
+                Date of Birth <span className="text-amber-400">*</span>
               </label>
-              <select
-                value={actorMovieTitle}
-                onChange={(e) => setActorMovieTitle(e.target.value)}
-                className="w-full bg-[#121520] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/60"
-              >
-                <option value="">-- None or select movie --</option>
-                {existingMovies.map((m) => (
-                  <option key={m.id} value={m.title} className="bg-[#121520]">
-                    {m.title} ({m.year})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Headshot Selection */}
-            <div>
-              <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
-                Select Headshot Portrait
-              </label>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {PRESET_ACTOR_PHOTOS.map((p) => {
-                  const isSelected = (!actorCustomPhoto && actorPhotoUrl === p.url);
-                  return (
-                    <button
-                      type="button"
-                      key={p.label}
-                      onClick={() => {
-                        setActorPhotoUrl(p.url);
-                        setActorCustomPhoto('');
-                      }}
-                      className={`relative rounded-xl overflow-hidden border aspect-square group ${
-                        isSelected
-                          ? 'border-amber-400 ring-2 ring-amber-400/40'
-                          : 'border-zinc-800 hover:border-zinc-600'
-                      }`}
-                    >
-                      <img
-                        src={p.url}
-                        alt={p.label}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-2.5">
-                <span className="text-[11px] text-zinc-400">Or custom portrait photo URL:</span>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                 <input
-                  type="url"
-                  value={actorCustomPhoto}
-                  onChange={(e) => setActorCustomPhoto(e.target.value)}
-                  placeholder="https://example.com/portrait.jpg"
-                  className="mt-1 w-full bg-[#121520] border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
+                  type="text"
+                  required
+                  value={actorDob}
+                  onChange={(e) => setActorDob(e.target.value)}
+                  placeholder="e.g. November 11, 1974"
+                  className="w-full bg-[#121520] border border-zinc-800 rounded-xl pl-9 pr-3.5 py-2 text-sm text-zinc-100 font-mono placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
                 />
               </div>
             </div>
@@ -562,52 +450,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
               </button>
             </div>
           </form>
-
-          {/* Actor Card Preview */}
-          <div className="lg:col-span-5 flex flex-col items-center">
-            <div className="w-full max-w-xs space-y-3 sticky top-24">
-              <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
-                <span>Actor Profile Preview</span>
-                <span className="text-amber-400 text-[10px] font-mono">Live</span>
-              </div>
-
-              <div className="bg-[#121520] rounded-2xl border border-amber-500/40 p-4 shadow-2xl flex flex-col gap-3">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-700 shrink-0">
-                    <img
-                      src={actorCustomPhoto.trim() ? actorCustomPhoto.trim() : actorPhotoUrl}
-                      alt="Actor Preview"
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-white text-base truncate">
-                      {actorName || 'New Actor'}
-                    </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 mt-1 font-mono">
-                      <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="truncate">{actorDob || 'DOB'}</span>
-                    </div>
-                    {actorBirthplace && (
-                      <div className="text-[11px] text-zinc-500 truncate mt-0.5">
-                        {actorBirthplace}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-zinc-800/80 text-xs text-zinc-400">
-                  <div className="text-[10px] font-semibold text-zinc-500 uppercase">
-                    Assigned Movies
-                  </div>
-                  <div className="text-zinc-200 mt-0.5 font-medium">
-                    {actorMovieTitle || 'None specified yet'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
