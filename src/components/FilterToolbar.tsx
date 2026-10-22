@@ -106,13 +106,14 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
 
           {/* Categories on the right */}
           <div className="flex items-center gap-1 bg-[#121520] border border-zinc-800 rounded-xl px-2 sm:px-2.5 py-1.5 shrink-0 ml-auto">
-            <span className="text-[10px] text-zinc-500 font-medium">Genre:</span>
+            <span className="text-[10px] text-zinc-500 font-medium">Filter:</span>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer max-w-[85px] sm:max-w-none"
             >
               <option value="All" className="bg-[#121520]">All</option>
+              <option value="__favorites__" className="bg-[#121520]">Favorites</option>
               {genreOptions.map((genre) => (
                 <option key={genre} value={genre} className="bg-[#121520]">{genre}</option>
               ))}

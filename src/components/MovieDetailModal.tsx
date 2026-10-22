@@ -7,6 +7,7 @@ import {
   Calendar,
   Clock,
   HardDrive,
+  Star,
   Edit3,
   Save,
   Undo2
@@ -51,6 +52,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const [editBackdropUrl, setEditBackdropUrl] = useState('');
   const [editActors, setEditActors] = useState<string[]>([]);
   const [editCastCount, setEditCastCount] = useState('');
+  const [editFavorite, setEditFavorite] = useState(false);
   const [newActor, setNewActor] = useState('');
   const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
 
@@ -137,6 +139,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditBackdropUrl(movie.backdropUrl || '');
       setEditActors([...movie.actors]);
       setEditCastCount(movie.castCount === undefined ? '' : String(movie.castCount));
+      setEditFavorite(movie.favorite === true);
       setNewActor('');
       setIsEditing(false);
       setEditSavedToast(null);
@@ -169,6 +172,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       backdropUrl: getImageSource(editBackdropUrl.trim()),
       actors: editActors.length > 0 ? editActors : ['Cast'],
       castCount: editCastCount.trim() === '' ? undefined : Number(editCastCount),
+      favorite: editFavorite,
     };
 
     onUpdateMovie(updated);
@@ -298,6 +302,17 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     required
                   />
                 </div>
+
+                <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={editFavorite}
+                    onChange={(e) => setEditFavorite(e.target.checked)}
+                    className="h-4 w-4 accent-amber-400"
+                  />
+                  <Star className={`h-4 w-4 ${editFavorite ? 'fill-amber-400 text-amber-400' : 'text-zinc-500'}`} />
+                  Favorite
+                </label>
 
                 {/* Genres */}
                 <div>
@@ -493,6 +508,12 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-tight truncate">
                     {movie.title}
                   </h2>
+                  {movie.favorite && (
+                    <div className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-amber-400">
+                      <Star className="h-3.5 w-3.5 fill-current" />
+                      Favorite
+                    </div>
+                  )}
 
                   {/* Rearranged Details */}
                   <div className="mt-4 grid grid-cols-2 gap-2 text-xs">

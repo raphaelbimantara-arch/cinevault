@@ -12,6 +12,7 @@ export interface Movie {
   backdropUrl?: string;
   actors: string[];
   castCount?: number;
+  favorite?: boolean;
   addedDate?: string;
 }
 

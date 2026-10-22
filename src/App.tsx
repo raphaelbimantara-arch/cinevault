@@ -490,9 +490,11 @@ export default function App() {
 
     // 1. Filter by category
     if (selectedCategory !== 'All') {
-      result = result.filter(
-        (m) => getMovieGenres(m.genre).some((genre) => genre.toLowerCase() === selectedCategory.toLowerCase())
-      );
+      result = selectedCategory === '__favorites__'
+        ? result.filter((movie) => movie.favorite === true)
+        : result.filter(
+            (movie) => getMovieGenres(movie.genre).some((genre) => genre.toLowerCase() === selectedCategory.toLowerCase())
+          );
     }
 
     // 2. Filter by Alphabet (supports multiple letters)
