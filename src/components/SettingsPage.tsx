@@ -56,6 +56,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [isProcessingCsv, setIsProcessingCsv] = useState(false);
   const [showPasteArea, setShowPasteArea] = useState(false);
   const [pastedText, setPastedText] = useState('');
+  const [autoImportEnabled, setAutoImportEnabled] = useState(false);
 
   // Auto-dismiss notification after 4s
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
@@ -311,6 +312,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800',
       ];
 
+      // Helper to normalize resolution format (720p -> 720p HD, 1080p -> 1080p HD)
+      const normalizeResolution = (res: string): string => {
+        const cleaned = res.trim().toLowerCase();
+        if (cleaned === '720p') return '720p HD';
+        if (cleaned === '1080p') return '1080p HD';
+        if (cleaned === '960p') return '960p HD';
+        return res || '1080p HD';
+      };
+
       for (let i = startRow; i < rows.length; i++) {
         const row = rows[i];
         if (!row || row.length === 0 || row.every((c) => !c || c.trim().length === 0)) {
@@ -369,19 +379,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           if (rawMinutes) hadEmptyField = true;
         }
 
-        // 6. Size
+        // 6. Size - handle comma as decimal separator (European format)
         let size = getCell(sizeIdx);
         if (!size) {
           size = '4.5 GB';
           hadEmptyField = true;
-        } else if (!/gb|mb|tb/i.test(size) && !isNaN(parseFloat(size))) {
-          size = `${parseFloat(size)} GB`;
+        } else {
+          // Replace comma with dot for decimal parsing
+          size = size.replace(',', '.');
+          if (!/gb|mb|tb/i.test(size) && !isNaN(parseFloat(size))) {
+            size = `${parseFloat(size)} GB`;
+          }
         }
 
-        // 7. Resolution
+        // 7. Resolution - normalize format (720p -> 720p HD, 1080p -> 1080p HD)
         let resolution = getCell(resolutionIdx);
         if (!resolution) {
           resolution = '1080p HD';
+        } else {
+          resolution = normalizeResolution(resolution);
         }
 
         // 8. Poster
@@ -394,7 +410,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         // 9. Backdrop
         const backdropUrl = getCell(backdropUrlIdx);
 
-        // 10. Actors
+        // 10. Actors - handle multiple separators: | , ;
         const rawActors = getCell(actorsIdx);
         let actors: string[] = [];
         if (rawActors) {
@@ -443,6 +459,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       setParsedMovies(parsedList);
       setParseErrors(errors);
       setParseNotes(notes);
+
+      // Auto-import if enabled and no errors
+      if (autoImportEnabled && errors.length === 0 && parsedList.length > 0) {
+        setTimeout(() => {
+          handleAutoImport();
+        }, 500);
+      }
     } catch (err) {
       console.error('CSV parse error:', err);
       setParseErrors(['Error processing CSV: ' + String(err)]);
@@ -469,6 +492,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       setIsProcessingCsv(false);
     };
     reader.readAsText(file);
+  };
+
+  // Auto-import after parsing (for user's convenience)
+  const handleAutoImport = () => {
+    if (parsedMovies.length === 0) {
+      showToast('error', 'No movie data ready to import.');
+      return;
+    }
+
+    onImportMovies(parsedMovies, importMode);
+    showToast(
+      'success',
+      importMode === 'merge'
+        ? `Successfully merged ${parsedMovies.length} movies from CSV!`
+        : `Successfully replaced library with ${parsedMovies.length} movies from CSV!`
+    );
+
+    setCsvFile(null);
+    setParsedMovies([]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleExecuteImport = () => {
@@ -920,7 +963,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               )}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-zinc-800/80">
+            <div className="mt-6 pt-4 border-t border-zinc-800/80 space-y-3">
+              {/* Auto-import toggle */}
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={autoImportEnabled}
+                  onChange={(e) => setAutoImportEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded bg-zinc-800 border-zinc-700 text-amber-400 focus:ring-amber-400/50 focus:ring-offset-0"
+                />
+                <span className="text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors">
+                  Auto-import immediately after upload (skip preview)
+                </span>
+              </label>
+
               <button
                 onClick={handleExecuteImport}
                 disabled={parsedMovies.length === 0 || isProcessingCsv}
