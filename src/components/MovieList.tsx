@@ -1,7 +1,6 @@
 import React from 'react';
-import { ChevronRight, Film } from 'lucide-react';
+import { Film } from 'lucide-react';
 import { Movie } from '../types';
-import { getImageSource } from '../utils/googleDriveImage';
 
 interface MovieListProps {
   movies: Movie[];
@@ -28,94 +27,52 @@ export const MovieList: React.FC<MovieListProps> = ({
 
   return (
     <div className="bg-[#121520] rounded-xl border border-zinc-800/80 overflow-hidden shadow-lg">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-[11px] sm:text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-zinc-800 bg-[#0d0f16]/90 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-              <th className="py-2 px-2 sm:px-4">Movie</th>
-              <th className="py-2 px-2 sm:px-4">Genre</th>
-              <th className="py-2 px-2 sm:px-4 hidden sm:table-cell">Studio</th>
-              <th className="py-2 px-2 sm:px-4">Year</th>
-              <th className="py-2 px-2 sm:px-4 hidden sm:table-cell">Minutes</th>
-              <th className="py-2 px-2 sm:px-4">Size</th>
-              <th className="py-2 px-2 sm:px-4 text-right">Det.</th>
+      <table className="w-full table-fixed text-left border-collapse">
+        <thead>
+          <tr className="border-b border-zinc-800 bg-[#0d0f16]/90 text-[8px] sm:text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">
+            <th className="w-[27%] py-2 px-1.5 sm:px-3">Title</th>
+            <th className="w-[9%] py-2 px-1 text-center">Year</th>
+            <th className="w-[14%] py-2 px-1 text-center">Size</th>
+            <th className="w-[10%] py-2 px-1 text-center">Min</th>
+            <th className="w-[19%] py-2 px-1 text-center">Resolution</th>
+            <th className="w-[21%] py-2 px-1.5 sm:px-3">Actor</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-800/60">
+          {movies.map((movie) => (
+            <tr
+              key={movie.id}
+              onClick={() => onSelectMovie(movie)}
+              className="group hover:bg-[#181d2c] transition-colors cursor-pointer"
+            >
+              <td className="py-2 px-1.5 sm:px-3">
+                <div className="truncate font-semibold text-[9px] sm:text-sm text-zinc-100 group-hover:text-amber-400 transition-colors" title={movie.title}>
+                  {movie.title}
+                </div>
+              </td>
+              <td className="py-2 px-1 text-center whitespace-nowrap font-mono text-[9px] sm:text-xs text-zinc-300">
+                {movie.year}
+              </td>
+              <td className="py-2 px-1 text-center whitespace-nowrap font-mono text-[9px] sm:text-xs text-zinc-300">
+                {movie.size}
+              </td>
+              <td className="py-2 px-1 text-center whitespace-nowrap font-mono text-[9px] sm:text-xs text-zinc-300">
+                {movie.minutes}m
+              </td>
+              <td className="py-2 px-1 text-center text-[8px] sm:text-xs text-zinc-300">
+                <span className="block truncate" title={movie.resolution || '—'}>
+                  {movie.resolution || '—'}
+                </span>
+              </td>
+              <td className="py-2 px-1.5 sm:px-3 text-[8px] sm:text-xs text-zinc-300">
+                <span className="block truncate" title={movie.actors.join(', ')}>
+                  {movie.actors.join(', ')}
+                </span>
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800/60">
-            {movies.map((movie) => {
-              return (
-                <tr
-                  key={movie.id}
-                  onClick={() => onSelectMovie(movie)}
-                  className="group hover:bg-[#181d2c] transition-colors cursor-pointer"
-                >
-                  {/* Poster & Title */}
-                  <td className="py-2 px-2 sm:px-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-12 rounded overflow-hidden bg-zinc-800 shrink-0 border border-zinc-700/50">
-                        <img
-                          src={getImageSource(movie.posterUrl)}
-                          alt={movie.title}
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-zinc-100 group-hover:text-amber-400 transition-colors truncate text-[11px] sm:text-sm">
-                          {movie.title}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Genre */}
-                  <td className="py-2 px-2 sm:px-4 whitespace-nowrap">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-800 text-zinc-300">
-                      {movie.genre}
-                    </span>
-                  </td>
-
-                  {/* Studio (Hidden on small mobile) */}
-                  <td className="py-2 px-2 sm:px-4 whitespace-nowrap hidden sm:table-cell text-zinc-300 text-xs">
-                    {movie.studio}
-                  </td>
-
-                  {/* Year */}
-                  <td className="py-2 px-2 sm:px-4 whitespace-nowrap font-mono text-[11px] text-zinc-300">
-                    {movie.year}
-                  </td>
-
-                  {/* Minutes (Hidden on small mobile) */}
-                  <td className="py-2 px-2 sm:px-4 whitespace-nowrap font-mono text-[11px] text-zinc-300 hidden sm:table-cell">
-                    {movie.minutes}m
-                  </td>
-
-                  {/* Size */}
-                  <td className="py-2 px-2 sm:px-4 whitespace-nowrap font-mono text-[11px] text-zinc-300">
-                    {movie.size}
-                  </td>
-
-                  {/* Action */}
-                  <td className="py-2 px-2 sm:px-4 whitespace-nowrap text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectMovie(movie);
-                      }}
-                      className="text-zinc-400 hover:text-white"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
