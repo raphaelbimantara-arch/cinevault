@@ -1,4 +1,7 @@
 const DEFAULT_ORIGIN = 'https://cinevault-delta-lake.vercel.app';
+const PREVIEW_ORIGINS = [
+  'https://cinevault-mdu67avr6-raphaelbimantara-5365.vercel.app',
+];
 
 function jsonResponse(value, status, headers) {
   return new Response(JSON.stringify(value), {
@@ -12,6 +15,7 @@ export default {
     const origin = request.headers.get('origin');
     const allowedOrigins = [
       DEFAULT_ORIGIN,
+      ...PREVIEW_ORIGINS,
       'http://localhost:5173',
       'https://localhost',
       'capacitor://localhost',
