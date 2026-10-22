@@ -1,19 +1,7 @@
-const CACHE_NAME = 'cinevault-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/icon.svg',
-  '/icon-192.png',
-  '/icon-512.png'
-];
+const CACHE_NAME = 'cinevault-v3';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
-  );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -35,37 +23,48 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse.clone());
-              });
-            }
-          })
-          .catch(() => {});
-        return cachedResponse;
-      }
-
-      return fetch(event.request)
+  // Network-first for navigation/HTML documents to ensure users always receive latest code
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request)
         .then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-            return networkResponse;
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
           return networkResponse;
         })
-        .catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('/');
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+    );
+    return;
+  }
+
+  // Network-first for scripts and styles to guarantee latest code updates
+  if (event.request.destination === 'script' || event.request.destination === 'style') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
-        });
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first for images/icons with network fallback
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return cached || fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return networkResponse;
+      }).catch(() => null);
     })
   );
 });

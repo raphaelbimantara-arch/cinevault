@@ -262,10 +262,16 @@ export default function App() {
 
         imported.forEach((m) => {
           const lowerTitle = m.title.toLowerCase().trim();
-          if (titleMap.has(lowerTitle)) {
+          if (m.id && existingMap.has(m.id)) {
+            // Update existing movie matching by ID
+            const existing = existingMap.get(m.id)!;
+            existingMap.set(m.id, { ...existing, ...m, id: m.id });
+          } else if (titleMap.has(lowerTitle)) {
+            // Update existing movie matching by Title
             const existing = titleMap.get(lowerTitle)!;
             existingMap.set(existing.id, { ...existing, ...m, id: existing.id });
           } else {
+            // Append as new movie
             existingMap.set(m.id, m);
           }
         });

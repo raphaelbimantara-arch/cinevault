@@ -54,6 +54,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [parseNotes, setParseNotes] = useState<string[]>([]);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const [isProcessingCsv, setIsProcessingCsv] = useState(false);
+  const [showPasteArea, setShowPasteArea] = useState(false);
+  const [pastedText, setPastedText] = useState('');
 
   // Auto-dismiss notification after 4s
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
@@ -145,11 +147,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   // 2. CSV IMPORT LOGIC
   // ----------------------------------------------------------------------
   const parseCsvText = (text: string): { rows: string[][]; delimiter: string } => {
-    // Strip UTF-8 BOM
-    const cleanText = text.replace(/^[\uFEFF\uFFFE]/, '');
+    // 1. Strip UTF-8 / UTF-16 BOM and null bytes
+    let cleanText = text.replace(/^[\uFEFF\uFFFE]/, '');
+    cleanText = cleanText.replace(/\0/g, '');
 
-    // Auto-detect delimiter from the first non-empty line
-    const firstLine = cleanText.split(/\r\n|\r|\n/).find((l) => l.trim().length > 0) || '';
+    // 2. Normalize all line breaks to \n
+    cleanText = cleanText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // 3. Auto-detect delimiter from the first non-empty line
+    const firstLine = cleanText.split('\n').find((l) => l.trim().length > 0) || '';
     const commaCount = (firstLine.match(/,/g) || []).length;
     const semiCount = (firstLine.match(/;/g) || []).length;
     const tabCount = (firstLine.match(/\t/g) || []).length;
@@ -183,10 +189,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       } else if (char === delimiter && !insideQuotes) {
         currentRow.push(currentCell.trim());
         currentCell = '';
-      } else if ((char === '\r' || char === '\n') && !insideQuotes) {
-        if (char === '\r' && nextChar === '\n') {
-          i++;
-        }
+      } else if (char === '\n' && !insideQuotes) {
         currentRow.push(currentCell.trim());
         if (currentRow.some((cell) => cell.length > 0)) {
           lines.push(currentRow);
@@ -208,219 +211,233 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return { rows: lines, delimiter };
   };
 
+  const processRawCsvText = (text: string, sourceName: string = 'CSV') => {
+    setParseErrors([]);
+    setParseNotes([]);
+    setIsProcessingCsv(true);
+
+    try {
+      if (!text || text.trim().length === 0) {
+        setParseErrors(['The CSV data is empty. Please select or paste a valid CSV file.']);
+        setParsedMovies([]);
+        return;
+      }
+
+      const { rows, delimiter } = parseCsvText(text);
+      if (rows.length < 1) {
+        setParseErrors(['No readable rows found in this CSV data.']);
+        setParsedMovies([]);
+        return;
+      }
+
+      // Clean row headers
+      const rawHeaders = rows[0].map((h) => h.toLowerCase().trim().replace(/^["']|["']$/g, ''));
+
+      const findIdx = (...synonyms: string[]) => {
+        for (const syn of synonyms) {
+          const cleanSyn = syn.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const idx = rawHeaders.findIndex((h) => {
+            const cleanH = h.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return cleanH === cleanSyn || cleanH.includes(cleanSyn);
+          });
+          if (idx !== -1) return idx;
+        }
+        return -1;
+      };
+
+      let titleIdx = findIdx('title', 'judul', 'movie', 'film', 'name', 'nama');
+      const genreIdx = findIdx('genre', 'kategori', 'category', 'genres');
+      const studioIdx = findIdx('studio', 'production', 'distributor', 'rumah produksi', 'studios');
+      const yearIdx = findIdx('year', 'tahun', 'release');
+      const minutesIdx = findIdx('minutes', 'duration', 'durasi', 'menit', 'runtime', 'length');
+      const sizeIdx = findIdx('size', 'ukuran', 'filesize', 'kapasitas');
+      const resolutionIdx = findIdx('resolution', 'resolusi', 'quality', 'kualitas', 'format');
+      const posterUrlIdx = findIdx('posterurl', 'poster', 'cover', 'gambar', 'image', 'photo', 'artwork');
+      const backdropUrlIdx = findIdx('backdropurl', 'backdrop', 'banner');
+      const actorsIdx = findIdx('actors', 'actor', 'aktor', 'cast', 'pemain', 'bintang');
+      const idIdx = findIdx('id', 'kode', 'code');
+      const addedDateIdx = findIdx('addeddate', 'added_date', 'date', 'tanggal');
+
+      // Check if row 0 looks like a header or actual data
+      const isHeaderRow = rawHeaders.some((h) => 
+        ['title', 'judul', 'movie', 'film', 'genre', 'studio', 'year', 'tahun', 'size', 'actors', 'actor', 'id'].some((key) => h.includes(key))
+      );
+
+      // If title column was not found by name:
+      // If row has an "id" column at index 0, title is likely at index 1!
+      if (titleIdx === -1) {
+        if (idIdx === 0 && rows[0].length > 1) {
+          titleIdx = 1;
+        } else {
+          titleIdx = 0;
+        }
+      }
+
+      const startRow = isHeaderRow ? 1 : 0;
+      const parsedList: Movie[] = [];
+      const errors: string[] = [];
+      const notes: string[] = [];
+      let autoFilledFieldsCount = 0;
+
+      const defaultPosters = [
+        'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800',
+        'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800',
+        'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800',
+        'https://images.unsplash.com/photo-1574267432553-4b4628081c31?w=800',
+        'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800',
+      ];
+
+      for (let i = startRow; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0 || row.every((c) => !c || c.trim().length === 0)) {
+          continue;
+        }
+
+        const getCell = (idx: number): string => {
+          if (idx === -1 || idx >= row.length) return '';
+          const val = row[idx]?.trim() || '';
+          if (/^(null|undefined|none|n\/a|-)$/i.test(val)) return '';
+          return val;
+        };
+
+        let hadEmptyField = false;
+
+        // 1. Title
+        let title = getCell(titleIdx);
+        if (!title) {
+          title = `Untitled Movie #${i + 1}`;
+          hadEmptyField = true;
+        }
+
+        // 2. Genre
+        let genre = getCell(genreIdx);
+        if (!genre) {
+          genre = 'Drama';
+          hadEmptyField = true;
+        }
+
+        // 3. Studio
+        let studio = getCell(studioIdx);
+        if (!studio) {
+          studio = 'Independent Studio';
+          hadEmptyField = true;
+        }
+
+        // 4. Year
+        const rawYear = getCell(yearIdx);
+        let yearVal = parseInt(rawYear.replace(/[^\d]/g, ''), 10);
+        if (isNaN(yearVal) || yearVal < 1888 || yearVal > 2100) {
+          yearVal = 2024;
+          if (rawYear) hadEmptyField = true;
+        }
+
+        // 5. Minutes
+        const rawMinutes = getCell(minutesIdx);
+        let minutesVal = parseInt(rawMinutes.replace(/[^\d]/g, ''), 10);
+        if (isNaN(minutesVal) || minutesVal <= 0) {
+          minutesVal = 115;
+          if (rawMinutes) hadEmptyField = true;
+        }
+
+        // 6. Size
+        let size = getCell(sizeIdx);
+        if (!size) {
+          size = '4.5 GB';
+          hadEmptyField = true;
+        } else if (!/gb|mb|tb/i.test(size) && !isNaN(parseFloat(size))) {
+          size = `${parseFloat(size)} GB`;
+        }
+
+        // 7. Resolution
+        let resolution = getCell(resolutionIdx);
+        if (!resolution) {
+          resolution = '1080p HD';
+        }
+
+        // 8. Poster
+        let posterUrl = getCell(posterUrlIdx);
+        if (!posterUrl || (!posterUrl.startsWith('http') && !posterUrl.startsWith('/') && !posterUrl.startsWith('data:'))) {
+          posterUrl = defaultPosters[i % defaultPosters.length];
+          hadEmptyField = true;
+        }
+
+        // 9. Backdrop
+        const backdropUrl = getCell(backdropUrlIdx);
+
+        // 10. Actors
+        const rawActors = getCell(actorsIdx);
+        let actors: string[] = [];
+        if (rawActors) {
+          actors = rawActors.split(/[|,;]/).map((a) => a.trim()).filter(Boolean);
+        }
+        if (actors.length === 0) {
+          actors = ['Cast'];
+        }
+
+        // 11. ID & Added Date
+        const id = getCell(idIdx) || `csv-${Date.now()}-${i}`;
+        const addedDate = getCell(addedDateIdx) || new Date().toISOString().split('T')[0];
+
+        // Compute size bytes
+        const sizeNum = parseFloat(size.replace(/[^\d.]/g, '')) || 4.5;
+        const isTB = /tb/i.test(size);
+        const sizeBytes = Math.round(sizeNum * (isTB ? 1000000 : 1000));
+
+        if (hadEmptyField) {
+          autoFilledFieldsCount++;
+        }
+
+        parsedList.push({
+          id,
+          title,
+          genre,
+          studio,
+          year: yearVal,
+          minutes: minutesVal,
+          size,
+          sizeBytes,
+          resolution,
+          posterUrl,
+          backdropUrl,
+          actors,
+          addedDate,
+        });
+      }
+
+      if (parsedList.length === 0) {
+        errors.push('No movie rows found in the CSV data. Please make sure the data contains movie records.');
+      } else if (autoFilledFieldsCount > 0) {
+        notes.push(`Notice: ${autoFilledFieldsCount} movie(s) had some blank fields (e.g. genre, studio, duration, or poster) which were safely filled with default values.`);
+      }
+
+      setParsedMovies(parsedList);
+      setParseErrors(errors);
+      setParseNotes(notes);
+    } catch (err) {
+      console.error('CSV parse error:', err);
+      setParseErrors(['Error processing CSV: ' + String(err)]);
+      setParsedMovies([]);
+    } finally {
+      setIsProcessingCsv(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setCsvFile(file);
-    setParseErrors([]);
-    setParseNotes([]);
     setIsProcessingCsv(true);
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      try {
-        const text = event.target?.result as string;
-        if (!text || text.trim().length === 0) {
-          setParseErrors(['The selected CSV file is empty. Please select a valid CSV file.']);
-          setIsProcessingCsv(false);
-          return;
-        }
-
-        const { rows } = parseCsvText(text);
-        if (rows.length < 1) {
-          setParseErrors(['No readable rows found in this CSV file.']);
-          setIsProcessingCsv(false);
-          return;
-        }
-
-        // Clean row headers
-        const rawHeaders = rows[0].map((h) => h.toLowerCase().trim().replace(/^["']|["']$/g, ''));
-
-        const findIdx = (...synonyms: string[]) => {
-          for (const syn of synonyms) {
-            const cleanSyn = syn.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const idx = rawHeaders.findIndex((h) => {
-              const cleanH = h.toLowerCase().replace(/[^a-z0-9]/g, '');
-              return cleanH === cleanSyn || cleanH.includes(cleanSyn);
-            });
-            if (idx !== -1) return idx;
-          }
-          return -1;
-        };
-
-        let titleIdx = findIdx('title', 'judul', 'movie', 'film', 'name', 'nama');
-        const genreIdx = findIdx('genre', 'kategori', 'category', 'genres');
-        const studioIdx = findIdx('studio', 'production', 'distributor', 'rumah produksi', 'studios');
-        const yearIdx = findIdx('year', 'tahun', 'release');
-        const minutesIdx = findIdx('minutes', 'duration', 'durasi', 'menit', 'runtime', 'length');
-        const sizeIdx = findIdx('size', 'ukuran', 'filesize', 'kapasitas');
-        const resolutionIdx = findIdx('resolution', 'resolusi', 'quality', 'kualitas', 'format');
-        const posterUrlIdx = findIdx('posterurl', 'poster', 'cover', 'gambar', 'image', 'photo', 'artwork');
-        const backdropUrlIdx = findIdx('backdropurl', 'backdrop', 'banner');
-        const actorsIdx = findIdx('actors', 'actor', 'aktor', 'cast', 'pemain', 'bintang');
-        const idIdx = findIdx('id', 'kode', 'code');
-        const addedDateIdx = findIdx('addeddate', 'added_date', 'date', 'tanggal');
-
-        // Check if row 0 looks like a header or actual data
-        const isHeaderRow = rawHeaders.some((h) => 
-          ['title', 'judul', 'movie', 'film', 'genre', 'studio', 'year', 'tahun', 'size', 'actors', 'actor'].some((key) => h.includes(key))
-        );
-
-        // If title column was not found by name, default to the first column (column 0)
-        if (titleIdx === -1) {
-          titleIdx = 0;
-        }
-
-        const startRow = isHeaderRow ? 1 : 0;
-        const parsedList: Movie[] = [];
-        const errors: string[] = [];
-        const notes: string[] = [];
-        let autoFilledFieldsCount = 0;
-
-        const defaultPosters = [
-          'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800',
-          'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800',
-          'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800',
-          'https://images.unsplash.com/photo-1574267432553-4b4628081c31?w=800',
-          'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800',
-        ];
-
-        for (let i = startRow; i < rows.length; i++) {
-          const row = rows[i];
-          // Skip completely empty lines
-          if (!row || row.length === 0 || row.every((c) => !c || c.trim().length === 0)) {
-            continue;
-          }
-
-          const getCell = (idx: number): string => {
-            if (idx === -1 || idx >= row.length) return '';
-            const val = row[idx]?.trim() || '';
-            if (/^(null|undefined|none|n\/a|-)$/i.test(val)) return '';
-            return val;
-          };
-
-          let hadEmptyField = false;
-
-          // 1. Title (if empty, provide fallback rather than crashing)
-          let title = getCell(titleIdx);
-          if (!title) {
-            title = `Untitled Movie #${i + 1}`;
-            hadEmptyField = true;
-          }
-
-          // 2. Genre (if empty, fallback to 'Drama')
-          let genre = getCell(genreIdx);
-          if (!genre) {
-            genre = 'Drama';
-            hadEmptyField = true;
-          }
-
-          // 3. Studio (if empty, fallback to 'Independent Studio')
-          let studio = getCell(studioIdx);
-          if (!studio) {
-            studio = 'Independent Studio';
-            hadEmptyField = true;
-          }
-
-          // 4. Year
-          const rawYear = getCell(yearIdx);
-          let yearVal = parseInt(rawYear.replace(/[^\d]/g, ''), 10);
-          if (isNaN(yearVal) || yearVal < 1888 || yearVal > 2100) {
-            yearVal = 2024;
-            if (rawYear) hadEmptyField = true;
-          }
-
-          // 5. Minutes
-          const rawMinutes = getCell(minutesIdx);
-          let minutesVal = parseInt(rawMinutes.replace(/[^\d]/g, ''), 10);
-          if (isNaN(minutesVal) || minutesVal <= 0) {
-            minutesVal = 115;
-            if (rawMinutes) hadEmptyField = true;
-          }
-
-          // 6. Size
-          let size = getCell(sizeIdx);
-          if (!size) {
-            size = '4.5 GB';
-            hadEmptyField = true;
-          } else if (!/gb|mb|tb/i.test(size) && !isNaN(parseFloat(size))) {
-            size = `${parseFloat(size)} GB`;
-          }
-
-          // 7. Resolution
-          let resolution = getCell(resolutionIdx);
-          if (!resolution) {
-            resolution = '1080p HD';
-          }
-
-          // 8. Poster
-          let posterUrl = getCell(posterUrlIdx);
-          if (!posterUrl || (!posterUrl.startsWith('http') && !posterUrl.startsWith('/') && !posterUrl.startsWith('data:'))) {
-            posterUrl = defaultPosters[i % defaultPosters.length];
-            hadEmptyField = true;
-          }
-
-          // 9. Backdrop
-          const backdropUrl = getCell(backdropUrlIdx);
-
-          // 10. Actors
-          const rawActors = getCell(actorsIdx);
-          let actors: string[] = [];
-          if (rawActors) {
-            actors = rawActors.split(/[|,;]/).map((a) => a.trim()).filter(Boolean);
-          }
-          if (actors.length === 0) {
-            actors = ['Cast'];
-          }
-
-          // 11. ID & Added Date
-          const id = getCell(idIdx) || `csv-${Date.now()}-${i}`;
-          const addedDate = getCell(addedDateIdx) || new Date().toISOString().split('T')[0];
-
-          // Compute size bytes
-          const sizeNum = parseFloat(size.replace(/[^\d.]/g, '')) || 4.5;
-          const isTB = /tb/i.test(size);
-          const sizeBytes = Math.round(sizeNum * (isTB ? 1000000 : 1000));
-
-          if (hadEmptyField) {
-            autoFilledFieldsCount++;
-          }
-
-          parsedList.push({
-            id,
-            title,
-            genre,
-            studio,
-            year: yearVal,
-            minutes: minutesVal,
-            size,
-            sizeBytes,
-            resolution,
-            posterUrl,
-            backdropUrl,
-            actors,
-            addedDate,
-          });
-        }
-
-        if (parsedList.length === 0) {
-          errors.push('No movie rows found in the CSV file. Please make sure the file contains movie records.');
-        } else if (autoFilledFieldsCount > 0) {
-          notes.push(`Notice: ${autoFilledFieldsCount} movie(s) had some blank fields (e.g., genre, studio, duration, or poster) which were automatically filled with default values.`);
-        }
-
-        setParsedMovies(parsedList);
-        setParseErrors(errors);
-        setParseNotes(notes);
-      } catch (err) {
-        console.error('CSV parse error:', err);
-        setParseErrors(['Error reading CSV file: ' + String(err)]);
-      } finally {
-        setIsProcessingCsv(false);
-      }
+      const text = event.target?.result as string;
+      processRawCsvText(text, file.name);
     };
-
+    reader.onerror = () => {
+      setParseErrors(['Unable to read the selected file. Please try pasting the CSV text directly.']);
+      setIsProcessingCsv(false);
+    };
     reader.readAsText(file);
   };
 
@@ -718,7 +735,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,text/csv"
+                  accept=".csv,text/csv,text/plain,application/vnd.ms-excel,text/comma-separated-values,application/csv,*"
+                  onClick={(e) => {
+                    (e.target as HTMLInputElement).value = '';
+                  }}
                   onChange={handleFileChange}
                   className="hidden"
                   id="csv-file-picker"
@@ -726,6 +746,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                 <label
                   htmlFor="csv-file-picker"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) {
+                      setCsvFile(file);
+                      setIsProcessingCsv(true);
+                      const reader = new FileReader();
+                      reader.onload = (ev) => processRawCsvText(ev.target?.result as string, file.name);
+                      reader.readAsText(file);
+                    }
+                  }}
                   className="border-2 border-dashed border-zinc-700 hover:border-amber-400 rounded-xl p-4 sm:p-5 flex flex-col items-center justify-center gap-2 text-center cursor-pointer transition-colors bg-zinc-900/40 hover:bg-zinc-900/80"
                 >
                   <FileSpreadsheet className="w-8 h-8 text-amber-400" />
@@ -734,10 +766,42 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       {csvFile ? csvFile.name : 'Choose or drop CSV file here'}
                     </span>
                     <p className="text-[11px] text-zinc-500 mt-0.5">
-                      {csvFile ? `${(csvFile.size / 1024).toFixed(1)} KB` : 'Supports title, genre, year, studio, and actors headers'}
+                      {csvFile ? `${(csvFile.size / 1024).toFixed(1)} KB` : 'Supports comma, semicolon, and tab CSV files'}
                     </p>
                   </div>
                 </label>
+
+                {/* Paste CSV toggle option */}
+                <div className="mt-2.5 flex items-center justify-between text-[11px]">
+                  <span className="text-zinc-500">Having trouble with files?</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPasteArea(!showPasteArea)}
+                    className="text-amber-400 hover:text-amber-300 font-semibold underline"
+                  >
+                    {showPasteArea ? 'Hide Paste Area' : 'Paste CSV Text Directly'}
+                  </button>
+                </div>
+
+                {showPasteArea && (
+                  <div className="mt-2.5 p-3 rounded-xl bg-zinc-900 border border-zinc-700 space-y-2">
+                    <textarea
+                      value={pastedText}
+                      onChange={(e) => setPastedText(e.target.value)}
+                      placeholder="Paste your CSV text rows here..."
+                      rows={4}
+                      className="w-full p-2 rounded-lg bg-black/60 border border-zinc-700 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => processRawCsvText(pastedText, 'Pasted CSV')}
+                      disabled={!pastedText.trim()}
+                      className="w-full py-2 px-3 rounded-lg bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 disabled:opacity-50 text-xs font-bold text-amber-300 transition-colors"
+                    >
+                      Process Pasted CSV Data
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Mode Selection */}
@@ -755,8 +819,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                         : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
-                    <div className="font-bold">Merge</div>
-                    <div className="text-[10px] text-zinc-500 mt-0.5">Append new movies without deleting current data</div>
+                    <div className="font-bold">Merge / Update</div>
+                    <div className="text-[10px] text-zinc-500 mt-0.5">Update existing movies and add new titles</div>
                   </button>
 
                   <button
@@ -792,14 +856,36 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </div>
               )}
 
-              {/* Success parse summary */}
+              {/* Success parse summary with mini preview list */}
               {parsedMovies.length > 0 && (
-                <div className="mt-3 p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span className="truncate">Detected <strong>{parsedMovies.length} valid movies</strong> from CSV.</span>
+                <div className="mt-3 p-3.5 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-300 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-emerald-200">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>Ready to Import: {parsedMovies.length} Movies</span>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                      {importMode === 'merge' ? 'Merge / Update' : 'Replace All'}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-mono text-emerald-400 shrink-0">Ready</span>
+
+                  {/* Mini preview list of parsed movies */}
+                  <div className="bg-black/50 rounded-lg p-2.5 space-y-1.5 font-mono text-[11px] text-zinc-300 max-h-32 overflow-y-auto border border-emerald-500/20">
+                    {parsedMovies.slice(0, 5).map((m, idx) => (
+                      <div key={idx} className="truncate flex items-center gap-2">
+                        <span className="text-amber-400">#{idx + 1}</span>
+                        <span className="text-white font-semibold truncate">{m.title}</span>
+                        <span className="text-zinc-500">({m.year})</span>
+                        <span className="text-zinc-400 text-[10px]">· {m.genre}</span>
+                        <span className="text-zinc-500 text-[10px]">· {m.size}</span>
+                      </div>
+                    ))}
+                    {parsedMovies.length > 5 && (
+                      <div className="text-[10px] text-zinc-500 pt-1 italic">
+                        ... and {parsedMovies.length - 5} more movies
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
