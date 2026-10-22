@@ -26,7 +26,6 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   const [editName, setEditName] = useState('');
   const [editDob, setEditDob] = useState('');
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
-  const [editBirthplace, setEditBirthplace] = useState('');
   const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
 
   // Sync edit fields when actor changes
@@ -36,7 +35,6 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
       setEditName(actorName);
       setEditDob(p.dob);
       setEditPhotoUrl(p.photoUrl);
-      setEditBirthplace(p.birthplace ?? '');
       setIsEditing(false);
       setEditSavedToast(null);
     }
@@ -92,7 +90,6 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     setEditName(actorName);
     setEditDob(profile.dob);
     setEditPhotoUrl(profile.photoUrl);
-    setEditBirthplace(profile.birthplace ?? '');
     setEditSavedToast(null);
     setIsEditing(true);
   };
@@ -116,7 +113,6 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
       name: trimmedName,
       dob: editDob.trim() || profile.dob,
       photoUrl: editPhotoUrl.trim(),
-      birthplace: editBirthplace.trim() || undefined,
     };
     onUpdateActor(actorName, updated);
     setIsEditing(false);
@@ -242,18 +238,6 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                       />
                     </div>
 
-                    {/* Birthplace */}
-                    <div>
-                      <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Birthplace</label>
-                      <input
-                        type="text"
-                        value={editBirthplace}
-                        onChange={(e) => setEditBirthplace(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                        placeholder="e.g. Los Angeles, California, USA"
-                      />
-                    </div>
-
                     {/* Save / Cancel buttons */}
                     <div className="flex items-center gap-2 pt-1">
                       <button
@@ -283,7 +267,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                       {actorName}
                     </h2>
 
-                    {/* Badges: Date of Birth, Birthplace, Total Size, Total Duration */}
+                    {/* Badges: Date of Birth, Total Size, Total Duration */}
                     <div className="mt-3.5 flex flex-wrap gap-2 justify-center sm:justify-start">
                       {/* DATE OF BIRTH */}
                       <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
@@ -293,17 +277,6 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                           {profile.dob}
                         </span>
                       </div>
-
-                      {/* BIRTHPLACE (if available) */}
-                      {profile.birthplace && (
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
-                          <User className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                          <span className="text-zinc-400">Birthplace:</span>
-                          <span className="font-semibold text-zinc-100 font-mono">
-                            {profile.birthplace}
-                          </span>
-                        </div>
-                      )}
 
                       {/* TOTAL SIZE */}
                       <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
