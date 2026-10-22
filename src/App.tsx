@@ -1,0 +1,602 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { Navbar } from './components/Navbar';
+import { BottomNav } from './components/BottomNav';
+import { FilterToolbar } from './components/FilterToolbar';
+import { MovieGrid } from './components/MovieGrid';
+import { MovieList } from './components/MovieList';
+import { MovieCoverGrid } from './components/MovieCoverGrid';
+import { MovieDetailModal } from './components/MovieDetailModal';
+import { ActorDetailModal } from './components/ActorDetailModal';
+import { StudioDetailModal } from './components/StudioDetailModal';
+import { ActorsPage } from './components/ActorsPage';
+import { StudiosPage } from './components/StudiosPage';
+import { AddMoviePage } from './components/AddMoviePage';
+import { SettingsPage } from './components/SettingsPage';
+import { INITIAL_MOVIES } from './data/initialMovies';
+import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
+import { RotateCcw } from 'lucide-react';
+
+const STORAGE_KEY = 'cinevault_movies_library_v2';
+
+export default function App() {
+  // Load movies from localStorage or initial sample
+  const [movies, setMovies] = useState<Movie[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Error loading stored movies:', e);
+    }
+    return INITIAL_MOVIES;
+  });
+
+  // Save to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(movies));
+    } catch (e) {
+      console.error('Failed to save movies:', e);
+    }
+  }, [movies]);
+
+  // Active page for bottom navigation
+  const [activePage, setActivePage] = useState<ActivePage>('library');
+
+  // Contextual Add tab: 'movie' | 'actor' | 'studio'
+  const [addTab, setAddTab] = useState<'movie' | 'actor' | 'studio'>('movie');
+
+  // Selected movie for detail modal
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+
+  // Selected actor for actor detail modal
+  const [selectedActorName, setSelectedActorName] = useState<string | null>(null);
+
+  // Selected studio for studio detail modal
+  const [selectedStudioName, setSelectedStudioName] = useState<string | null>(null);
+
+  // Navigation handler that keeps bottom menu responsive and closes modals when switching tabs
+  const handleNavigatePage = (page: ActivePage) => {
+    setSelectedMovie(null);
+    setSelectedActorName(null);
+    setSelectedStudioName(null);
+    setActivePage(page);
+  };
+
+  const handleTriggerAdd = (tab: 'movie' | 'actor' | 'studio' = 'movie') => {
+    setSelectedMovie(null);
+    setSelectedActorName(null);
+    setSelectedStudioName(null);
+    setAddTab(tab);
+    setActivePage('add');
+  };
+
+  // View mode: 'grid' or 'list'
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  // Short menu: category
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+
+  // Alphabet multi-select filter
+  const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
+
+  const handleToggleAlphabet = (char: string) => {
+    if (char === 'All') {
+      setSelectedAlphabets(['All']);
+      return;
+    }
+    setSelectedAlphabets((prev) => {
+      const isAll = prev.includes('All');
+      if (isAll) {
+        return [char];
+      }
+      if (prev.includes(char)) {
+        const next = prev.filter((c) => c !== char);
+        return next.length === 0 ? ['All'] : next;
+      }
+      return [...prev, char];
+    });
+  };
+
+  // Search query
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Sort option: Alphabetical A-Z by default as requested!
+  const [sortBy, setSortBy] = useState<SortOption>('alphabet-asc');
+
+  // Active detail filter (when user clicks genre, studio, year, minutes, or size)
+  const [activeMetadataFilter, setActiveMetadataFilter] = useState<ActiveFilter | null>(null);
+
+
+  // Compute unique actors count
+  const actorsCount = useMemo(() => {
+    const set = new Set<string>();
+    movies.forEach((m) => m.actors.forEach((a) => set.add(a.trim())));
+    return set.size;
+  }, [movies]);
+
+  // Compute unique studios count
+  const studiosCount = useMemo(() => {
+    const set = new Set<string>();
+    movies.forEach((m) => set.add(m.studio.trim()));
+    return set.size;
+  }, [movies]);
+
+  /**
+   * CORE INTERACTION HANDLER:
+   * "and if i clik genre, studio, year, minutes, size, it show the library with list or grid view,
+   *  and short menu with all categories with aplphabet as default."
+   */
+  const handleFilterByAttribute = (
+    type: 'genre' | 'studio' | 'year' | 'minutes' | 'size',
+    value: string | number
+  ) => {
+    // 1. Close detail modal so library is immediately shown
+    setSelectedMovie(null);
+
+    // 2. Navigate directly to the library view
+    setActivePage('library');
+
+    // 3. Set sorting to Alphabetical (A-Z) by default!
+    setSortBy('alphabet-asc');
+
+    // 4. Reset alphabet & search query to clear conflicting narrow constraints
+    setSelectedAlphabets(['All']);
+    setSearchQuery('');
+
+    // 5. Apply the specific filter
+    if (type === 'genre') {
+      const genreVal = String(value);
+      setSelectedCategory(genreVal);
+      setActiveMetadataFilter({
+        type: 'genre',
+        label: 'Genre',
+        value: genreVal,
+      });
+    } else if (type === 'studio') {
+      setSelectedCategory('All');
+      setActiveMetadataFilter({
+        type: 'studio',
+        label: 'Studio',
+        value: String(value),
+      });
+    } else if (type === 'year') {
+      setSelectedCategory('All');
+      setActiveMetadataFilter({
+        type: 'year',
+        label: 'Release Year',
+        value: Number(value),
+      });
+    } else if (type === 'minutes') {
+      setSelectedCategory('All');
+      const targetMins = Number(value);
+      setActiveMetadataFilter({
+        type: 'minutes',
+        label: 'Duration Bracket',
+        value: `${targetMins} min (±20m)`,
+      });
+    } else if (type === 'size') {
+      setSelectedCategory('All');
+      const sizeStr = String(value);
+      setActiveMetadataFilter({
+        type: 'size',
+        label: 'File Size',
+        value: sizeStr,
+      });
+    }
+  };
+
+  // Quick handler to filter catalog by actor from Actors Page or Modal
+  const handleFilterByActor = (actorName: string) => {
+    setSelectedMovie(null);
+    setActivePage('library');
+    setSortBy('alphabet-asc');
+    setSelectedAlphabets(['All']);
+    setSelectedCategory('All');
+    setActiveMetadataFilter({
+      type: 'actor',
+      label: 'Starring Actor',
+      value: actorName,
+    });
+  };
+
+  // Quick handler to filter catalog by studio from Studios Page
+  const handleFilterByStudio = (studioName: string) => {
+    handleFilterByAttribute('studio', studioName);
+  };
+
+  // Clear metadata filter
+  const handleClearMetadataFilter = () => {
+    setActiveMetadataFilter(null);
+  };
+
+  // Add new movie handler
+  const handleAddMovie = (newMovie: Movie) => {
+    setMovies((prev) => [newMovie, ...prev]);
+    // Navigate to library view with default alphabetical sort
+    setActivePage('library');
+    setSortBy('alphabet-asc');
+    setActiveMetadataFilter(null);
+  };
+
+  // Delete movie handler
+  const handleDeleteMovie = (id: string) => {
+    setMovies((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  // Bulk delete movies (for duplicate finder cleanup)
+  const handleBulkDeleteMovies = (movieIds: string[]) => {
+    const idSet = new Set(movieIds);
+    setMovies((prev) => prev.filter((m) => !idSet.has(m.id)));
+  };
+
+  // Update movie genre (from online internet search)
+  const handleUpdateMovieGenre = (movieId: string, newGenre: string) => {
+    setMovies((prev) =>
+      prev.map((m) => (m.id === movieId ? { ...m, genre: newGenre } : m))
+    );
+    setSelectedMovie((prev) =>
+      prev && prev.id === movieId ? { ...prev, genre: newGenre } : prev
+    );
+  };
+
+  // Import movies from CSV handler
+  const handleImportMovies = (imported: Movie[], mode: 'merge' | 'replace') => {
+    if (mode === 'replace') {
+      setMovies(imported);
+    } else {
+      setMovies((prev) => {
+        const existingMap = new Map<string, Movie>();
+        prev.forEach((m) => existingMap.set(m.id, m));
+        const titleMap = new Map<string, Movie>();
+        prev.forEach((m) => titleMap.set(m.title.toLowerCase().trim(), m));
+
+        imported.forEach((m) => {
+          const lowerTitle = m.title.toLowerCase().trim();
+          if (titleMap.has(lowerTitle)) {
+            const existing = titleMap.get(lowerTitle)!;
+            existingMap.set(existing.id, { ...existing, ...m, id: existing.id });
+          } else {
+            existingMap.set(m.id, m);
+          }
+        });
+
+        return Array.from(existingMap.values());
+      });
+    }
+  };
+
+  // Reset to default initial catalog
+  const handleResetCatalog = () => {
+    if (window.confirm('Reset movie catalog to original default library?')) {
+      setMovies(INITIAL_MOVIES);
+      localStorage.removeItem(STORAGE_KEY);
+      setActiveMetadataFilter(null);
+      setSelectedCategory('All');
+      setSelectedAlphabets(['All']);
+      setSearchQuery('');
+      setSortBy('alphabet-asc');
+    }
+  };
+
+  // Filter and sort movies pipeline
+  const filteredAndSortedMovies = useMemo(() => {
+    let result = [...movies];
+
+    // 1. Filter by category
+    if (selectedCategory !== 'All') {
+      result = result.filter(
+        (m) => m.genre.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    // 2. Filter by Alphabet (supports multiple letters)
+    if (!selectedAlphabets.includes('All') && selectedAlphabets.length > 0) {
+      result = result.filter((m) => {
+        return selectedAlphabets.some((char) => {
+          if (char === '#') {
+            return !/^[a-zA-Z]/i.test(m.title);
+          }
+          return m.title.toUpperCase().startsWith(char.toUpperCase());
+        });
+      });
+    }
+
+    // 3. Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (m) =>
+          m.title.toLowerCase().includes(q) ||
+          m.genre.toLowerCase().includes(q) ||
+          m.studio.toLowerCase().includes(q) ||
+          m.actors.some((a) => a.toLowerCase().includes(q)) ||
+          String(m.year).includes(q)
+      );
+    }
+
+    // 4. Filter by active metadata filter
+    if (activeMetadataFilter) {
+      const { type, value } = activeMetadataFilter;
+      if (type === 'genre') {
+        result = result.filter(
+          (m) => m.genre.toLowerCase() === String(value).toLowerCase()
+        );
+      } else if (type === 'studio') {
+        result = result.filter(
+          (m) => m.studio.toLowerCase() === String(value).toLowerCase()
+        );
+      } else if (type === 'year') {
+        result = result.filter((m) => m.year === Number(value));
+      } else if (type === 'minutes') {
+        // e.g. "128 min (±20m)" -> extract target number
+        const target = parseInt(String(value), 10);
+        if (!isNaN(target)) {
+          result = result.filter(
+            (m) => m.minutes >= target - 20 && m.minutes <= target + 20
+          );
+        }
+      } else if (type === 'size') {
+        const valStr = String(value);
+        const parsedValMB = parseFloat(valStr) * (valStr.includes('TB') ? 1000000 : 1000);
+        // Match movies with similar size range (+- 40%) or matching string tier
+        result = result.filter((m) => {
+          if (m.size === valStr) return true;
+          if (m.sizeBytes && parsedValMB) {
+            return (
+              m.sizeBytes >= parsedValMB * 0.6 &&
+              m.sizeBytes <= parsedValMB * 1.5
+            );
+          }
+          return m.size.toLowerCase().includes(valStr.toLowerCase());
+        });
+      } else if (type === 'actor') {
+        result = result.filter((m) =>
+          m.actors.some(
+            (a) => a.toLowerCase() === String(value).toLowerCase()
+          )
+        );
+      }
+    }
+
+    // 5. Sort movies (Alphabetical A-Z by default)
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'alphabet-asc':
+          return a.title.localeCompare(b.title, undefined, { numeric: true });
+        case 'alphabet-desc':
+          return b.title.localeCompare(a.title, undefined, { numeric: true });
+        case 'year-desc':
+          return b.year - a.year;
+        case 'year-asc':
+          return a.year - b.year;
+        case 'minutes-desc':
+          return b.minutes - a.minutes;
+        case 'minutes-asc':
+          return a.minutes - b.minutes;
+        case 'size-desc':
+          return (b.sizeBytes || 0) - (a.sizeBytes || 0);
+        case 'size-asc':
+          return (a.sizeBytes || 0) - (b.sizeBytes || 0);
+        case 'studio-asc':
+          return a.studio.localeCompare(b.studio);
+        case 'studio-desc':
+          return b.studio.localeCompare(a.studio);
+        case 'actor-asc':
+          return (a.actors[0] || '').localeCompare(b.actors[0] || '');
+        case 'actor-desc':
+          return (b.actors[0] || '').localeCompare(a.actors[0] || '');
+        case 'quality-desc':
+          return (b.resolution || '').localeCompare(a.resolution || '');
+        case 'quality-asc':
+          return (a.resolution || '').localeCompare(b.resolution || '');
+        default:
+          return a.title.localeCompare(b.title);
+      }
+    });
+
+    return result;
+  }, [
+    movies,
+    selectedCategory,
+    selectedAlphabets,
+    searchQuery,
+    activeMetadataFilter,
+    sortBy,
+  ]);
+
+  // Check if any filter is active
+  const isFiltered =
+    selectedCategory !== 'All' ||
+    (!selectedAlphabets.includes('All') && selectedAlphabets.length > 0) ||
+    searchQuery.trim() !== '' ||
+    activeMetadataFilter !== null ||
+    filteredAndSortedMovies.length !== movies.length;
+
+  return (
+    <div className="min-h-screen bg-[#08090d] text-zinc-100 flex flex-col font-sans pb-24 selection:bg-amber-400 selection:text-black w-full max-w-full overflow-x-hidden">
+      {/* Top Bar Header */}
+      <Navbar
+        activePage={activePage}
+        setActivePage={handleNavigatePage}
+        movies={movies}
+        filteredMovies={filteredAndSortedMovies}
+        isFiltered={isFiltered}
+        onTriggerAdd={handleTriggerAdd}
+      />
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
+        {activePage === 'library' && (
+          <div className="space-y-6">
+            {/* Short menu with all categories, Alphabet bar, Search, Sort, View Toggle */}
+            <FilterToolbar
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              selectedAlphabets={selectedAlphabets}
+              onToggleAlphabet={handleToggleAlphabet}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              activeMetadataFilter={activeMetadataFilter}
+              clearActiveMetadataFilter={handleClearMetadataFilter}
+              totalFilteredCount={filteredAndSortedMovies.length}
+              totalCatalogCount={movies.length}
+            />
+
+            {/* Movies Display: Grid or List or Cover View */}
+            {viewMode === 'grid' ? (
+              <MovieGrid
+                movies={filteredAndSortedMovies}
+                onSelectMovie={setSelectedMovie}
+                onFilterByAttribute={handleFilterByAttribute}
+              />
+            ) : viewMode === 'list' ? (
+              <MovieList
+                movies={filteredAndSortedMovies}
+                onSelectMovie={setSelectedMovie}
+                onFilterByAttribute={handleFilterByAttribute}
+              />
+            ) : (
+              <MovieCoverGrid
+                movies={filteredAndSortedMovies}
+                onSelectMovie={setSelectedMovie}
+                onFilterByAttribute={handleFilterByAttribute}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Page 2: Actors */}
+        {activePage === 'actors' && (
+          <ActorsPage
+            movies={movies}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            onSelectMovie={setSelectedMovie}
+            onFilterByActor={handleFilterByActor}
+            onOpenActorDetail={(name) => setSelectedActorName(name)}
+            onTriggerAddActor={() => handleTriggerAdd('actor')}
+          />
+        )}
+
+        {/* Page 3: Studios */}
+        {activePage === 'studios' && (
+          <StudiosPage
+            movies={movies}
+            onSelectMovie={setSelectedMovie}
+            onFilterByStudio={handleFilterByStudio}
+            onOpenStudioDetail={(name) => setSelectedStudioName(name)}
+            onTriggerAddStudio={() => handleTriggerAdd('studio')}
+          />
+        )}
+
+        {/* Page 4: Add Movies / Actors / Studios Data */}
+        {activePage === 'add' && (
+          <AddMoviePage
+            initialTab={addTab}
+            existingMovies={movies}
+            onAddMovie={handleAddMovie}
+            onAddActorSuccess={(actorName) => {
+              setSelectedActorName(actorName);
+              setActivePage('actors');
+            }}
+            onAddStudioSuccess={(studioName) => {
+              handleFilterByAttribute('studio', studioName);
+            }}
+            onCancel={() => setActivePage('library')}
+          />
+        )}
+
+        {/* Page 5: Settings (CSV Export/Import & Cari Data Kembar) */}
+        {activePage === 'settings' && (
+          <SettingsPage
+            movies={movies}
+            onImportMovies={handleImportMovies}
+            onDeleteMovie={handleDeleteMovie}
+            onBulkDeleteMovies={handleBulkDeleteMovies}
+            onResetCatalog={handleResetCatalog}
+            onSelectMovie={setSelectedMovie}
+          />
+        )}
+      </main>
+
+      {/* Movie Detail Modal (Shows Genre, Studio, Year, Minutes, Size with interactive filtering) */}
+      <MovieDetailModal
+        movie={selectedMovie}
+        onClose={() => setSelectedMovie(null)}
+        onFilterByAttribute={handleFilterByAttribute}
+        onSelectActor={(actorName) => setSelectedActorName(actorName)}
+        onDeleteMovie={handleDeleteMovie}
+        onUpdateMovieGenre={handleUpdateMovieGenre}
+      />
+
+      {/* Actor Detail Modal (Shows Picture, Date of Birth, and Movies Title) */}
+      <ActorDetailModal
+        actorName={selectedActorName}
+        movies={movies}
+        onClose={() => setSelectedActorName(null)}
+        onSelectMovie={(movie) => {
+          setSelectedActorName(null);
+          setSelectedMovie(movie);
+        }}
+      />
+
+      {/* Studio Detail Modal (Shows Monogram, Headquarters, Founded, Filmography) */}
+      <StudioDetailModal
+        studioName={selectedStudioName}
+        movies={movies}
+        onClose={() => setSelectedStudioName(null)}
+        onSelectMovie={(movie) => {
+          setSelectedStudioName(null);
+          setSelectedMovie(movie);
+        }}
+        onFilterByStudio={(studio) => {
+          setSelectedStudioName(null);
+          handleFilterByStudio(studio);
+        }}
+      />
+
+      {/* Footer info & Reset option */}
+      <footer className="mt-auto py-6 border-t border-zinc-800/60 text-center text-xs text-zinc-500">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span>CineVault Dark Movie Catalog</span>
+            <span aria-hidden="true">·</span>
+            <span>{movies.length} Master titles in library</span>
+          </div>
+
+          <button
+            onClick={handleResetCatalog}
+            className="flex items-center gap-1.5 text-zinc-400 hover:text-amber-400 transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Demo Library</span>
+          </button>
+        </div>
+      </footer>
+
+      {/* Bottom Navigation for Movie Library, Actors, Studio, Add Movies Data */}
+      <BottomNav
+        activePage={activePage}
+        setActivePage={handleNavigatePage}
+        moviesCount={movies.length}
+        actorsCount={actorsCount}
+        studiosCount={studiosCount}
+        onTriggerAdd={handleTriggerAdd}
+      />
+    </div>
+  );
+}
