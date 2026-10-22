@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, HardDrive, Building2, Calendar, Film } from 'lucide-react';
+import { Building2, Calendar, Film } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
@@ -89,35 +89,11 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               />
               {/* Fallback box */}
               <div 
-                className="hidden absolute inset-0 bg-gradient-to-br from-zinc-800 via-zinc-900 to-black p-4 flex-col justify-end text-left"
+                className="hidden absolute inset-0 bg-gradient-to-br from-zinc-800 via-zinc-900 to-black items-center justify-center"
               >
-                <Film className="w-8 h-8 text-amber-400 mb-2" />
-                <span className="text-xs font-bold text-white line-clamp-2">{movie.title}</span>
-                <span className="text-[10px] text-zinc-400 mt-1">{movie.year} · {movie.genre}</span>
+                <Film className="w-8 h-8 text-amber-400" />
               </div>
 
-              {/* Scrim overlay with quick info on hover */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-70 group-hover:opacity-90 transition-opacity" />
-
-
-              {/* Resolution badge top-left */}
-              {movie.resolution && (
-                <div className="absolute top-2 left-2 bg-zinc-900/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider text-zinc-300 border border-zinc-700">
-                  {movie.resolution}
-                </div>
-              )}
-
-              {/* Bottom poster overlay info */}
-              <div className="absolute bottom-2 inset-x-2 flex items-center justify-between text-[11px] text-zinc-300 font-mono">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-zinc-400" />
-                  {movie.minutes}m
-                </span>
-                <span className="flex items-center gap-1">
-                  <HardDrive className="w-3 h-3 text-zinc-400" />
-                  {movie.size}
-                </span>
-              </div>
             </div>
 
             {/* Card Content & Interactive Metadata Links */}

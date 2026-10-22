@@ -89,6 +89,17 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     return [...actors.values()].sort((a, b) => a.localeCompare(b));
   }, [movies]);
 
+  const resolutionOptions = useMemo(() => {
+    const resolutions = new Map<string, string>();
+    ['720p HD', '960p HD', '1080p HD', ...movies.map((item) => item.resolution || '')].forEach((resolution) => {
+      const trimmed = resolution.trim();
+      if (trimmed && !resolutions.has(trimmed.toLowerCase())) {
+        resolutions.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+    return [...resolutions.values()].sort((a, b) => a.localeCompare(b));
+  }, [movies]);
+
   const toggleGenre = (genre: string) => {
     setEditGenres((current) =>
       current.some((item) => item.toLowerCase() === genre.toLowerCase())
@@ -377,13 +388,17 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   </div>
                   <div>
                     <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Resolution</label>
-                    <input
-                      type="text"
+                    <select
                       value={editResolution}
                       onChange={(e) => setEditResolution(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                      placeholder="e.g. 1080p HD"
-                    />
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white focus:outline-none focus:border-amber-400/60 transition-colors"
+                    >
+                      {resolutionOptions.map((resolution) => (
+                        <option key={resolution} value={resolution} className="bg-[#121520]">
+                          {resolution}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
