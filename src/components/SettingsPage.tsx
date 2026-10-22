@@ -98,7 +98,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         'posterUrl',
         'backdropUrl',
         'actors',
-        'addedDate'
+        'addedDate',
+        'castCount'
       ];
 
       const escapeCsvCell = (val: unknown): string => {
@@ -122,7 +123,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         escapeCsvCell(m.posterUrl),
         escapeCsvCell(m.backdropUrl || ''),
         escapeCsvCell(m.actors.join(' | ')),
-        escapeCsvCell(m.addedDate || new Date().toISOString().split('T')[0])
+        escapeCsvCell(m.addedDate || new Date().toISOString().split('T')[0]),
+        escapeCsvCell(m.castCount ?? '')
       ]);
 
       const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
@@ -145,8 +147,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   };
 
   const handleDownloadSampleCsv = () => {
-    const sampleHeaders = 'id,title,genre,studio,year,minutes,size,resolution,posterUrl,backdropUrl,actors,addedDate';
-    const sampleRow = '"m-sample-01","Inception Reloaded","Sci-Fi","Warner Bros.",2024,148,"12.4 GB","4K UHD HDR","https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800","","Leonardo DiCaprio | Joseph Gordon-Levitt","2024-01-15"';
+    const sampleHeaders = 'id,title,genre,studio,year,minutes,size,resolution,posterUrl,backdropUrl,actors,addedDate,castCount';
+    const sampleRow = '"m-sample-01","Inception Reloaded","Sci-Fi","Warner Bros.",2024,148,"12.4 GB","4K UHD HDR","https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800","","Leonardo DiCaprio | Joseph Gordon-Levitt","2024-01-15",""';
     const sampleContent = '\uFEFF' + [sampleHeaders, sampleRow].join('\r\n');
     const blob = new Blob([sampleContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -297,6 +299,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       const actorsIdx = findIdx('actors', 'actor', 'aktor', 'cast', 'pemain', 'bintang');
       const idIdx = findIdx('id', 'kode', 'code');
       const addedDateIdx = findIdx('addeddate', 'added_date', 'date', 'tanggal');
+      const castCountIdx = findIdx('castcount', 'actorcount', 'actorscount', 'jumlahaktor', 'jumlahpemain');
 
       // Check if row 0 looks like a header or actual data
       const isHeaderRow = rawHeaders.some((h) => 
@@ -438,6 +441,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         // 11. ID & Added Date
         const id = getCell(idIdx) || `csv-${Date.now()}-${i}`;
         const addedDate = getCell(addedDateIdx) || new Date().toISOString().split('T')[0];
+        const castCountValue = getCell(castCountIdx);
+        const castCount = castCountValue && Number.isInteger(Number(castCountValue)) && Number(castCountValue) >= 0
+          ? Number(castCountValue)
+          : undefined;
 
         // Compute size bytes
         const sizeNum = parseFloat(size.replace(/[^\d.]/g, '')) || 4.5;
@@ -461,6 +468,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           posterUrl,
           backdropUrl,
           actors,
+          castCount,
           addedDate,
         });
       }

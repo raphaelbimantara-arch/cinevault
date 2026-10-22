@@ -50,6 +50,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const [editPosterUrl, setEditPosterUrl] = useState('');
   const [editBackdropUrl, setEditBackdropUrl] = useState('');
   const [editActors, setEditActors] = useState<string[]>([]);
+  const [editCastCount, setEditCastCount] = useState('');
   const [newActor, setNewActor] = useState('');
   const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
 
@@ -135,6 +136,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditPosterUrl(movie.posterUrl);
       setEditBackdropUrl(movie.backdropUrl || '');
       setEditActors([...movie.actors]);
+      setEditCastCount(movie.castCount === undefined ? '' : String(movie.castCount));
       setNewActor('');
       setIsEditing(false);
       setEditSavedToast(null);
@@ -166,6 +168,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       posterUrl: getImageSource(editPosterUrl.trim() || movie.posterUrl),
       backdropUrl: getImageSource(editBackdropUrl.trim()),
       actors: editActors.length > 0 ? editActors : ['Cast'],
+      castCount: editCastCount.trim() === '' ? undefined : Number(editCastCount),
     };
 
     onUpdateMovie(updated);
@@ -451,6 +454,18 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     </button>
                   </div>
                 </div>
+                <div>
+                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Cast Count (optional override)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={editCastCount}
+                    onChange={(e) => setEditCastCount(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                    placeholder={`Automatic (${editActors.length} selected)`}
+                  />
+                </div>
 
                 {/* Save / Cancel buttons */}
                 <div className="flex items-center gap-2 pt-1">
@@ -544,7 +559,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
               {/* Cast / Actors - Compact */}
               <div className="mt-3">
                 <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
-                  Starring Cast
+                  Starring Cast{(movie.castCount ?? movie.actors.length) > 1 && ` (${movie.castCount ?? movie.actors.length})`}
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {movie.actors.map((actor) => (

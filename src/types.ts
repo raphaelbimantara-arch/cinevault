@@ -11,6 +11,7 @@ export interface Movie {
   posterUrl: string;
   backdropUrl?: string;
   actors: string[];
+  castCount?: number;
   addedDate?: string;
 }
 
