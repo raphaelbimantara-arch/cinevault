@@ -3,19 +3,24 @@ import { X, Calendar, Film, HardDrive, Clock, User, Edit3, Save, Undo2 } from 'l
 import { Movie } from '../types';
 import { getActorProfile, ActorProfile } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
+import { useHorizontalSwipe } from '../utils/useHorizontalSwipe';
 
 interface ActorDetailModalProps {
   actorName: string | null;
+  actorNames: string[];
   movies: Movie[];
   onClose: () => void;
+  onNavigateActor: (actorName: string) => void;
   onSelectMovie: (movie: Movie) => void;
   onUpdateActor?: (oldName: string, updatedProfile: ActorProfile) => void;
 }
 
 export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   actorName,
+  actorNames,
   movies,
   onClose,
+  onNavigateActor,
   onSelectMovie,
   onUpdateActor,
 }) => {
@@ -82,6 +87,17 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     ? `${totalMinutes} min (${totalHours}h ${remainingMinutes}m)`
     : `${totalMinutes} min`;
 
+  const actorIndex = actorNames.findIndex((name) => name.toLowerCase() === actorName?.toLowerCase());
+  const swipeHandlers = useHorizontalSwipe(
+    () => {
+      if (actorIndex >= 0 && actorIndex < actorNames.length - 1) onNavigateActor(actorNames[actorIndex + 1]);
+    },
+    () => {
+      if (actorIndex > 0) onNavigateActor(actorNames[actorIndex - 1]);
+    },
+    !isEditing && !zoomedPhotoUrl
+  );
+
   if (!actorName) return null;
 
   const profile = getActorProfile(actorName);
@@ -129,6 +145,10 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
       <div
         className="relative w-full max-w-2xl bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={swipeHandlers.onPointerDown}
+        onPointerUp={swipeHandlers.onPointerUp}
+        onPointerCancel={swipeHandlers.onPointerCancel}
+        style={{ touchAction: 'pan-y' }}
       >
           {/* Header Buttons: Edit + Close */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex items-center gap-2">

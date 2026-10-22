@@ -9,12 +9,12 @@ import {
   FilterX
 } from 'lucide-react';
 import { ViewMode, SortOption, ActiveFilter } from '../types';
-import { ALL_GENRES } from '../data/initialMovies';
 
 interface FilterToolbarProps {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   selectedCategory: string;
+  genreOptions: string[];
   setSelectedCategory: (cat: string) => void;
   selectedAlphabets: string[];
   onToggleAlphabet: (letter: string) => void;
@@ -39,6 +39,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
   viewMode,
   setViewMode,
   selectedCategory,
+  genreOptions,
   setSelectedCategory,
   selectedAlphabets,
   onToggleAlphabet,
@@ -112,7 +113,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
               className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer max-w-[85px] sm:max-w-none"
             >
               <option value="All" className="bg-[#121520]">All</option>
-              {ALL_GENRES.filter(genre => genre !== 'All').map((genre) => (
+              {genreOptions.map((genre) => (
                 <option key={genre} value={genre} className="bg-[#121520]">{genre}</option>
               ))}
             </select>

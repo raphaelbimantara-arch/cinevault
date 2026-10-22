@@ -3,6 +3,7 @@ import { Clock, HardDrive, Building2, Calendar, Film } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
+import { getMovieGenres } from '../utils/movieGenres';
 
 interface MovieGridProps {
   movies: Movie[];
@@ -159,16 +160,21 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
 
               {/* Bottom Quick interactive attributes: Genre, Minutes, Size */}
               <div className="mt-2.5 pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-1 text-[9px] sm:text-[10px]">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFilterByAttribute('genre', movie.genre);
-                  }}
-                  className="px-1.5 py-0.5 rounded bg-zinc-800/70 text-zinc-300 hover:text-white hover:bg-amber-500/20 hover:border-amber-500/40 border border-zinc-700/60 transition-colors truncate max-w-[60px]"
-                  title={`Filter by Genre: ${movie.genre}`}
-                >
-                  {movie.genre}
-                </button>
+                <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+                  {getMovieGenres(movie.genre).map((genre) => (
+                    <button
+                      key={genre}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onFilterByAttribute('genre', genre);
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-zinc-800/70 text-zinc-300 hover:text-white hover:bg-amber-500/20 hover:border-amber-500/40 border border-zinc-700/60 transition-colors truncate max-w-[60px]"
+                      title={`Filter by Genre: ${genre}`}
+                    >
+                      {genre}
+                    </button>
+                  ))}
+                </div>
 
                 <div className="flex items-center gap-1">
                   <button

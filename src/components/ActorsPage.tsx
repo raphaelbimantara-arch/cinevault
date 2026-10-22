@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, CheckSquare, ArrowUpDown } from 'lucide-react';
+import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, CheckSquare, ArrowUpDown, Image } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
 import { getActorProfile } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -8,9 +8,6 @@ import { useLongPress } from '../utils/useLongPress';
 interface ActorsPageProps {
   movies: Movie[];
   viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
-  onSelectMovie: (movie: Movie) => void;
-  onFilterByActor: (actorName: string) => void;
   onOpenActorDetail: (actorName: string) => void;
   onDeleteActors: (actorNames: string[]) => void;
   onTriggerAddActor?: () => void;
@@ -34,25 +31,14 @@ const ALPHABET_LIST = [
   '#'
 ];
 
-const GRID_COLS_MAP: Record<number, string> = {
-  1: 'grid-cols-1',
-  2: 'grid-cols-2',
-  3: 'grid-cols-3',
-  4: 'grid-cols-4',
-  5: 'grid-cols-5',
-  6: 'grid-cols-6',
-};
-
 export const ActorsPage: React.FC<ActorsPageProps> = ({
   movies,
   viewMode,
-  setViewMode,
-  onSelectMovie,
-  onFilterByActor,
   onOpenActorDetail,
   onDeleteActors,
   onTriggerAddActor,
 }) => {
+  const [actorViewMode, setActorViewMode] = useState<ViewMode | 'photos'>(viewMode);
   const [search, setSearch] = useState('');
   const [actorSort, setActorSort] = useState<ActorSortOption>('name');
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
@@ -207,14 +193,14 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <div className="flex items-center gap-1 bg-[#121520] border border-zinc-800 rounded-xl px-2 py-1.5 shrink-0">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-2.5">
+          <div className="col-span-2 flex min-w-0 items-center gap-1 rounded-xl border border-zinc-800 bg-[#121520] px-2 py-1.5 sm:col-span-1">
             <ArrowUpDown className="h-3 w-3 text-amber-400 shrink-0" />
             <select
               value={actorSort}
               onChange={(event) => setActorSort(event.target.value as ActorSortOption)}
               aria-label="Sort actors"
-              className="max-w-[125px] cursor-pointer bg-transparent text-xs text-zinc-200 focus:outline-none"
+              className="w-full min-w-0 cursor-pointer bg-transparent text-xs text-zinc-200 focus:outline-none sm:max-w-[125px]"
             >
               <option value="name" className="bg-[#121520]">Name (A–Z)</option>
               <option value="movies-desc" className="bg-[#121520]">Movies (Most)</option>
@@ -223,20 +209,20 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               <option value="age-asc" className="bg-[#121520]">Age (Youngest)</option>
             </select>
           </div>
-          <div className="relative flex-1 sm:w-60">
+          <div className="relative col-span-2 min-w-0 sm:w-60">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search actors or movies..."
-              className="w-full bg-[#121520] border border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500/50"
+              className="w-full min-w-0 bg-[#121520] border border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500/50"
             />
           </div>
           {onTriggerAddActor && (
             <button
               onClick={onTriggerAddActor}
-              className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0 shadow-sm"
+              className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-amber-400 px-2 py-1.5 text-xs font-bold text-zinc-950 shadow-sm transition-colors hover:bg-amber-300 sm:shrink-0 sm:px-3"
               title="Add New Actor to Directory"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -245,12 +231,12 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           )}
 
           {/* View toggle */}
-          <div className="flex items-center bg-[#121520] border border-zinc-800 rounded-xl p-1 shrink-0">
+          <div className="col-span-1 flex min-w-0 items-center justify-center rounded-xl border border-zinc-800 bg-[#121520] p-1 sm:col-span-1 sm:justify-start">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => setActorViewMode('grid')}
               title="Grid View"
               className={`p-1.5 rounded-lg transition-colors ${
-                viewMode === 'grid'
+                actorViewMode === 'grid'
                   ? 'bg-amber-400 text-zinc-950 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
@@ -258,10 +244,10 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => setActorViewMode('list')}
               title="List View"
               className={`p-1.5 rounded-lg transition-colors ${
-                viewMode === 'list'
+                actorViewMode === 'list'
                   ? 'bg-amber-400 text-zinc-950 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
@@ -269,23 +255,35 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               <List className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setViewMode('cover')}
+              onClick={() => setActorViewMode('cover')}
               title="Cover View"
               className={`p-1.5 rounded-lg transition-colors ${
-                viewMode === 'cover'
+                actorViewMode === 'cover'
                   ? 'bg-amber-400 text-zinc-950 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <GalleryHorizontal className="w-4 h-4" />
             </button>
+            <button
+              onClick={() => setActorViewMode('photos')}
+              title="Photos Only"
+              aria-label="Photos Only"
+              className={`p-1.5 rounded-lg transition-colors ${
+                actorViewMode === 'photos'
+                  ? 'bg-amber-400 text-zinc-950 shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Image className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Alphabet: Filter Bar - Multi-select */}
-      <div className="flex items-center gap-1 overflow-x-auto py-1.5 scrollbar-none border border-zinc-800/80 bg-[#0d0f16]/80 px-2.5 rounded-xl">
-        <div className="flex items-center gap-1.5 shrink-0 pr-2">
+      <div className="flex flex-wrap items-center gap-1 py-1.5 border border-zinc-800/80 bg-[#0d0f16]/80 px-2.5 rounded-xl">
+        <div className="flex items-center gap-1.5 pr-2">
           <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider whitespace-nowrap">
             Alphabet:
           </span>
@@ -303,7 +301,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             <button
               key={char}
               onClick={() => handleToggleAlphabet(char)}
-              className={`min-w-6 px-1.5 py-0.5 rounded text-xs font-mono transition-colors shrink-0 text-center ${
+              className={`min-w-6 px-1.5 py-0.5 rounded text-xs font-mono transition-colors text-center ${
                 isSelected
                   ? 'bg-amber-400 text-zinc-950 font-bold shadow-sm'
                   : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
@@ -317,7 +315,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         {!selectedAlphabets.includes('All') && selectedAlphabets.length > 0 && (
           <button
             onClick={() => handleToggleAlphabet('All')}
-            className="text-xs text-zinc-400 hover:text-amber-400 ml-2 px-2 py-0.5 rounded-lg border border-zinc-800 bg-zinc-900 shrink-0 font-mono transition-colors"
+            className="text-xs text-zinc-400 hover:text-amber-400 ml-2 px-2 py-0.5 rounded-lg border border-zinc-800 bg-zinc-900 font-mono transition-colors"
             title="Reset alphabet filter to All"
           >
             Clear ({selectedAlphabets.length})
@@ -326,7 +324,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       </div>
 
       {/* Actors Count & Active Alphabet Status */}
-      <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400 px-1">
         <span>
           Showing <strong className="text-zinc-200 font-mono">{filteredActors.length}</strong> of <span className="font-mono">{actorStats.length}</span> actors
           {!selectedAlphabets.includes('All') && selectedAlphabets.length > 0 && (
@@ -382,8 +380,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       </div>
 
       {/* Actors Cards Grid */}
-      {viewMode === 'cover' && (
-        <div className="flex items-center gap-3 mb-4 bg-[#121520] border border-zinc-800 rounded-xl p-3">
+      {(actorViewMode === 'cover' || actorViewMode === 'photos') && (
+        <div className="flex min-w-0 flex-wrap items-center gap-3 mb-4 bg-[#121520] border border-zinc-800 rounded-xl p-3">
           <span className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Layout Size:</span>
           <input
             type="range"
@@ -391,14 +389,24 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             max="6"
             value={cols}
             onChange={(e) => setCols(Number(e.target.value))}
-            className="w-48 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
+            aria-label="Actors per row"
+            className="w-full sm:w-48 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
           />
           <span className="text-xs text-zinc-500 font-mono">{cols} per row</span>
         </div>
       )}
 
       <div
-        className={`grid ${viewMode === 'cover' ? GRID_COLS_MAP[cols] : viewMode === 'list' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-4`}
+        className={`grid min-w-0 w-full gap-2 sm:gap-4 ${
+          actorViewMode === 'cover' || actorViewMode === 'photos'
+            ? ''
+            : actorViewMode === 'list'
+              ? 'grid-cols-1'
+              : 'grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
+        }`}
+        style={actorViewMode === 'cover' || actorViewMode === 'photos'
+          ? { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }
+          : undefined}
         onPointerDown={longPressHandlers.onPointerDown}
         onPointerMove={longPressHandlers.onPointerMove}
         onPointerUp={longPressHandlers.onPointerUp}
@@ -411,25 +419,57 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             <div
               key={actor.name}
               data-selection-id={actor.name}
+              aria-label={`Open ${actor.name}`}
               onClick={() => selectionMode
                 ? handleToggleActorSelection(actor.name)
                 : onOpenActorDetail(actor.name)}
-              className="bg-[#121520] border border-zinc-800/90 rounded-2xl p-4 flex flex-col justify-between hover:border-amber-500/40 hover:bg-[#151926] transition-all hover:shadow-xl cursor-pointer group"
+              className={`relative min-w-0 overflow-hidden border border-zinc-800/90 bg-[#121520] hover:border-amber-500/40 hover:bg-[#151926] transition-all hover:shadow-xl cursor-pointer group ${
+                actorViewMode === 'photos'
+                  ? 'aspect-square rounded-xl'
+                  : actorViewMode === 'cover'
+                    ? 'rounded-xl p-1.5 sm:p-2'
+                    : 'rounded-2xl p-2 sm:p-4'
+              }`}
             >
-              {selectionMode && (
-                <input
-                  type="checkbox"
-                  checked={selectedActorNames.has(actor.name)}
-                  onChange={() => handleToggleActorSelection(actor.name)}
-                  onClick={(event) => event.stopPropagation()}
-                  aria-label={`Select ${actor.name}`}
-                  className="mb-3 h-4 w-4 cursor-pointer accent-amber-400"
-                />
-              )}
-              <div>
+              {actorViewMode === 'photos' ? (
+                <>
+                  {actor.photoUrl ? (
+                    <img
+                      src={getImageSource(actor.photoUrl)}
+                      alt={actor.name}
+                      referrerPolicy="no-referrer"
+                      onError={(event) => {
+                        event.currentTarget.style.display = 'none';
+                        const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
+                      className="absolute inset-0 h-full w-full bg-zinc-900 object-contain"
+                    />
+                  ) : null}
+                  <div className={`absolute inset-0 items-center justify-center bg-gradient-to-tr from-amber-500/20 via-zinc-800 to-zinc-900 ${
+                    actor.photoUrl ? 'hidden' : 'flex'
+                  }`}>
+                    <User className="h-1/2 w-1/2 text-amber-400" />
+                  </div>
+                </>
+              ) : (
+                <div className={`flex min-w-0 items-center ${actorViewMode === 'cover' ? 'flex-col' : 'gap-2 sm:gap-3.5'}`}>
+                  {selectionMode && (
+                    <input
+                      type="checkbox"
+                      checked={selectedActorNames.has(actor.name)}
+                      onChange={() => handleToggleActorSelection(actor.name)}
+                      onClick={(event) => event.stopPropagation()}
+                      aria-label={`Select ${actor.name}`}
+                      className={`z-10 h-4 w-4 shrink-0 cursor-pointer accent-amber-400 ${
+                        actorViewMode === 'cover' ? 'absolute left-1 top-1' : 'absolute left-2 top-2 sm:left-3 sm:top-3'
+                      }`}
+                    />
+                  )}
                 {/* Header: Picture and Name */}
-                <div className="flex items-center gap-3.5">
-                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-700/80 shrink-0 relative shadow-md">
+                  <div className={`relative shrink-0 overflow-hidden rounded-xl border border-zinc-700/80 bg-zinc-900 shadow-md ${
+                    actorViewMode === 'cover' ? 'aspect-square w-full' : 'h-10 w-10 sm:h-14 sm:w-14'
+                  }`}>
                     {actor.photoUrl ? (
                       <img
                         src={getImageSource(actor.photoUrl)}
@@ -437,22 +477,28 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                         referrerPolicy="no-referrer"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
+                          const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+                          if (fallback) fallback.style.display = 'flex';
                         }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        className="relative z-10 h-full w-full bg-zinc-900 object-contain group-hover:scale-105 transition-transform duration-200"
                       />
                     ) : null}
-                    <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/20 to-zinc-800 flex items-center justify-center -z-10">
+                    <div className={`absolute inset-0 items-center justify-center bg-gradient-to-tr from-amber-500/20 to-zinc-800 ${
+                      actor.photoUrl ? 'hidden' : 'flex'
+                    }`}>
                       <User className="w-6 h-6 text-amber-400" />
                     </div>
                   </div>
 
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-zinc-100 group-hover:text-amber-400 transition-colors truncate text-base">
+                  <div className={`min-w-0 ${actorViewMode === 'cover' ? 'w-full pt-1 text-center' : 'flex-1'}`}>
+                    <h3 className={`truncate font-bold text-zinc-100 group-hover:text-amber-400 transition-colors ${
+                      actorViewMode === 'cover' ? 'text-[9px] sm:text-xs' : 'text-xs sm:text-base'
+                    }`}>
                       {actor.name}
                     </h3>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           );
         })}

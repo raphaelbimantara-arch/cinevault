@@ -15,11 +15,12 @@ import { ActorDetailModal } from './components/ActorDetailModal';
 import { ActorsPage } from './components/ActorsPage';
 import { AddMoviePage } from './components/AddMoviePage';
 import { SettingsPage } from './components/SettingsPage';
-import { INITIAL_MOVIES } from './data/initialMovies';
+import { ALL_GENRES, INITIAL_MOVIES } from './data/initialMovies';
 import { ActorProfile, removeCustomActors, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
 import { RotateCcw, Trash2, X } from 'lucide-react';
 import { loadSharedCatalog, saveSharedCatalog } from './utils/sharedCatalog';
+import { getMovieGenres } from './utils/movieGenres';
 
 const STORAGE_KEY = 'cinevault_movies_library_v2';
 const SHARED_TOKEN_STORAGE_KEY = 'cinevault_shared_catalog_token_v1';
@@ -205,6 +206,16 @@ export default function App() {
 
   // Short menu: category
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const availableGenres = useMemo(() => {
+    const genres = new Map<string, string>();
+    [...ALL_GENRES, ...movies.flatMap((movie) => getMovieGenres(movie.genre))].forEach((genre) => {
+      const normalized = genre.trim().toLowerCase();
+      if (normalized && normalized !== 'all' && !genres.has(normalized)) {
+        genres.set(normalized, genre.trim());
+      }
+    });
+    return [...genres.values()].sort((a, b) => a.localeCompare(b));
+  }, [movies]);
 
   // Alphabet multi-select filter
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
@@ -380,16 +391,6 @@ export default function App() {
     setSelectedMovieIds(new Set());
   };
 
-  // Update movie genre (from online internet search)
-  const handleUpdateMovieGenre = (movieId: string, newGenre: string) => {
-    setMovies((prev) =>
-      prev.map((m) => (m.id === movieId ? { ...m, genre: newGenre } : m))
-    );
-    setSelectedMovie((prev) =>
-      prev && prev.id === movieId ? { ...prev, genre: newGenre } : prev
-    );
-  };
-
   // Update complete movie handler
   const handleUpdateMovie = (updatedMovie: Movie) => {
     setMovies((prev) =>
@@ -490,7 +491,7 @@ export default function App() {
     // 1. Filter by category
     if (selectedCategory !== 'All') {
       result = result.filter(
-        (m) => m.genre.toLowerCase() === selectedCategory.toLowerCase()
+        (m) => getMovieGenres(m.genre).some((genre) => genre.toLowerCase() === selectedCategory.toLowerCase())
       );
     }
 
@@ -524,7 +525,7 @@ export default function App() {
       const { type, value } = activeMetadataFilter;
       if (type === 'genre') {
         result = result.filter(
-          (m) => m.genre.toLowerCase() === String(value).toLowerCase()
+          (m) => getMovieGenres(m.genre).some((genre) => genre.toLowerCase() === String(value).toLowerCase())
         );
       } else if (type === 'studio') {
         result = result.filter(
@@ -605,6 +606,24 @@ export default function App() {
     sortBy,
   ]);
 
+  const movieDetailNavigationMovies = useMemo(() => {
+    if (!selectedMovie) return filteredAndSortedMovies;
+    return filteredAndSortedMovies.some((movie) => movie.id === selectedMovie.id)
+      ? filteredAndSortedMovies
+      : movies;
+  }, [filteredAndSortedMovies, movies, selectedMovie]);
+
+  const actorNames = useMemo(() => {
+    const names = new Map<string, string>();
+    movies.flatMap((movie) => movie.actors).forEach((name) => {
+      const trimmed = name.trim();
+      if (trimmed && trimmed.toLowerCase() !== 'cast' && !names.has(trimmed.toLowerCase())) {
+        names.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+    return [...names.values()].sort((a, b) => a.localeCompare(b));
+  }, [movies]);
+
   // Check if any filter is active
   const isFiltered =
     selectedCategory !== 'All' ||
@@ -635,6 +654,7 @@ export default function App() {
               viewMode={viewMode}
               setViewMode={setViewMode}
               selectedCategory={selectedCategory}
+              genreOptions={availableGenres}
               setSelectedCategory={setSelectedCategory}
               selectedAlphabets={selectedAlphabets}
               onToggleAlphabet={handleToggleAlphabet}
@@ -708,9 +728,6 @@ export default function App() {
           <ActorsPage
             movies={movies}
             viewMode={viewMode}
-            setViewMode={setViewMode}
-            onSelectMovie={setSelectedMovie}
-            onFilterByActor={handleFilterByActor}
             onOpenActorDetail={(name) => setSelectedActorName(name)}
             onDeleteActors={handleDeleteActors}
             onTriggerAddActor={() => handleTriggerAdd('actor')}
@@ -756,19 +773,22 @@ export default function App() {
       {/* Movie Detail Modal (Shows Genre, Studio, Year, Minutes, Size with interactive filtering) */}
       <MovieDetailModal
         movie={selectedMovie}
+        movies={movieDetailNavigationMovies}
         onClose={() => setSelectedMovie(null)}
+        onNavigateMovie={setSelectedMovie}
         onFilterByAttribute={handleFilterByAttribute}
         onSelectActor={(actorName) => setSelectedActorName(actorName)}
         onDeleteMovie={handleDeleteMovie}
-        onUpdateMovieGenre={handleUpdateMovieGenre}
         onUpdateMovie={handleUpdateMovie}
       />
 
       {/* Actor Detail Modal (Shows Picture, Date of Birth, and Movies Title) */}
       <ActorDetailModal
         actorName={selectedActorName}
+        actorNames={actorNames}
         movies={movies}
         onClose={() => setSelectedActorName(null)}
+        onNavigateActor={setSelectedActorName}
         onSelectMovie={(movie) => {
           setSelectedActorName(null);
           setSelectedMovie(movie);

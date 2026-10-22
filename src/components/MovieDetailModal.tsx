@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   X, 
   Trash2,
@@ -8,36 +8,35 @@ import {
   Calendar,
   Clock,
   HardDrive,
-  Globe,
-  Loader2,
-  Check,
-  Search,
-  Sparkles,
   Edit3,
   Save,
   Undo2
 } from 'lucide-react';
 import { Movie } from '../types';
-import { searchMovieGenreOnline, OnlineGenreResult } from '../utils/onlineGenreSearch';
+import { ALL_GENRES, ALL_STUDIOS } from '../data/initialMovies';
 import { getImageSource } from '../utils/googleDriveImage';
+import { getMovieGenres } from '../utils/movieGenres';
+import { useHorizontalSwipe } from '../utils/useHorizontalSwipe';
 
 interface MovieDetailModalProps {
   movie: Movie | null;
+  movies: Movie[];
   onClose: () => void;
+  onNavigateMovie: (movie: Movie) => void;
   onSelectActor?: (actorName: string) => void;
   onDeleteMovie?: (movieId: string) => void;
   onFilterByAttribute?: (type: 'genre' | 'minutes' | 'size' | 'studio' | 'year', value: string | number) => void;
-  onUpdateMovieGenre?: (movieId: string, newGenre: string) => void;
   onUpdateMovie?: (updatedMovie: Movie) => void;
 }
 
 export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   movie,
+  movies,
   onClose,
+  onNavigateMovie,
   onSelectActor,
   onDeleteMovie,
   onFilterByAttribute,
-  onUpdateMovieGenre,
   onUpdateMovie,
 }) => {
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
@@ -45,7 +44,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
-  const [editGenre, setEditGenre] = useState('');
+  const [editGenres, setEditGenres] = useState<string[]>([]);
   const [editStudio, setEditStudio] = useState('');
   const [editYear, setEditYear] = useState<number>(2024);
   const [editMinutes, setEditMinutes] = useState<number>(110);
@@ -53,21 +52,73 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const [editResolution, setEditResolution] = useState('1080p HD');
   const [editPosterUrl, setEditPosterUrl] = useState('');
   const [editBackdropUrl, setEditBackdropUrl] = useState('');
-  const [editActors, setEditActors] = useState('');
+  const [editActors, setEditActors] = useState<string[]>([]);
+  const [newActor, setNewActor] = useState('');
   const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
 
-  // Online Genre Search State
-  const [isSearchingGenre, setIsSearchingGenre] = useState(false);
-  const [showGenreSearchPanel, setShowGenreSearchPanel] = useState(false);
-  const [onlineResults, setOnlineResults] = useState<OnlineGenreResult[]>([]);
-  const [searchStatus, setSearchStatus] = useState<string | null>(null);
-  const [genreUpdatedToast, setGenreUpdatedToast] = useState<string | null>(null);
+  const genreOptions = useMemo(() => {
+    const genres = new Map<string, string>();
+    [...ALL_GENRES, ...movies.flatMap((item) => getMovieGenres(item.genre))].forEach((genre) => {
+      const trimmed = genre.trim();
+      if (trimmed && trimmed.toLowerCase() !== 'all' && !genres.has(trimmed.toLowerCase())) {
+        genres.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+    return [...genres.values()].sort((a, b) => a.localeCompare(b));
+  }, [movies]);
+
+  const studioOptions = useMemo(() => {
+    const studios = new Map<string, string>();
+    [...ALL_STUDIOS, ...movies.map((item) => item.studio)].forEach((studio) => {
+      const trimmed = studio.trim();
+      if (trimmed && trimmed.toLowerCase() !== 'all studios' && !studios.has(trimmed.toLowerCase())) {
+        studios.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+    return [...studios.values()].sort((a, b) => a.localeCompare(b));
+  }, [movies]);
+
+  const actorOptions = useMemo(() => {
+    const actors = new Map<string, string>();
+    movies.flatMap((item) => item.actors).forEach((actor) => {
+      const trimmed = actor.trim();
+      if (trimmed && !actors.has(trimmed.toLowerCase())) {
+        actors.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+    return [...actors.values()].sort((a, b) => a.localeCompare(b));
+  }, [movies]);
+
+  const toggleGenre = (genre: string) => {
+    setEditGenres((current) =>
+      current.some((item) => item.toLowerCase() === genre.toLowerCase())
+        ? current.filter((item) => item.toLowerCase() !== genre.toLowerCase())
+        : [...current, genre]
+    );
+  };
+
+  const toggleActor = (actor: string) => {
+    setEditActors((current) =>
+      current.some((item) => item.toLowerCase() === actor.toLowerCase())
+        ? current.filter((item) => item.toLowerCase() !== actor.toLowerCase())
+        : [...current, actor]
+    );
+  };
+
+  const addActor = () => {
+    const actor = newActor.trim();
+    if (!actor) return;
+    setEditActors((current) =>
+      current.some((item) => item.toLowerCase() === actor.toLowerCase()) ? current : [...current, actor]
+    );
+    setNewActor('');
+  };
 
   // Reset & sync states when movie changes
   useEffect(() => {
     if (movie) {
       setEditTitle(movie.title);
-      setEditGenre(movie.genre);
+      setEditGenres(getMovieGenres(movie.genre));
       setEditStudio(movie.studio);
       setEditYear(movie.year);
       setEditMinutes(movie.minutes);
@@ -75,14 +126,11 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditResolution(movie.resolution || '1080p HD');
       setEditPosterUrl(movie.posterUrl);
       setEditBackdropUrl(movie.backdropUrl || '');
-      setEditActors(movie.actors.join(', '));
+      setEditActors([...movie.actors]);
+      setNewActor('');
       setIsEditing(false);
       setEditSavedToast(null);
     }
-    setShowGenreSearchPanel(false);
-    setOnlineResults([]);
-    setSearchStatus(null);
-    setGenreUpdatedToast(null);
   }, [movie?.id]);
 
   const handleSaveEdit = (e: React.FormEvent) => {
@@ -93,11 +141,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       return;
     }
 
-    const actorList = editActors
-      .split(/[|,;]/)
-      .map((a) => a.trim())
-      .filter(Boolean);
-
     const sizeNum = parseFloat(editSize.replace(/[^\d.]/g, '')) || 4.5;
     const isTB = /tb/i.test(editSize);
     const sizeBytes = Math.round(sizeNum * (isTB ? 1000000 : 1000));
@@ -105,7 +148,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     const updated: Movie = {
       ...movie,
       title: editTitle.trim(),
-      genre: editGenre.trim() || 'Drama',
+      genre: editGenres.join(', ') || 'Drama',
       studio: editStudio.trim() || 'Independent Studio',
       year: Number(editYear) || 2024,
       minutes: Number(editMinutes) || 110,
@@ -114,46 +157,13 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       resolution: editResolution.trim() || '1080p HD',
       posterUrl: getImageSource(editPosterUrl.trim() || movie.posterUrl),
       backdropUrl: getImageSource(editBackdropUrl.trim()),
-      actors: actorList.length > 0 ? actorList : ['Cast'],
+      actors: editActors.length > 0 ? editActors : ['Cast'],
     };
 
     onUpdateMovie(updated);
     setIsEditing(false);
     setEditSavedToast('Movie details updated successfully!');
     setTimeout(() => setEditSavedToast(null), 3500);
-  };
-
-  const handleSearchGenreOnline = async () => {
-    if (!movie) return;
-    setShowGenreSearchPanel(true);
-    setIsSearchingGenre(true);
-    setSearchStatus('Searching online genre databases (iTunes, TVMaze, Wikipedia)...');
-    setGenreUpdatedToast(null);
-
-    try {
-      const results = await searchMovieGenreOnline(movie.title);
-      setOnlineResults(results);
-      if (results.length === 0) {
-        setSearchStatus(`No specific genre found automatically for "${movie.title}". You can select from popular genres below:`);
-      } else {
-        const totalSuggested = results.flatMap((r) => r.genres).length;
-        setSearchStatus(`Found ${totalSuggested} online genre suggestions for "${movie.title}":`);
-      }
-    } catch (err) {
-      console.error('Error searching genre:', err);
-      setSearchStatus('Unable to reach online database. Please select from popular genres:');
-    } finally {
-      setIsSearchingGenre(false);
-    }
-  };
-
-  const handleApplyGenre = (newGenre: string) => {
-    if (!movie || !onUpdateMovieGenre) return;
-    onUpdateMovieGenre(movie.id, newGenre);
-    setGenreUpdatedToast(`Genre successfully updated to "${newGenre}"!`);
-    setTimeout(() => {
-      setGenreUpdatedToast(null);
-    }, 3500);
   };
 
   // ESC key listener to close
@@ -171,16 +181,31 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, zoomedImageUrl]);
 
+  const movieIndex = movies.findIndex((item) => item.id === movie?.id);
+  const swipeHandlers = useHorizontalSwipe(
+    () => {
+      if (movieIndex >= 0 && movieIndex < movies.length - 1) onNavigateMovie(movies[movieIndex + 1]);
+    },
+    () => {
+      if (movieIndex > 0) onNavigateMovie(movies[movieIndex - 1]);
+    },
+    !isEditing && !zoomedImageUrl
+  );
+
   if (!movie) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto"
       onClick={onClose}
     >
       <div 
         className="relative w-full max-w-4xl bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={swipeHandlers.onPointerDown}
+        onPointerUp={swipeHandlers.onPointerUp}
+        onPointerCancel={swipeHandlers.onPointerCancel}
+        style={{ touchAction: 'pan-y' }}
       >
           {/* Top Header Bar with Edit, Delete, and Close Buttons */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex items-center gap-2">
@@ -277,16 +302,25 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   />
                 </div>
 
-                {/* Genre */}
+                {/* Genres */}
                 <div>
-                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Genre</label>
-                  <input
-                    type="text"
-                    value={editGenre}
-                    onChange={(e) => setEditGenre(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                    placeholder="e.g. Sci-Fi, Drama"
-                  />
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold">Genres</label>
+                    <span className="text-[10px] text-zinc-500">{editGenres.length} selected</span>
+                  </div>
+                  <div className="grid max-h-36 grid-cols-2 gap-1 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 p-2 sm:grid-cols-3">
+                    {genreOptions.map((genre) => (
+                      <label key={genre} className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
+                        <input
+                          type="checkbox"
+                          checked={editGenres.some((item) => item.toLowerCase() === genre.toLowerCase())}
+                          onChange={() => toggleGenre(genre)}
+                          className="h-3.5 w-3.5 shrink-0 accent-amber-400"
+                        />
+                        <span className="truncate">{genre}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Studio */}
@@ -294,11 +328,15 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Studio</label>
                   <input
                     type="text"
+                    list="movie-detail-studios"
                     value={editStudio}
                     onChange={(e) => setEditStudio(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
                     placeholder="e.g. Warner Bros. Pictures"
                   />
+                  <datalist id="movie-detail-studios">
+                    {studioOptions.map((studio) => <option key={studio} value={studio} />)}
+                  </datalist>
                 </div>
 
                 {/* Year and Minutes */}
@@ -375,14 +413,45 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
                 {/* Actors */}
                 <div>
-                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Actors (separated by comma)</label>
-                  <input
-                    type="text"
-                    value={editActors}
-                    onChange={(e) => setEditActors(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                    placeholder="e.g. Actor One, Actor Two, Actor Three"
-                  />
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold">Actors</label>
+                    <span className="text-[10px] text-zinc-500">{editActors.length} selected</span>
+                  </div>
+                  <div className="grid max-h-36 grid-cols-2 gap-1 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 p-2 sm:grid-cols-3">
+                    {actorOptions.map((actor) => (
+                      <label key={actor} className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
+                        <input
+                          type="checkbox"
+                          checked={editActors.some((item) => item.toLowerCase() === actor.toLowerCase())}
+                          onChange={() => toggleActor(actor)}
+                          className="h-3.5 w-3.5 shrink-0 accent-amber-400"
+                        />
+                        <span className="truncate">{actor}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={newActor}
+                      onChange={(e) => setNewActor(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addActor();
+                        }
+                      }}
+                      className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-amber-400/60 focus:outline-none transition-colors"
+                      placeholder="Add an actor not in the list"
+                    />
+                    <button
+                      type="button"
+                      onClick={addActor}
+                      className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700"
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
 
                 {/* Save / Cancel buttons */}
@@ -450,131 +519,27 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <Film className="w-4 h-4 text-amber-400 shrink-0" />
                   <span className="text-xs font-semibold">{movie.resolution || 'Standard'}</span>
                 </div>
-                {/* Genre with Online Internet Search */}
+                {/* Genre */}
                 <div className="col-span-2 pt-1 border-t border-zinc-800/60">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div 
-                      onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('genre', movie.genre); } }}
-                      className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group"
-                      title="Filter library by this genre"
-                    >
-                      <Film className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
-                      <span className="text-xs text-zinc-400">Genre:</span>
-                      <span className="font-semibold text-amber-300 text-xs px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/20">
-                        {movie.genre}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleSearchGenreOnline}
-                      disabled={isSearchingGenre}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 text-[11px] font-semibold transition-all border border-zinc-700 hover:border-amber-400 shadow-sm"
-                      title="Search for this movie's genre online by title"
-                    >
-                      {isSearchingGenre ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                      ) : (
-                        <Globe className="w-3.5 h-3.5 text-amber-400" />
-                      )}
-                      <span>{isSearchingGenre ? 'Searching Online...' : 'Search Genre Online'}</span>
-                    </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Film className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="text-xs text-zinc-400">Genre:</span>
+                    {getMovieGenres(movie.genre).map((genre) => (
+                      <button
+                        key={genre}
+                        type="button"
+                        onClick={() => {
+                          if (!onFilterByAttribute) return;
+                          onClose();
+                          onFilterByAttribute('genre', genre);
+                        }}
+                        className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-400/20"
+                        title={`Filter library by ${genre}`}
+                      >
+                        {genre}
+                      </button>
+                    ))}
                   </div>
-
-                  {/* Toast for successful update */}
-                  {genreUpdatedToast && (
-                    <div className="mt-2 p-2 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-[11px] flex items-center gap-1.5 animate-in fade-in duration-150">
-                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>{genreUpdatedToast}</span>
-                    </div>
-                  )}
-
-                  {/* Online Genre Search Results Panel */}
-                  {showGenreSearchPanel && (
-                    <div className="mt-2.5 p-3 rounded-xl bg-zinc-900/90 border border-zinc-800 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-150 text-xs">
-                      <div className="flex items-center justify-between text-[11px] text-zinc-400 pb-1.5 border-b border-zinc-800">
-                        <div className="flex items-center gap-1.5 font-semibold text-zinc-200">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Online Search Results ({movie.title})</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowGenreSearchPanel(false)}
-                          className="text-zinc-500 hover:text-zinc-300 text-[10px]"
-                        >
-                          Close
-                        </button>
-                      </div>
-
-                      {searchStatus && (
-                        <p className="text-[11px] text-zinc-400">
-                          {searchStatus}
-                        </p>
-                      )}
-
-                      {/* Online Results Found */}
-                      {onlineResults.length > 0 && (
-                        <div className="space-y-2">
-                          {onlineResults.map((res, idx) => (
-                            <div key={idx} className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800/80 space-y-1">
-                              <div className="flex items-center justify-between text-[10px] text-zinc-400">
-                                <span className="font-medium text-zinc-300 truncate">
-                                  {res.matchedTitle} {res.year ? `(${res.year})` : ''}
-                                </span>
-                                <span className="px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 font-mono text-[9px]">
-                                  {res.source}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {res.genres.map((g) => (
-                                  <button
-                                    key={g}
-                                    type="button"
-                                    onClick={() => handleApplyGenre(g)}
-                                    className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${
-                                      movie.genre.toLowerCase() === g.toLowerCase()
-                                        ? 'bg-amber-400 text-zinc-950'
-                                        : 'bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-200 border border-zinc-700'
-                                    }`}
-                                    title={`Click to apply genre "${g}" to this movie`}
-                                  >
-                                    {movie.genre.toLowerCase() === g.toLowerCase() && <Check className="w-3 h-3" />}
-                                    <span>{g}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Quick Popular Genre Selection */}
-                      <div className="pt-2 border-t border-zinc-800/80">
-                        <span className="text-[10px] text-zinc-500 uppercase font-semibold block mb-1">
-                          Popular Genre Suggestions:
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {[
-                            'Sci-Fi', 'Action', 'Thriller', 'Drama', 'Horror', 
-                            'Comedy', 'Cyberpunk', 'Crime', 'Fantasy', 'Anime', 'Adventure'
-                          ].map((g) => (
-                            <button
-                              key={g}
-                              type="button"
-                              onClick={() => handleApplyGenre(g)}
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                                movie.genre.toLowerCase() === g.toLowerCase()
-                                  ? 'bg-amber-400 text-zinc-950 font-bold'
-                                  : 'bg-zinc-800/70 hover:bg-zinc-700 text-zinc-300'
-                              }`}
-                            >
-                              {g}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
