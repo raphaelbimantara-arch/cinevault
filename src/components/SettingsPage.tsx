@@ -187,10 +187,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           insideQuotes = !insideQuotes;
         }
       } else if (char === delimiter && !insideQuotes) {
-        currentRow.push(currentCell.trim());
+        // Strip surrounding quotes from the cell
+        let trimmedCell = currentCell.trim();
+        if (trimmedCell.startsWith('"') && trimmedCell.endsWith('"')) {
+          trimmedCell = trimmedCell.slice(1, -1);
+        }
+        currentRow.push(trimmedCell);
         currentCell = '';
       } else if (char === '\n' && !insideQuotes) {
-        currentRow.push(currentCell.trim());
+        // Strip surrounding quotes from the cell
+        let trimmedCell = currentCell.trim();
+        if (trimmedCell.startsWith('"') && trimmedCell.endsWith('"')) {
+          trimmedCell = trimmedCell.slice(1, -1);
+        }
+        currentRow.push(trimmedCell);
         if (currentRow.some((cell) => cell.length > 0)) {
           lines.push(currentRow);
         }
@@ -202,7 +212,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
 
     if (currentCell.length > 0 || currentRow.length > 0) {
-      currentRow.push(currentCell.trim());
+      // Strip surrounding quotes from the last cell
+      let trimmedCell = currentCell.trim();
+      if (trimmedCell.startsWith('"') && trimmedCell.endsWith('"')) {
+        trimmedCell = trimmedCell.slice(1, -1);
+      }
+      currentRow.push(trimmedCell);
       if (currentRow.some((cell) => cell.length > 0)) {
         lines.push(currentRow);
       }
@@ -230,8 +245,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         return;
       }
 
-      // Clean row headers
-      const rawHeaders = rows[0].map((h) => h.toLowerCase().trim().replace(/^["']|["']$/g, ''));
+      // Clean row headers - remove surrounding quotes and normalize
+      const rawHeaders = rows[0].map((h) => {
+        let cleaned = h.trim();
+        // Remove surrounding quotes
+        if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+          cleaned = cleaned.slice(1, -1);
+        } else if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
+          cleaned = cleaned.slice(1, -1);
+        }
+        return cleaned.toLowerCase();
+      });
 
       const findIdx = (...synonyms: string[]) => {
         for (const syn of synonyms) {
@@ -295,7 +319,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
         const getCell = (idx: number): string => {
           if (idx === -1 || idx >= row.length) return '';
-          const val = row[idx]?.trim() || '';
+          let val = row[idx]?.trim() || '';
+          // Remove surrounding quotes if present
+          if (val.startsWith('"') && val.endsWith('"')) {
+            val = val.slice(1, -1);
+          } else if (val.startsWith("'") && val.endsWith("'")) {
+            val = val.slice(1, -1);
+          }
           if (/^(null|undefined|none|n\/a|-)$/i.test(val)) return '';
           return val;
         };

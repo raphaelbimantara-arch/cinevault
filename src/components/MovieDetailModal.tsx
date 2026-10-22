@@ -178,9 +178,18 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         className="relative w-full max-w-4xl bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
-          {/* Top Header Bar with Close Button */}
+          {/* Top Header Bar with Edit, Delete, and Close Buttons */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex items-center gap-2">
-            {onDeleteMovie && (
+            {onUpdateMovie && !isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-zinc-800/70 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 flex items-center justify-center transition-colors"
+                title="Edit movie details"
+              >
+                <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            )}
+            {onDeleteMovie && !isEditing && (
               <button
                 onClick={() => {
                   if (window.confirm(`Are you sure you want to delete "${movie.title}" from catalog?`)) {
@@ -235,13 +244,160 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
           {/* Right Column: Title and Details */}
           <div className="md:col-span-7 p-4 flex flex-col justify-between">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-tight truncate">
-                {movie.title}
-              </h2>
+            {/* Success Toast */}
+            {editSavedToast && (
+              <div className="mb-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in duration-150">
+                <Save className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>{editSavedToast}</span>
+              </div>
+            )}
 
-              {/* Rearranged Details */}
-              <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+            {isEditing ? (
+              /* ===== EDIT MODE ===== */
+              <form onSubmit={handleSaveEdit} className="space-y-3 w-full">
+                <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Edit3 className="w-3 h-3" />
+                  Edit Movie Details
+                </div>
+
+                {/* Title */}
+                <div>
+                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                    placeholder="Movie title"
+                    required
+                  />
+                </div>
+
+                {/* Genre */}
+                <div>
+                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Genre</label>
+                  <input
+                    type="text"
+                    value={editGenre}
+                    onChange={(e) => setEditGenre(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                    placeholder="e.g. Sci-Fi, Drama"
+                  />
+                </div>
+
+                {/* Studio */}
+                <div>
+                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Studio</label>
+                  <input
+                    type="text"
+                    value={editStudio}
+                    onChange={(e) => setEditStudio(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                    placeholder="e.g. Warner Bros. Pictures"
+                  />
+                </div>
+
+                {/* Year and Minutes */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Year</label>
+                    <input
+                      type="number"
+                      value={editYear}
+                      onChange={(e) => setEditYear(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                      placeholder="2024"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Minutes</label>
+                    <input
+                      type="number"
+                      value={editMinutes}
+                      onChange={(e) => setEditMinutes(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                      placeholder="120"
+                    />
+                  </div>
+                </div>
+
+                {/* Size and Resolution */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Size</label>
+                    <input
+                      type="text"
+                      value={editSize}
+                      onChange={(e) => setEditSize(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                      placeholder="e.g. 14.5 GB"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Resolution</label>
+                    <input
+                      type="text"
+                      value={editResolution}
+                      onChange={(e) => setEditResolution(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                      placeholder="e.g. 1080p HD"
+                    />
+                  </div>
+                </div>
+
+                {/* Poster URL */}
+                <div>
+                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Poster URL</label>
+                  <input
+                    type="text"
+                    value={editPosterUrl}
+                    onChange={(e) => setEditPosterUrl(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                    placeholder="https://example.com/poster.jpg"
+                  />
+                </div>
+
+                {/* Actors */}
+                <div>
+                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Actors (separated by comma)</label>
+                  <input
+                    type="text"
+                    value={editActors}
+                    onChange={(e) => setEditActors(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                    placeholder="e.g. Actor One, Actor Two, Actor Three"
+                  />
+                </div>
+
+                {/* Save / Cancel buttons */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-zinc-950 font-semibold text-xs transition-colors shadow-sm"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save Changes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition-colors border border-zinc-700"
+                  >
+                    <Undo2 className="w-3.5 h-3.5" />
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* ===== VIEW MODE ===== */
+              <>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-tight truncate">
+                    {movie.title}
+                  </h2>
+
+                  {/* Rearranged Details */}
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                 <div 
                   onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('year', movie.year); } }}
                   className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group"
@@ -443,6 +599,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 Back
               </button>
             </div>
+          </>
+            )}
           </div>
         </div>
       </div>
