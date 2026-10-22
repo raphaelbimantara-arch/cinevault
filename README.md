@@ -17,3 +17,7 @@ https://ai.studio/apps/05dbe0b3-f678-4d90-9177-ec26f808c69a
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Using Google Drive Images
+
+Paste a Google Drive sharing link into a movie's poster URL or an actor's photo URL. In Google Drive, open **Share** and set **General access** to **Anyone with the link** (Viewer); private files cannot be displayed. The app converts standard Drive file-sharing links to image URLs automatically.

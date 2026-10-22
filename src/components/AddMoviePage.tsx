@@ -14,6 +14,7 @@ import {
 import { Movie } from '../types';
 import { ALL_GENRES, ALL_STUDIOS } from '../data/initialMovies';
 import { registerCustomActor, ActorProfile } from '../data/actorsData';
+import { getImageSource } from '../utils/googleDriveImage';
 
 // Imported generated images for presets
 import posterScifi from '../assets/images/poster_scifi_odyssey_1792588295227.jpg';
@@ -74,6 +75,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
   // ACTOR FORM STATE
   const [actorName, setActorName] = useState('');
   const [actorDob, setActorDob] = useState('June 15, 1985');
+  const [actorPhotoUrl, setActorPhotoUrl] = useState('');
   const [actorSuccess, setActorSuccess] = useState(false);
 
   // STUDIO FORM STATE
@@ -94,7 +96,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const finalPoster = customPoster.trim() ? customPoster.trim() : posterUrl;
+    const finalPoster = getImageSource(customPoster.trim() || posterUrl);
     const actorsList = actorsInput
       .split(',')
       .map((a) => a.trim())
@@ -126,7 +128,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
     const profile: ActorProfile = {
       name: actorName.trim(),
       dob: actorDob.trim() || 'January 1, 1980',
-      photoUrl: '',
+      photoUrl: getImageSource(actorPhotoUrl),
     };
 
     // Register into persistent actor store
@@ -359,12 +361,15 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                 Poster Image URL (Optional)
               </label>
               <input
-                type="url"
+                type="text"
                 value={customPoster}
                 onChange={(e) => setCustomPoster(e.target.value)}
-                placeholder="https://example.com/poster.jpg (optional)"
+                placeholder="Paste an image URL or Google Drive sharing link"
                 className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
               />
+              <p className="mt-1.5 text-[11px] text-zinc-500">
+                For Google Drive, set General access to “Anyone with the link” as Viewer.
+              </p>
             </div>
 
             {/* Submit Actions */}
@@ -430,6 +435,23 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                   className="w-full bg-[#121520] border border-zinc-800 rounded-xl pl-9 pr-3.5 py-2 text-sm text-zinc-100 font-mono placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
                 />
               </div>
+            </div>
+
+            {/* Actor Photo URL */}
+            <div>
+              <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
+                Actor Photo URL (Optional)
+              </label>
+              <input
+                type="text"
+                value={actorPhotoUrl}
+                onChange={(e) => setActorPhotoUrl(e.target.value)}
+                placeholder="Paste an image URL or Google Drive sharing link"
+                className="w-full bg-[#121520] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
+              />
+              <p className="mt-1.5 text-[11px] text-zinc-500">
+                For Google Drive, set General access to “Anyone with the link” as Viewer.
+              </p>
             </div>
 
             {/* Submit Actions */}

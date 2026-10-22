@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Film } from 'lucide-react';
 import { Movie } from '../types';
+import { getImageSource } from '../utils/googleDriveImage';
 
 interface MovieCoverGridProps {
   movies: Movie[];
@@ -56,7 +57,7 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
           >
             <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 shadow-lg group-hover:border-amber-500/50 transition-all duration-300">
               <img
-                src={movie.posterUrl}
+                src={getImageSource(movie.posterUrl)}
                 alt={movie.title}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"

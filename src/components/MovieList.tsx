@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronRight, Film } from 'lucide-react';
 import { Movie } from '../types';
+import { getImageSource } from '../utils/googleDriveImage';
 
 interface MovieListProps {
   movies: Movie[];
@@ -53,7 +54,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-12 rounded overflow-hidden bg-zinc-800 shrink-0 border border-zinc-700/50">
                         <img
-                          src={movie.posterUrl}
+                          src={getImageSource(movie.posterUrl)}
                           alt={movie.title}
                           referrerPolicy="no-referrer"
                           onError={(e) => {

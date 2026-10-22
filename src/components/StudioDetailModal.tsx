@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { X, Building2, Film, HardDrive, MapPin, Calendar, ChevronRight, Filter } from 'lucide-react';
 import { Movie } from '../types';
+import { getImageSource } from '../utils/googleDriveImage';
 
 interface StudioDetailModalProps {
   studioName: string | null;
@@ -160,7 +161,7 @@ export const StudioDetailModal: React.FC<StudioDetailModalProps> = ({
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-12 rounded overflow-hidden bg-zinc-800 shrink-0 border border-zinc-700/50">
                       <img
-                        src={movie.posterUrl}
+                        src={getImageSource(movie.posterUrl)}
                         alt={movie.title}
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover"

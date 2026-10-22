@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, HardDrive, Building2, Calendar, Film } from 'lucide-react';
 import { Movie } from '../types';
+import { getImageSource } from '../utils/googleDriveImage';
 
 interface MovieGridProps {
   movies: Movie[];
@@ -39,7 +40,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-900 cursor-pointer"
             >
               <img
-                src={movie.posterUrl}
+                src={getImageSource(movie.posterUrl)}
                 alt={movie.title}
                 referrerPolicy="no-referrer"
                 onError={(e) => {

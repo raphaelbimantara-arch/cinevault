@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
 import { getActorProfile } from '../data/actorsData';
+import { getImageSource } from '../utils/googleDriveImage';
 
 interface ActorsPageProps {
   movies: Movie[];
@@ -300,7 +301,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                   <div className="w-14 h-14 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-700/80 shrink-0 relative shadow-md">
                     {actor.photoUrl ? (
                       <img
-                        src={actor.photoUrl}
+                        src={getImageSource(actor.photoUrl)}
                         alt={actor.name}
                         referrerPolicy="no-referrer"
                         onError={(e) => {

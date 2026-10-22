@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X, Calendar, Film, HardDrive, Clock, User, Edit3, Save, Undo2 } from 'lucide-react';
 import { Movie } from '../types';
 import { getActorProfile, ActorProfile } from '../data/actorsData';
+import { getImageSource } from '../utils/googleDriveImage';
 
 interface ActorDetailModalProps {
   actorName: string | null;
@@ -112,7 +113,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     const updated: ActorProfile = {
       name: trimmedName,
       dob: editDob.trim() || profile.dob,
-      photoUrl: editPhotoUrl.trim(),
+      photoUrl: getImageSource(editPhotoUrl),
     };
     onUpdateActor(actorName, updated);
     setIsEditing(false);
@@ -170,7 +171,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
               >
                 {profile.photoUrl ? (
                   <img
-                    src={profile.photoUrl}
+                    src={getImageSource(profile.photoUrl)}
                     alt={actorName}
                     referrerPolicy="no-referrer"
                     onError={(e) => {
@@ -234,7 +235,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                         value={editPhotoUrl}
                         onChange={(e) => setEditPhotoUrl(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                        placeholder="https://example.com/photo.jpg"
+                        placeholder="Image URL or Google Drive sharing link"
                       />
                     </div>
 
@@ -345,7 +346,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                   {/* Thumbnail Cover on the left */}
                   <div className="w-8 h-11 sm:w-9 sm:h-12 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-700/60 shrink-0 shadow-sm relative">
                     <img
-                      src={movie.posterUrl}
+                      src={getImageSource(movie.posterUrl)}
                       alt={movie.title}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
@@ -393,7 +394,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
               <X className="w-4 h-4" />
             </button>
             <img
-              src={zoomedPhotoUrl}
+              src={getImageSource(zoomedPhotoUrl)}
               alt="Enlarged actor photo"
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover bg-black"

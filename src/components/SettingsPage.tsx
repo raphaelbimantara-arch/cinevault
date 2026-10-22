@@ -18,6 +18,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { Movie } from '../types';
+import { getImageSource } from '../utils/googleDriveImage';
 
 interface SettingsPageProps {
   movies: Movie[];
@@ -1105,7 +1106,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           title="Click to view movie details"
                         >
                           <img 
-                            src={m.posterUrl} 
+                            src={getImageSource(m.posterUrl)}
                             alt={m.title} 
                             referrerPolicy="no-referrer"
                             className="w-full h-full object-cover"

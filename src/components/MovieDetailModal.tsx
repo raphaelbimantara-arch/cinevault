@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Movie } from '../types';
 import { searchMovieGenreOnline, OnlineGenreResult } from '../utils/onlineGenreSearch';
+import { getImageSource } from '../utils/googleDriveImage';
 
 interface MovieDetailModalProps {
   movie: Movie | null;
@@ -109,7 +110,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       size: editSize.trim() || '4.5 GB',
       sizeBytes,
       resolution: editResolution.trim() || '1080p HD',
-      posterUrl: editPosterUrl.trim() || movie.posterUrl,
+      posterUrl: getImageSource(editPosterUrl.trim() || movie.posterUrl),
       actors: actorList.length > 0 ? actorList : ['Cast'],
     };
 
@@ -222,7 +223,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 title="Click to enlarge cover (phone width)"
               >
                 <img
-                  src={movie.posterUrl}
+                  src={getImageSource(movie.posterUrl)}
                   alt={`${movie.title} - Front`}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
@@ -234,7 +235,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 title="Click to enlarge cover (phone width)"
               >
                 <img
-                  src={movie.posterUrl}
+                  src={getImageSource(movie.posterUrl)}
                   alt={`${movie.title} - Back`}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
@@ -353,7 +354,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     value={editPosterUrl}
                     onChange={(e) => setEditPosterUrl(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                    placeholder="https://example.com/poster.jpg"
+                    placeholder="Image URL or Google Drive sharing link"
                   />
                 </div>
 
@@ -629,7 +630,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
               <X className="w-4 h-4" />
             </button>
             <img
-              src={zoomedImageUrl}
+              src={getImageSource(zoomedImageUrl)}
               alt="Enlarged cover"
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover bg-black"
