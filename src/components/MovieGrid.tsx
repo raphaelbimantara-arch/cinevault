@@ -7,12 +7,16 @@ interface MovieGridProps {
   movies: Movie[];
   onSelectMovie: (movie: Movie) => void;
   onFilterByAttribute: (type: 'genre' | 'studio' | 'year' | 'minutes' | 'size', value: string | number) => void;
+  selectedMovieIds: Set<string>;
+  onToggleMovieSelection: (movieId: string) => void;
 }
 
 export const MovieGrid: React.FC<MovieGridProps> = ({
   movies,
   onSelectMovie,
   onFilterByAttribute,
+  selectedMovieIds,
+  onToggleMovieSelection,
 }) => {
   if (movies.length === 0) {
     return (
@@ -34,6 +38,20 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             key={movie.id}
             className="group relative flex flex-col bg-[#121520] rounded-xl border border-zinc-800/80 overflow-hidden hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-200"
           >
+            <label
+              onClick={(event) => event.stopPropagation()}
+              className="absolute right-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-zinc-600 bg-zinc-950/85 shadow backdrop-blur-sm"
+              title={`Select ${movie.title}`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedMovieIds.has(movie.id)}
+                onChange={() => onToggleMovieSelection(movie.id)}
+                onClick={(event) => event.stopPropagation()}
+                aria-label={`Select ${movie.title}`}
+                className="h-4 w-4 cursor-pointer accent-amber-400"
+              />
+            </label>
             {/* Poster container with aspect 3:4 */}
             <div 
               onClick={() => onSelectMovie(movie)}

@@ -6,12 +6,15 @@ interface MovieListProps {
   movies: Movie[];
   onSelectMovie: (movie: Movie) => void;
   onFilterByAttribute: (type: 'genre' | 'studio' | 'year' | 'minutes' | 'size', value: string | number) => void;
+  selectedMovieIds: Set<string>;
+  onToggleMovieSelection: (movieId: string) => void;
 }
 
 export const MovieList: React.FC<MovieListProps> = ({
   movies,
   onSelectMovie,
-  onFilterByAttribute,
+  selectedMovieIds,
+  onToggleMovieSelection,
 }) => {
   if (movies.length === 0) {
     return (
@@ -46,8 +49,18 @@ export const MovieList: React.FC<MovieListProps> = ({
               className="group hover:bg-[#181d2c] transition-colors cursor-pointer"
             >
               <td className="py-2 px-1.5 sm:px-3">
-                <div className="truncate font-semibold text-[9px] sm:text-sm text-zinc-100 group-hover:text-amber-400 transition-colors" title={movie.title}>
-                  {movie.title}
+                <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedMovieIds.has(movie.id)}
+                    onChange={() => onToggleMovieSelection(movie.id)}
+                    onClick={(event) => event.stopPropagation()}
+                    aria-label={`Select ${movie.title}`}
+                    className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-amber-400"
+                  />
+                  <div className="truncate font-semibold text-[9px] sm:text-sm text-zinc-100 group-hover:text-amber-400 transition-colors" title={movie.title}>
+                    {movie.title}
+                  </div>
                 </div>
               </td>
               <td className="py-2 px-1 text-center whitespace-nowrap font-mono text-[9px] sm:text-xs text-zinc-300">

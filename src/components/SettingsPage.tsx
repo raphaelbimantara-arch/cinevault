@@ -697,28 +697,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         {/* Tab Switcher - Fits phone screen gracefully */}
-        <div className="flex items-center bg-[#121520] border border-zinc-800 rounded-xl p-1 shrink-0 w-full sm:w-auto overflow-x-auto">
+        <div className="grid grid-cols-4 items-stretch bg-[#121520] border border-zinc-800 rounded-xl p-1 w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('csv')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+            className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors whitespace-nowrap ${
               activeTab === 'csv'
                 ? 'bg-amber-400 text-zinc-950 shadow-sm'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
             <span>CSV Tools</span>
           </button>
 
           <button
             onClick={() => setActiveTab('duplicates')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors relative whitespace-nowrap ${
+            className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors relative whitespace-nowrap ${
               activeTab === 'duplicates'
                 ? 'bg-amber-400 text-zinc-950 shadow-sm'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            <Copy className="w-3.5 h-3.5" />
+            <Copy className="w-3.5 h-3.5 shrink-0" />
             <span>Duplicates</span>
             {duplicateGroups.length > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
@@ -731,25 +731,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
           <button
             onClick={() => setActiveTab('system')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+            className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors whitespace-nowrap ${
               activeTab === 'system'
                 ? 'bg-amber-400 text-zinc-950 shadow-sm'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            <HardDrive className="w-3.5 h-3.5" />
+            <HardDrive className="w-3.5 h-3.5 shrink-0" />
             <span>Overview</span>
           </button>
 
           <button
             onClick={() => setActiveTab('shared')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+            className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors whitespace-nowrap ${
               activeTab === 'shared'
                 ? 'bg-amber-400 text-zinc-950 shadow-sm'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            <Cloud className="w-3.5 h-3.5" />
+            <Cloud className="w-3.5 h-3.5 shrink-0" />
             <span>Shared</span>
           </button>
         </div>
@@ -760,7 +760,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div>
             <h3 className="text-base font-bold text-zinc-100">Google Sheets Shared Catalog</h3>
             <p className="mt-1 text-xs text-zinc-400">
-              Hubungkan web dan APK ke katalog yang sama. Kunci akses disimpan di perangkat ini dan tidak ditampilkan kembali.
+              Connect the website and APK to the same catalog. The access key is stored on this device and will not be shown again.
             </p>
           </div>
 
@@ -773,7 +773,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             className="space-y-3"
           >
             <label className="block text-xs font-semibold text-zinc-300" htmlFor="shared-catalog-token">
-              Kunci akses bersama
+              Shared access key
             </label>
             <input
               id="shared-catalog-token"
@@ -781,7 +781,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               autoComplete="new-password"
               value={sharedTokenInput}
               onChange={(event) => setSharedTokenInput(event.target.value)}
-              placeholder={sharedCatalogToken ? 'Kunci tersimpan di perangkat ini' : 'Masukkan kunci akses'}
+              placeholder={sharedCatalogToken ? 'Key saved on this device' : 'Enter access key'}
               className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
             />
             <div className="flex flex-wrap gap-2">
@@ -790,7 +790,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 disabled={!sharedTokenInput.trim() || sharedCatalogStatus === 'loading'}
                 className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-950 font-bold text-xs transition-colors"
               >
-                Hubungkan
+                Connect
               </button>
               {sharedCatalogToken && (
                 <button
@@ -798,7 +798,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   onClick={onDisconnectSharedCatalog}
                   className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-colors"
                 >
-                  Putuskan
+                  Disconnect
                 </button>
               )}
             </div>
@@ -806,7 +806,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-zinc-400">Status sinkronisasi</span>
+              <span className="text-xs text-zinc-400">Sync status</span>
               <span className={`text-xs font-semibold ${
                 sharedCatalogStatus === 'connected'
                   ? 'text-emerald-400'
@@ -814,21 +814,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   ? 'text-rose-400'
                   : 'text-amber-300'
               }`}>
-                {sharedCatalogStatus === 'connected' ? 'Terhubung' :
-                  sharedCatalogStatus === 'loading' ? 'Menghubungkan...' :
-                  sharedCatalogStatus === 'empty' ? 'Sheet kosong' :
-                  sharedCatalogStatus === 'error' ? 'Ada masalah' : 'Tidak terhubung'}
+                {sharedCatalogStatus === 'connected' ? 'Connected' :
+                  sharedCatalogStatus === 'loading' ? 'Connecting...' :
+                  sharedCatalogStatus === 'empty' ? 'Sheet is empty' :
+                  sharedCatalogStatus === 'error' ? 'Error' : 'Not connected'}
               </span>
             </div>
             {sharedCatalogStatus === 'connected' && (
               <p className="text-[11px] text-zinc-400">
-                Perubahan tersimpan otomatis. Perangkat lain memuat pembaruan saat aplikasi dibuka atau dimuat ulang.
+                Changes are saved automatically. Other devices load updates when the app is opened or refreshed.
               </p>
             )}
             {sharedCatalogStatus === 'empty' && (
               <div className="space-y-3">
                 <p className="text-[11px] text-zinc-400">
-                  Sheet belum berisi film. Isi dengan {movies.length} film dari perangkat ini untuk memulai katalog bersama.
+                  The sheet has no movies yet. Add the {movies.length} movies from this device to start the shared catalog.
                 </p>
                 <button
                   type="button"
@@ -836,7 +836,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   disabled={sharedCatalogStatus === 'loading'}
                   className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-950 font-bold text-xs transition-colors"
                 >
-                  Salin {movies.length} film ini ke Google Sheets
+                  Copy these {movies.length} movies to Google Sheets
                 </button>
               </div>
             )}
@@ -848,7 +848,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
 
           <p className="text-[11px] leading-relaxed text-zinc-500">
-            Katalog bersama menggunakan satu kunci akses yang sama di setiap perangkat. Siapa pun yang memiliki kunci dapat mengubah seluruh daftar film.
+            The shared catalog uses the same access key on every device. Anyone with the key can modify the entire movie list.
           </p>
         </section>
       )}

@@ -7,6 +7,8 @@ interface MovieCoverGridProps {
   movies: Movie[];
   onSelectMovie: (movie: Movie) => void;
   onFilterByAttribute: (type: 'genre' | 'studio' | 'year' | 'minutes' | 'size', value: string | number) => void;
+  selectedMovieIds: Set<string>;
+  onToggleMovieSelection: (movieId: string) => void;
 }
 
 const GRID_COLS_MAP: Record<number, string> = {
@@ -21,6 +23,8 @@ const GRID_COLS_MAP: Record<number, string> = {
 export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
   movies,
   onSelectMovie,
+  selectedMovieIds,
+  onToggleMovieSelection,
 }) => {
   const [cols, setCols] = useState(4);
 
@@ -55,6 +59,20 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
             onClick={() => onSelectMovie(movie)}
             className="group relative cursor-pointer"
           >
+            <label
+              onClick={(event) => event.stopPropagation()}
+              className="absolute right-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-zinc-600 bg-zinc-950/85 shadow backdrop-blur-sm"
+              title={`Select ${movie.title}`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedMovieIds.has(movie.id)}
+                onChange={() => onToggleMovieSelection(movie.id)}
+                onClick={(event) => event.stopPropagation()}
+                aria-label={`Select ${movie.title}`}
+                className="h-4 w-4 cursor-pointer accent-amber-400"
+              />
+            </label>
             <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 shadow-lg group-hover:border-amber-500/50 transition-all duration-300">
               <img
                 src={getImageSource(movie.posterUrl)}

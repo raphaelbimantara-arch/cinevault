@@ -20,7 +20,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { INITIAL_MOVIES } from './data/initialMovies';
 import { ActorProfile, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
-import { RotateCcw } from 'lucide-react';
+import { CheckSquare, RotateCcw, Trash2, X } from 'lucide-react';
 import { loadSharedCatalog, saveSharedCatalog } from './utils/sharedCatalog';
 
 const STORAGE_KEY = 'cinevault_movies_library_v2';
@@ -130,7 +130,7 @@ export default function App() {
   const handleConnectSharedCatalog = (token: string) => {
     const trimmedToken = token.trim();
     if (!trimmedToken) {
-      setSharedCatalogError('Masukkan kunci akses Google Sheets.');
+      setSharedCatalogError('Enter the Google Sheets access key.');
       return;
     }
     try {
@@ -140,7 +140,7 @@ export default function App() {
       setSharedCatalogReload((reload) => reload + 1);
     } catch (error) {
       console.error('Failed to store shared catalog access key:', error);
-      setSharedCatalogError('Tidak dapat menyimpan kunci akses di perangkat ini.');
+      setSharedCatalogError('Unable to save the access key on this device.');
       setSharedCatalogStatus('error');
     }
   };
@@ -180,6 +180,7 @@ export default function App() {
 
   // Selected movie for detail modal
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [selectedMovieIds, setSelectedMovieIds] = useState<Set<string>>(() => new Set());
 
   // Selected actor for actor detail modal
   const [selectedActorName, setSelectedActorName] = useState<string | null>(null);
@@ -360,6 +361,36 @@ export default function App() {
   const handleBulkDeleteMovies = (movieIds: string[]) => {
     const idSet = new Set(movieIds);
     setMovies((prev) => prev.filter((m) => !idSet.has(m.id)));
+  };
+
+  const handleToggleMovieSelection = (movieId: string) => {
+    setSelectedMovieIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(movieId)) {
+        next.delete(movieId);
+      } else {
+        next.add(movieId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectVisibleMovies = () => {
+    setSelectedMovieIds((prev) => {
+      const next = new Set(prev);
+      filteredAndSortedMovies.forEach((movie) => next.add(movie.id));
+      return next;
+    });
+  };
+
+  const handleDeleteSelectedMovies = () => {
+    const idsToDelete = movies
+      .filter((movie) => selectedMovieIds.has(movie.id))
+      .map((movie) => movie.id);
+    if (idsToDelete.length === 0) return;
+    if (!window.confirm(`Delete ${idsToDelete.length} selected movie(s)? This cannot be undone.`)) return;
+    handleBulkDeleteMovies(idsToDelete);
+    setSelectedMovieIds(new Set());
   };
 
   // Update movie genre (from online internet search)
@@ -582,6 +613,7 @@ export default function App() {
     searchQuery.trim() !== '' ||
     activeMetadataFilter !== null ||
     filteredAndSortedMovies.length !== movies.length;
+  const selectedMovieCount = movies.filter((movie) => selectedMovieIds.has(movie.id)).length;
 
   return (
     <div className="min-h-screen bg-[#08090d] text-zinc-100 flex flex-col font-sans pb-24 selection:bg-amber-400 selection:text-black w-full max-w-full overflow-x-hidden">
@@ -617,24 +649,64 @@ export default function App() {
               totalCatalogCount={movies.length}
             />
 
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-[#121520] p-2.5 sm:p-3">
+              <button
+                type="button"
+                onClick={handleSelectVisibleMovies}
+                disabled={filteredAndSortedMovies.length === 0}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CheckSquare className="h-3.5 w-3.5" />
+                Select visible ({filteredAndSortedMovies.length})
+              </button>
+              {selectedMovieCount > 0 && (
+                <>
+                  <span className="text-xs text-zinc-400">{selectedMovieCount} selected</span>
+                  <button
+                    type="button"
+                    onClick={handleDeleteSelectedMovies}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-rose-500"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMovieIds(new Set())}
+                    className="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+                    aria-label="Clear selected movies"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Clear
+                  </button>
+                </>
+              )}
+            </div>
+
             {/* Movies Display: Grid or List or Cover View */}
             {viewMode === 'grid' ? (
               <MovieGrid
                 movies={filteredAndSortedMovies}
                 onSelectMovie={setSelectedMovie}
                 onFilterByAttribute={handleFilterByAttribute}
+                selectedMovieIds={selectedMovieIds}
+                onToggleMovieSelection={handleToggleMovieSelection}
               />
             ) : viewMode === 'list' ? (
               <MovieList
                 movies={filteredAndSortedMovies}
                 onSelectMovie={setSelectedMovie}
                 onFilterByAttribute={handleFilterByAttribute}
+                selectedMovieIds={selectedMovieIds}
+                onToggleMovieSelection={handleToggleMovieSelection}
               />
             ) : (
               <MovieCoverGrid
                 movies={filteredAndSortedMovies}
                 onSelectMovie={setSelectedMovie}
                 onFilterByAttribute={handleFilterByAttribute}
+                selectedMovieIds={selectedMovieIds}
+                onToggleMovieSelection={handleToggleMovieSelection}
               />
             )}
           </div>
@@ -681,7 +753,7 @@ export default function App() {
           />
         )}
 
-        {/* Page 5: Settings (CSV Export/Import & Cari Data Kembar) */}
+        {/* Page 5: Settings (CSV Export/Import & Duplicate Finder) */}
         {activePage === 'settings' && (
           <SettingsPage
             movies={movies}

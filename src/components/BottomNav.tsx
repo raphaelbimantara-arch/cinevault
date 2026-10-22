@@ -143,7 +143,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           )}
         </button>
 
-        {/* Page 5: Settings (CSV & Data Kembar) */}
+        {/* Page 5: Settings (CSV & Duplicate Finder) */}
         <button
           onClick={() => setActivePage('settings')}
           className={`flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 relative ${
