@@ -59,14 +59,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           Actors
         </button>
         <button
-          onClick={() => setActivePage('studios')}
-          className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
-            activePage === 'studios' ? 'text-amber-400 font-semibold' : ''
-          }`}
-        >
-          Studios
-        </button>
-        <button
           onClick={() => setActivePage('settings')}
           className={`hover:text-white transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
             activePage === 'settings' ? 'text-amber-400 font-semibold' : ''

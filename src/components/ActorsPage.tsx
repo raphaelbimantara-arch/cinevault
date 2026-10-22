@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, CheckSquare } from 'lucide-react';
+import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, CheckSquare, ArrowUpDown } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
 import { getActorProfile } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -24,6 +24,8 @@ interface ActorStat {
   dob: string;
   photoUrl: string;
 }
+
+type ActorSortOption = 'name' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc';
 
 const ALPHABET_LIST = [
   'All',
@@ -52,6 +54,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   onTriggerAddActor,
 }) => {
   const [search, setSearch] = useState('');
+  const [actorSort, setActorSort] = useState<ActorSortOption>('name');
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
   const [cols, setCols] = useState(4);
   const [selectedActorNames, setSelectedActorNames] = useState<Set<string>>(() => new Set());
@@ -138,8 +141,28 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       );
     }
 
-    return result;
-  }, [actorStats, search, selectedAlphabets]);
+    return [...result].sort((a, b) => {
+      if (actorSort === 'movies-desc') {
+        return b.movies.length - a.movies.length || a.name.localeCompare(b.name);
+      }
+      if (actorSort === 'movies-asc') {
+        return a.movies.length - b.movies.length || a.name.localeCompare(b.name);
+      }
+      if (actorSort === 'age-desc' || actorSort === 'age-asc') {
+        const dobA = Date.parse(a.dob);
+        const dobB = Date.parse(b.dob);
+        const hasInvalidDateA = Number.isNaN(dobA);
+        const hasInvalidDateB = Number.isNaN(dobB);
+        if (hasInvalidDateA !== hasInvalidDateB) return hasInvalidDateA ? 1 : -1;
+        if (hasInvalidDateA) return a.name.localeCompare(b.name);
+        const ageOrder = actorSort === 'age-desc'
+          ? dobA - dobB
+          : dobB - dobA;
+        return ageOrder || a.name.localeCompare(b.name);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [actorStats, search, selectedAlphabets, actorSort]);
 
   const handleToggleActorSelection = (name: string) => {
     setSelectedActorNames((prev) => {
@@ -185,6 +208,21 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <div className="flex items-center gap-1 bg-[#121520] border border-zinc-800 rounded-xl px-2 py-1.5 shrink-0">
+            <ArrowUpDown className="h-3 w-3 text-amber-400 shrink-0" />
+            <select
+              value={actorSort}
+              onChange={(event) => setActorSort(event.target.value as ActorSortOption)}
+              aria-label="Sort actors"
+              className="max-w-[125px] cursor-pointer bg-transparent text-xs text-zinc-200 focus:outline-none"
+            >
+              <option value="name" className="bg-[#121520]">Name (A–Z)</option>
+              <option value="movies-desc" className="bg-[#121520]">Movies (Most)</option>
+              <option value="movies-asc" className="bg-[#121520]">Movies (Fewest)</option>
+              <option value="age-desc" className="bg-[#121520]">Age (Oldest)</option>
+              <option value="age-asc" className="bg-[#121520]">Age (Youngest)</option>
+            </select>
+          </div>
           <div className="relative flex-1 sm:w-60">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <input

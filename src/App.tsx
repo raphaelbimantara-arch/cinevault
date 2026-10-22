@@ -12,9 +12,7 @@ import { MovieList } from './components/MovieList';
 import { MovieCoverGrid } from './components/MovieCoverGrid';
 import { MovieDetailModal } from './components/MovieDetailModal';
 import { ActorDetailModal } from './components/ActorDetailModal';
-import { StudioDetailModal } from './components/StudioDetailModal';
 import { ActorsPage } from './components/ActorsPage';
-import { StudiosPage } from './components/StudiosPage';
 import { AddMoviePage } from './components/AddMoviePage';
 import { SettingsPage } from './components/SettingsPage';
 import { INITIAL_MOVIES } from './data/initialMovies';
@@ -187,20 +185,17 @@ export default function App() {
   const [selectedActorName, setSelectedActorName] = useState<string | null>(null);
 
   // Selected studio for studio detail modal
-  const [selectedStudioName, setSelectedStudioName] = useState<string | null>(null);
 
   // Navigation handler that keeps bottom menu responsive and closes modals when switching tabs
   const handleNavigatePage = (page: ActivePage) => {
     setSelectedMovie(null);
     setSelectedActorName(null);
-    setSelectedStudioName(null);
     setActivePage(page);
   };
 
   const handleTriggerAdd = (tab: 'movie' | 'actor' | 'studio' = 'movie') => {
     setSelectedMovie(null);
     setSelectedActorName(null);
-    setSelectedStudioName(null);
     setAddTab(tab);
     setActivePage('add');
   };
@@ -246,13 +241,6 @@ export default function App() {
   const actorsCount = useMemo(() => {
     const set = new Set<string>();
     movies.forEach((m) => m.actors.forEach((a) => set.add(a.trim())));
-    return set.size;
-  }, [movies]);
-
-  // Compute unique studios count
-  const studiosCount = useMemo(() => {
-    const set = new Set<string>();
-    movies.forEach((m) => set.add(m.studio.trim()));
     return set.size;
   }, [movies]);
 
@@ -334,7 +322,7 @@ export default function App() {
     });
   };
 
-  // Quick handler to filter catalog by studio from Studios Page
+  // Quick handler to filter catalog by studio
   const handleFilterByStudio = (studioName: string) => {
     handleFilterByAttribute('studio', studioName);
   };
@@ -594,10 +582,6 @@ export default function App() {
           return (b.sizeBytes || 0) - (a.sizeBytes || 0);
         case 'size-asc':
           return (a.sizeBytes || 0) - (b.sizeBytes || 0);
-        case 'studio-asc':
-          return a.studio.localeCompare(b.studio);
-        case 'studio-desc':
-          return b.studio.localeCompare(a.studio);
         case 'actor-asc':
           return (a.actors[0] || '').localeCompare(b.actors[0] || '');
         case 'actor-desc':
@@ -733,18 +717,7 @@ export default function App() {
           />
         )}
 
-        {/* Page 3: Studios */}
-        {activePage === 'studios' && (
-          <StudiosPage
-            movies={movies}
-            onSelectMovie={setSelectedMovie}
-            onFilterByStudio={handleFilterByStudio}
-            onOpenStudioDetail={(name) => setSelectedStudioName(name)}
-            onTriggerAddStudio={() => handleTriggerAdd('studio')}
-          />
-        )}
-
-        {/* Page 4: Add Movies / Actors / Studios Data */}
+        {/* Page 3: Add Movies / Actors / Studios Data */}
         {activePage === 'add' && (
           <AddMoviePage
             initialTab={addTab}
@@ -803,21 +776,6 @@ export default function App() {
         onUpdateActor={handleUpdateActor}
       />
 
-      {/* Studio Detail Modal (Shows Monogram, Headquarters, Founded, Filmography) */}
-      <StudioDetailModal
-        studioName={selectedStudioName}
-        movies={movies}
-        onClose={() => setSelectedStudioName(null)}
-        onSelectMovie={(movie) => {
-          setSelectedStudioName(null);
-          setSelectedMovie(movie);
-        }}
-        onFilterByStudio={(studio) => {
-          setSelectedStudioName(null);
-          handleFilterByStudio(studio);
-        }}
-      />
-
       {/* Footer info & Reset option */}
       <footer className="mt-auto py-6 border-t border-zinc-800/60 text-center text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -837,13 +795,12 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Bottom Navigation for Movie Library, Actors, Studio, Add Movies Data */}
+      {/* Bottom Navigation for Movie Library, Actors, Add Movies Data */}
       <BottomNav
         activePage={activePage}
         setActivePage={handleNavigatePage}
         moviesCount={movies.length}
         actorsCount={actorsCount}
-        studiosCount={studiosCount}
         onTriggerAdd={handleTriggerAdd}
       />
     </div>

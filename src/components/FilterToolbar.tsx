@@ -78,24 +78,9 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
           )}
         </div>
 
-        {/* Controls Row: Genre, Sort, View Toggle */}
+        {/* Controls Row: Sort on the left, categories on the right */}
         <div className="flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
-          {/* Genre Dropdown */}
-          <div className="flex items-center gap-1 bg-[#121520] border border-zinc-800 rounded-xl px-2 sm:px-2.5 py-1.5 shrink-0">
-            <span className="text-[10px] text-zinc-500 font-medium">Genre:</span>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer max-w-[85px] sm:max-w-none"
-            >
-              <option value="All" className="bg-[#121520]">All</option>
-              {ALL_GENRES.filter(genre => genre !== 'All').map((genre) => (
-                <option key={genre} value={genre} className="bg-[#121520]">{genre}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Sort dropdown */}
+          {/* Sort dropdown on the left */}
           <div className="flex items-center gap-1 bg-[#121520] border border-zinc-800 rounded-xl px-2 sm:px-2.5 py-1.5 shrink-0">
             <ArrowUpDown className="w-3 h-3 text-amber-400 shrink-0" />
             <select
@@ -113,10 +98,23 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
               <option value="quality-asc" className="bg-[#121520]">Quality (Lowest)</option>
               <option value="size-desc" className="bg-[#121520]">Size (Largest)</option>
               <option value="size-asc" className="bg-[#121520]">Size (Smallest)</option>
-              <option value="studio-asc" className="bg-[#121520]">Studio (A-Z)</option>
-              <option value="studio-desc" className="bg-[#121520]">Studio (Z-A)</option>
               <option value="actor-asc" className="bg-[#121520]">Actor (A-Z)</option>
               <option value="actor-desc" className="bg-[#121520]">Actor (Z-A)</option>
+            </select>
+          </div>
+
+          {/* Categories on the right */}
+          <div className="flex items-center gap-1 bg-[#121520] border border-zinc-800 rounded-xl px-2 sm:px-2.5 py-1.5 shrink-0 ml-auto">
+            <span className="text-[10px] text-zinc-500 font-medium">Genre:</span>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer max-w-[85px] sm:max-w-none"
+            >
+              <option value="All" className="bg-[#121520]">All</option>
+              {ALL_GENRES.filter(genre => genre !== 'All').map((genre) => (
+                <option key={genre} value={genre} className="bg-[#121520]">{genre}</option>
+              ))}
             </select>
           </div>
 

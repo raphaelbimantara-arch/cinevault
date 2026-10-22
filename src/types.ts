@@ -16,7 +16,7 @@ export interface Movie {
 
 export type ViewMode = 'grid' | 'list' | 'cover';
 
-export type ActivePage = 'library' | 'actors' | 'studios' | 'add' | 'settings';
+export type ActivePage = 'library' | 'actors' | 'add' | 'settings';
 
 export type SortOption =
   | 'alphabet-asc'
@@ -27,8 +27,6 @@ export type SortOption =
   | 'minutes-asc'
   | 'size-desc'
   | 'size-asc'
-  | 'studio-asc'
-  | 'studio-desc'
   | 'actor-asc'
   | 'actor-desc'
   | 'quality-desc'

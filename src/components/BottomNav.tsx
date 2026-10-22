@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, Users, Building2, PlusCircle, User, Settings } from 'lucide-react';
+import { Film, Users, PlusCircle, User, Settings } from 'lucide-react';
 import { ActivePage } from '../types';
 
 interface BottomNavProps {
@@ -7,7 +7,6 @@ interface BottomNavProps {
   setActivePage: (page: ActivePage) => void;
   moviesCount: number;
   actorsCount: number;
-  studiosCount: number;
   onTriggerAdd: (tab?: 'movie' | 'actor' | 'studio') => void;
 }
 
@@ -16,7 +15,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   setActivePage,
   moviesCount,
   actorsCount,
-  studiosCount,
   onTriggerAdd,
 }) => {
   // Contextual Add button details
@@ -27,12 +25,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           label: 'Add Actor',
           icon: <User className="w-4 h-4 sm:w-5 sm:h-5 mb-1" />,
           action: () => onTriggerAdd('actor'),
-        };
-      case 'studios':
-        return {
-          label: 'Add Studio',
-          icon: <Building2 className="w-4 h-4 sm:w-5 sm:h-5 mb-1" />,
-          action: () => onTriggerAdd('studio'),
         };
       case 'add':
         return {
@@ -57,7 +49,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       aria-label="Bottom Navigation" 
       className="fixed bottom-0 inset-x-0 z-[60] bg-[#090b10]/95 backdrop-blur-lg border-t border-zinc-800/90 px-2 sm:px-3 py-2 sm:py-2.5 shadow-2xl"
     >
-      <div className="max-w-2xl mx-auto grid grid-cols-5 gap-1 sm:gap-1.5">
+      <div className="max-w-2xl mx-auto grid grid-cols-4 gap-1 sm:gap-1.5">
         {/* Page 1: Movie Library */}
         <button
           onClick={() => setActivePage('library')}
@@ -100,28 +92,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           )}
         </button>
 
-        {/* Page 3: Studios */}
-        <button
-          onClick={() => setActivePage('studios')}
-          className={`flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 relative ${
-            activePage === 'studios'
-              ? 'text-amber-400 bg-amber-400/10 font-semibold'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-          }`}
-        >
-          <Building2 className="w-4 h-4 sm:w-5 sm:h-5 mb-0.5 sm:mb-1" />
-          <span className="text-[10px] sm:text-xs tracking-tight whitespace-nowrap">
-            Studios
-          </span>
-          <span className="text-[9px] text-zinc-500 font-mono tabular-nums leading-none mt-0.5">
-            {studiosCount}
-          </span>
-          {activePage === 'studios' && (
-            <span className="absolute -top-2 w-7 h-0.5 bg-amber-400 rounded-full" />
-          )}
-        </button>
-
-        {/* Page 4: Contextual Add Action */}
+        {/* Page 3: Contextual Add Action */}
         <button
           onClick={addConfig.action}
           className={`flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 relative ${
@@ -143,7 +114,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           )}
         </button>
 
-        {/* Page 5: Settings (CSV & Duplicate Finder) */}
+        {/* Page 4: Settings (CSV & Duplicate Finder) */}
         <button
           onClick={() => setActivePage('settings')}
           className={`flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 relative ${
