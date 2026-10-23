@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Download, 
   Upload, 
@@ -57,6 +57,12 @@ interface ActorDuplicateGroup {
   key: string;
   reason: 'name-or-alias' | 'similar-spelling' | 'matching-name-parts';
   actors: ActorDuplicateCandidate[];
+}
+
+const REVIEWED_DUPLICATE_GROUPS_KEY = 'cinevault_reviewed_duplicate_groups_v1';
+
+function getMovieDuplicateReviewKey(group: DuplicateGroup): string {
+  return group.movies.map((movie) => movie.id).sort().join('|');
 }
 
 function normalizePersonName(value: string): string {
@@ -157,6 +163,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'csv' | 'duplicates' | 'system' | 'shared'>('csv');
   const [duplicateType, setDuplicateType] = useState<'movies' | 'actors'>('movies');
+  const [reviewedDuplicateGroups, setReviewedDuplicateGroups] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(REVIEWED_DUPLICATE_GROUPS_KEY);
+      const parsed: unknown = stored ? JSON.parse(stored) : [];
+      return new Set(Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === 'string') : []);
+    } catch (error) {
+      console.error('Failed to load reviewed duplicate groups:', error);
+      return new Set();
+    }
+  });
   const [sharedTokenInput, setSharedTokenInput] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
@@ -171,6 +187,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [showPasteArea, setShowPasteArea] = useState(false);
   const [pastedText, setPastedText] = useState('');
   const [autoImportEnabled, setAutoImportEnabled] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(REVIEWED_DUPLICATE_GROUPS_KEY, JSON.stringify([...reviewedDuplicateGroups]));
+    } catch (error) {
+      console.error('Failed to save reviewed duplicate groups:', error);
+      showToast('error', 'Could not save duplicate review decisions on this device.');
+    }
+  }, [reviewedDuplicateGroups]);
 
   // Auto-dismiss notification after 4s
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
@@ -817,14 +842,31 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       .sort((a, b) => a.actors[0].name.localeCompare(b.actors[0].name));
   }, [movies]);
 
+  const visibleMovieDuplicateGroups = useMemo(
+    () => duplicateGroups.filter((group) => !reviewedDuplicateGroups.has(`movie:${getMovieDuplicateReviewKey(group)}`)),
+    [duplicateGroups, reviewedDuplicateGroups],
+  );
+  const visibleActorDuplicateGroups = useMemo(
+    () => actorDuplicateGroups.filter((group) => !reviewedDuplicateGroups.has(`actor:${group.key}`)),
+    [actorDuplicateGroups, reviewedDuplicateGroups],
+  );
+
   const totalDuplicateRedundantCount = useMemo(() => {
-    return duplicateGroups.reduce((acc, grp) => acc + (grp.movies.length - 1), 0);
-  }, [duplicateGroups]);
+    return visibleMovieDuplicateGroups.reduce((acc, grp) => acc + (grp.movies.length - 1), 0);
+  }, [visibleMovieDuplicateGroups]);
 
   const totalActorDuplicateCount = useMemo(
-    () => actorDuplicateGroups.reduce((count, group) => count + group.actors.length - 1, 0),
-    [actorDuplicateGroups],
+    () => visibleActorDuplicateGroups.reduce((count, group) => count + group.actors.length - 1, 0),
+    [visibleActorDuplicateGroups],
   );
+
+  const handleKeepDuplicateGroup = (type: 'movie' | 'actor', key: string, names: string[]) => {
+    const kind = type === 'movie' ? 'film' : 'aktor';
+    const entries = names.map((name) => `• ${name}`).join('\n');
+    if (!window.confirm(`Anda telah meninjau kemungkinan duplikat ${kind} berikut:\n\n${entries}\n\nSimpan semuanya dan tandai grup ini sudah ditinjau? Data tidak akan dihapus.`)) return;
+    setReviewedDuplicateGroups((previous) => new Set(previous).add(`${type}:${key}`));
+    showToast('success', `Grup ${kind} ditandai sudah ditinjau. Data tetap disimpan.`);
+  };
 
   const handleMergeActorGroup = (group: ActorDuplicateGroup, primaryName: string) => {
     const mergedNames = group.actors
@@ -856,10 +898,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   };
 
   const handleAutoCleanAllDuplicates = () => {
-    if (duplicateGroups.length === 0) return;
+    if (visibleMovieDuplicateGroups.length === 0) return;
     const allIdsToDelete: string[] = [];
 
-    duplicateGroups.forEach((grp) => {
+    visibleMovieDuplicateGroups.forEach((grp) => {
       const sorted = [...grp.movies].sort((a, b) => (b.sizeBytes || 0) - (a.sizeBytes || 0));
       for (let i = 1; i < sorted.length; i++) {
         allIdsToDelete.push(sorted[i].id);
@@ -942,11 +984,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           >
             <Copy className="w-3.5 h-3.5 shrink-0" />
             <span>Duplicates</span>
-            {duplicateGroups.length + actorDuplicateGroups.length > 0 && (
+            {visibleMovieDuplicateGroups.length + visibleActorDuplicateGroups.length > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
                 activeTab === 'duplicates' ? 'bg-zinc-950 text-amber-400' : 'bg-rose-500 text-white'
               }`}>
-                {duplicateGroups.length + actorDuplicateGroups.length}
+                {visibleMovieDuplicateGroups.length + visibleActorDuplicateGroups.length}
               </span>
             )}
           </button>
@@ -1395,7 +1437,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 duplicateType === 'movies' ? 'bg-amber-400 text-zinc-950' : 'text-zinc-400 hover:text-white'
               }`}
             >
-              Movies ({duplicateGroups.length})
+              Movies ({visibleMovieDuplicateGroups.length})
             </button>
             <button
               type="button"
@@ -1404,7 +1446,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 duplicateType === 'actors' ? 'bg-amber-400 text-zinc-950' : 'text-zinc-400 hover:text-white'
               }`}
             >
-              Actors ({actorDuplicateGroups.length})
+              Actors ({visibleActorDuplicateGroups.length})
             </button>
           </div>
           {duplicateType === 'movies' ? (
@@ -1414,9 +1456,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-bold text-base sm:text-lg text-white">Duplicate Movie Finder</h3>
-                {duplicateGroups.length > 0 ? (
+                {visibleMovieDuplicateGroups.length > 0 ? (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                    {duplicateGroups.length} Groups ({totalDuplicateRedundantCount} duplicates)
+                    {visibleMovieDuplicateGroups.length} Groups ({totalDuplicateRedundantCount} duplicates)
                   </span>
                 ) : (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
@@ -1429,7 +1471,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </p>
             </div>
 
-            {duplicateGroups.length > 0 && (
+            {visibleMovieDuplicateGroups.length > 0 && (
               <button
                 onClick={handleAutoCleanAllDuplicates}
                 className="w-full sm:w-auto px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors shrink-0 shadow-md"
@@ -1441,22 +1483,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
 
           {/* If No Duplicates */}
-          {duplicateGroups.length === 0 && (
+          {visibleMovieDuplicateGroups.length === 0 && (
             <div className="py-16 text-center rounded-2xl border border-dashed border-zinc-800 bg-[#0d0f16]/60 p-6">
               <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto mb-3">
                 <Check className="w-7 h-7" />
               </div>
-              <h3 className="text-base font-bold text-zinc-200">No Duplicate Movies Found!</h3>
+              <h3 className="text-base font-bold text-zinc-200">
+                {duplicateGroups.length > 0 ? 'All Movie Groups Reviewed' : 'No Duplicate Movies Found!'}
+              </h3>
               <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">
-                All {movies.length} titles in your library are unique. No redundant duplicate titles or releases detected.
+                {duplicateGroups.length > 0
+                  ? 'Reviewed groups remain saved in your catalog and can be detected again if their entries change.'
+                  : `All ${movies.length} titles in your library are unique. No redundant duplicate titles or releases detected.`}
               </p>
             </div>
           )}
 
           {/* Duplicate Groups List */}
-          {duplicateGroups.length > 0 && (
+          {visibleMovieDuplicateGroups.length > 0 && (
             <div className="space-y-4">
-              {duplicateGroups.map((group, grpIdx) => (
+              {visibleMovieDuplicateGroups.map((group, grpIdx) => (
                 <div 
                   key={group.key}
                   className="bg-[#121520] border border-zinc-800/90 hover:border-zinc-700 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4 overflow-hidden"
@@ -1492,6 +1538,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                     {/* Quick group action: Merge */}
                     <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleKeepDuplicateGroup(
+                          'movie',
+                          getMovieDuplicateReviewKey(group),
+                          group.movies.map((movie) => `${movie.title} (${movie.year})`),
+                        )}
+                        className="w-full sm:w-auto px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                        title="Keep every movie in this reviewed group"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Keep These</span>
+                      </button>
                       <button
                         onClick={() => handleMergeGroup(group)}
                         className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
@@ -1593,31 +1652,46 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   Review each group before merging; similar names are suggestions, not guaranteed duplicates.
                 </p>
                 <div className="mt-3 text-xs font-mono text-zinc-300">
-                  {actorDuplicateGroups.length} groups · {totalActorDuplicateCount} possible duplicate entries
+                  {visibleActorDuplicateGroups.length} groups · {totalActorDuplicateCount} possible duplicate entries
                 </div>
               </div>
 
-              {actorDuplicateGroups.length === 0 ? (
+              {visibleActorDuplicateGroups.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-zinc-800 bg-[#0d0f16]/60 p-8 text-center">
                   <Check className="mx-auto mb-3 h-8 w-8 text-emerald-400" />
-                  <h3 className="font-bold text-zinc-200">No duplicate actors found</h3>
+                  <h3 className="font-bold text-zinc-200">
+                    {actorDuplicateGroups.length > 0 ? 'All Actor Groups Reviewed' : 'No duplicate actors found'}
+                  </h3>
                   <p className="mt-1 text-xs text-zinc-400">
-                    Actor names and aliases currently appear unique.
+                    {actorDuplicateGroups.length > 0
+                      ? 'Reviewed actor entries remain saved and can be detected again if the names or aliases change.'
+                      : 'Actor names and aliases currently appear unique.'}
                   </p>
                 </div>
-              ) : actorDuplicateGroups.map((group, groupIndex) => (
+              ) : visibleActorDuplicateGroups.map((group, groupIndex) => (
                 <section key={group.key} className="space-y-3 rounded-2xl border border-zinc-800 bg-[#121520] p-4 sm:p-5">
-                  <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800 pb-3">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-400/20 font-mono text-xs font-bold text-amber-300">
-                      {groupIndex + 1}
-                    </span>
-                    <span className="text-sm font-bold text-white">
-                      {group.reason === 'name-or-alias'
-                        ? 'Name or alias match'
-                        : group.reason === 'matching-name-parts'
-                          ? 'Matching first/last name'
-                          : 'Possible spelling variation'}
-                    </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-400/20 font-mono text-xs font-bold text-amber-300">
+                        {groupIndex + 1}
+                      </span>
+                      <span className="text-sm font-bold text-white">
+                        {group.reason === 'name-or-alias'
+                          ? 'Name or alias match'
+                          : group.reason === 'matching-name-parts'
+                            ? 'Matching first/last name'
+                            : 'Possible spelling variation'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleKeepDuplicateGroup('actor', group.key, group.actors.map((actor) => actor.name))}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                      title="Keep all actor entries in this reviewed group"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Keep These
+                    </button>
                   </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {group.actors.map((actor) => (
