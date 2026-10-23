@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   LayoutGrid, 
   List, 
@@ -6,7 +6,9 @@ import {
   Search, 
   X, 
   ArrowUpDown,
-  FilterX
+  FilterX,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { ViewMode, SortOption, ActiveFilter } from '../types';
 
@@ -53,6 +55,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
   totalCatalogCount,
 }) => {
   const isMultiAlphabetActive = !selectedAlphabets.includes('All') && selectedAlphabets.length > 0;
+  const [isAlphabetOpen, setIsAlphabetOpen] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -166,44 +169,56 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
 
 
       {/* Alphabet filter */}
-      <div className="flex items-center gap-1 overflow-x-auto py-1.5 scrollbar-none border-y border-zinc-800/50 bg-[#0d0f16]/60 px-2 rounded-lg">
-        <div className="flex items-center gap-1.5 shrink-0 pr-2">
-          <span className="text-[11px] text-zinc-400 font-mono uppercase whitespace-nowrap">
-            Alphabet:
-          </span>
+      <div className="rounded-lg border-y border-zinc-800/50 bg-[#0d0f16]/60 px-2 py-1.5">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsAlphabetOpen((open) => !open)}
+            aria-expanded={isAlphabetOpen}
+            className="inline-flex shrink-0 items-center gap-1 text-[11px] text-zinc-400 font-mono uppercase whitespace-nowrap hover:text-zinc-200"
+          >
+            Alphabet
+            {isAlphabetOpen
+              ? <ChevronUp className="h-3.5 w-3.5" />
+              : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
           {isMultiAlphabetActive && selectedAlphabets.length > 1 && (
             <span className="text-[10px] bg-amber-400/20 text-amber-300 font-mono px-1.5 py-0.5 rounded border border-amber-500/30">
               {selectedAlphabets.length} selected
             </span>
           )}
         </div>
-        {ALPHABET_LIST.map((char) => {
-          const isSelected = char === 'All'
-            ? selectedAlphabets.includes('All') || selectedAlphabets.length === 0
-            : selectedAlphabets.includes(char);
-          return (
-            <button
-              key={char}
-              onClick={() => onToggleAlphabet(char)}
-              className={`min-w-6 px-1.5 py-0.5 rounded text-[11px] font-mono transition-colors shrink-0 text-center ${
-                isSelected
-                  ? 'bg-amber-400 text-zinc-950 font-bold shadow-sm'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-              title={char === 'All' ? 'Show all (reset)' : `Toggle letter ${char} (can select multiple)`}
-            >
-              {char}
-            </button>
-          );
-        })}
-        {isMultiAlphabetActive && (
-          <button
-            onClick={() => onToggleAlphabet('All')}
-            className="text-[10px] text-zinc-400 hover:text-amber-400 ml-1.5 px-2 py-0.5 rounded border border-zinc-800 bg-zinc-900 shrink-0 font-mono transition-colors"
-            title="Reset alphabet filter to All"
-          >
-            Clear ({selectedAlphabets.length})
-          </button>
+        {isAlphabetOpen && (
+          <div className="mt-1 flex items-center gap-1 overflow-x-auto scrollbar-none">
+            {ALPHABET_LIST.map((char) => {
+              const isSelected = char === 'All'
+                ? selectedAlphabets.includes('All') || selectedAlphabets.length === 0
+                : selectedAlphabets.includes(char);
+              return (
+                <button
+                  key={char}
+                  onClick={() => onToggleAlphabet(char)}
+                  className={`min-w-6 px-1.5 py-0.5 rounded text-[11px] font-mono transition-colors shrink-0 text-center ${
+                    isSelected
+                      ? 'bg-amber-400 text-zinc-950 font-bold shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                  }`}
+                  title={char === 'All' ? 'Show all (reset)' : `Toggle letter ${char} (can select multiple)`}
+                >
+                  {char}
+                </button>
+              );
+            })}
+            {isMultiAlphabetActive && (
+              <button
+                onClick={() => onToggleAlphabet('All')}
+                className="text-[10px] text-zinc-400 hover:text-amber-400 ml-1.5 px-2 py-0.5 rounded border border-zinc-800 bg-zinc-900 shrink-0 font-mono transition-colors"
+                title="Reset alphabet filter to All"
+              >
+                Clear ({selectedAlphabets.length})
+              </button>
+            )}
+          </div>
         )}
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Calendar, Film, HardDrive, Clock, User, Edit3, Save, Undo2, Star, Check } from 'lucide-react';
+import { X, Calendar, Film, Clock, User, Edit3, Save, Undo2, Star, Check } from 'lucide-react';
 import { Movie } from '../types';
 import { getActorProfile, ActorProfile } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -30,6 +30,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   // Edit mode states
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
+  const [editAlias, setEditAlias] = useState('');
   const [editDob, setEditDob] = useState('');
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
   const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
@@ -39,6 +40,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     if (actorName) {
       const p = getActorProfile(actorName);
       setEditName(actorName);
+      setEditAlias(p.alias || '');
       setEditDob(p.dob);
       setEditPhotoUrl(p.photoUrl);
       setIsEditing(false);
@@ -77,9 +79,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     return actorMovies.slice(0, displayLimit);
   }, [actorMovies, displayLimit]);
 
-  // Total size (in GB) and total minutes across this actor's filmography
-  const totalSizeBytes = actorMovies.reduce((acc, m) => acc + (m.sizeBytes || 0), 0);
-  const totalGB = (totalSizeBytes / 1000).toFixed(1);
+  // Total minutes across this actor's filmography
   const totalMinutes = actorMovies.reduce((acc, m) => acc + (m.minutes || 0), 0);
   const totalHours = Math.floor(totalMinutes / 60);
   const remainingMinutes = totalMinutes % 60;
@@ -105,6 +105,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   // Enter edit mode: populate fields from current profile
   const handleStartEdit = () => {
     setEditName(actorName);
+    setEditAlias(profile.alias || '');
     setEditDob(profile.dob);
     setEditPhotoUrl(profile.photoUrl);
     setEditSavedToast(null);
@@ -128,6 +129,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     }
     const updated: ActorProfile = {
       name: trimmedName,
+      alias: editAlias.trim() || undefined,
       dob: editDob.trim() || profile.dob,
       photoUrl: getImageSource(editPhotoUrl),
     };
@@ -235,6 +237,18 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                       />
                     </div>
 
+                    {/* Alias */}
+                    <div>
+                      <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Alias</label>
+                      <input
+                        type="text"
+                        value={editAlias}
+                        onChange={(e) => setEditAlias(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                        placeholder="Actor alias"
+                      />
+                    </div>
+
                     {/* Date of Birth */}
                     <div>
                       <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Date of Birth</label>
@@ -303,8 +317,11 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                         </div>
                       )}
                     </div>
+                    {profile.alias && (
+                      <p className="mt-1 text-sm text-zinc-400 sm:text-base">{profile.alias}</p>
+                    )}
 
-                    {/* Badges: Date of Birth, Total Size, Total Duration */}
+                    {/* Badges: Date of Birth and Total Duration */}
                     <div className="mt-3.5 flex flex-wrap gap-2 justify-center sm:justify-start">
                       {/* DATE OF BIRTH */}
                       <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
@@ -312,15 +329,6 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                         <span className="text-zinc-400">Date of Birth:</span>
                         <span className="font-semibold text-zinc-100 font-mono">
                           {profile.dob}
-                        </span>
-                      </div>
-
-                      {/* TOTAL SIZE */}
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
-                        <HardDrive className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span className="text-zinc-400">Total Size:</span>
-                        <span className="font-semibold text-amber-300 font-mono">
-                          {totalGB} GB
                         </span>
                       </div>
 
@@ -343,7 +351,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
               <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Film className="w-4 h-4 text-amber-400" />
-                <span>Movies Title ({actorMovies.length})</span>
+                <span>Movies Title</span>
               </h3>
 
               {/* Option to show 10, 25, & All Movies */}

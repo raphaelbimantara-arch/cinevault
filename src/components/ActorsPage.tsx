@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, CheckSquare, ArrowUpDown, Image, Star, Check } from 'lucide-react';
+import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, ArrowUpDown, Star, Check, ChevronDown, ChevronUp, Pencil, Save, Undo2 } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
-import { getActorProfile, updateActorStatuses } from '../data/actorsData';
+import { ActorProfile, getActorProfile, updateActorStatuses } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
 
@@ -12,20 +12,25 @@ interface ActorsPageProps {
   onDeleteActors: (actorNames: string[]) => void;
   onNotify: (message: string, action?: { label: string; onClick: () => void }) => void;
   onTriggerAddActor?: () => void;
+  onUpdateActor: (oldName: string, updatedProfile: ActorProfile) => void;
 }
 
 interface ActorStat {
   name: string;
+  alias: string;
   movies: Movie[];
   genres: string[];
   studios: string[];
   dob: string;
+  sizeBytes: number;
+  totalMinutes: number;
   photoUrl: string;
   favorite: boolean;
   reviewed: boolean;
 }
 
-type ActorSortOption = 'name' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc';
+type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc';
+type ActorEditDraft = { name: string; alias: string; dob: string };
 
 const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = ({
   favorite,
@@ -49,6 +54,12 @@ const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = (
   ) : null
 );
 
+const formatActorDob = (dob: string) => {
+  const match = dob.match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})$/);
+  if (!match) return dob;
+  return `${match[2].padStart(2, '0')} ${match[1].slice(0, 3)} ${match[3]}`;
+};
+
 const ALPHABET_LIST = [
   'All',
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
@@ -63,14 +74,18 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   onDeleteActors,
   onNotify,
   onTriggerAddActor,
+  onUpdateActor,
 }) => {
-  const [actorViewMode, setActorViewMode] = useState<ViewMode | 'photos'>(viewMode);
+  const [actorViewMode, setActorViewMode] = useState<ViewMode>(viewMode);
   const [search, setSearch] = useState('');
   const [actorSort, setActorSort] = useState<ActorSortOption>('name');
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
+  const [isAlphabetOpen, setIsAlphabetOpen] = useState(false);
   const [cols, setCols] = useState(4);
   const [selectedActorNames, setSelectedActorNames] = useState<Set<string>>(() => new Set());
   const [actorStatusRevision, setActorStatusRevision] = useState(0);
+  const [isEditingList, setIsEditingList] = useState(false);
+  const [actorDrafts, setActorDrafts] = useState<Record<string, ActorEditDraft>>({});
   const selectionMode = selectedActorNames.size > 0;
   const longPressHandlers = useLongPress((name) => {
     setSelectedActorNames((prev) => new Set(prev).add(name));
@@ -116,10 +131,16 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
 
       result.push({
         name,
+        alias: profile.alias || '',
         movies: actorMovies,
         genres,
         studios,
         dob: profile.dob,
+        sizeBytes: actorMovies.reduce(
+          (total, movie) => total + (movie.sizeBytes ?? (Number.parseFloat(movie.size) || 0) * 1000),
+          0,
+        ),
+        totalMinutes: actorMovies.reduce((total, movie) => total + (movie.minutes || 0), 0),
         photoUrl: profile.photoUrl,
         favorite: profile.favorite === true,
         reviewed: profile.reviewed === true,
@@ -152,6 +173,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       result = result.filter(
         (a) =>
           a.name.toLowerCase().includes(q) ||
+          a.alias.toLowerCase().includes(q) ||
           a.movies.some((m) => m.title.toLowerCase().includes(q))
       );
     }
@@ -175,9 +197,103 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           : dobB - dobA;
         return ageOrder || a.name.localeCompare(b.name);
       }
-      return a.name.localeCompare(b.name);
+      if (actorSort === 'size-desc' || actorSort === 'size-asc') {
+        const sizeOrder = actorSort === 'size-desc' ? b.sizeBytes - a.sizeBytes : a.sizeBytes - b.sizeBytes;
+        return sizeOrder || a.name.localeCompare(b.name);
+      }
+      if (actorSort === 'duration-desc' || actorSort === 'duration-asc') {
+        const durationOrder = actorSort === 'duration-desc'
+          ? b.totalMinutes - a.totalMinutes
+          : a.totalMinutes - b.totalMinutes;
+        return durationOrder || a.name.localeCompare(b.name);
+      }
+      if (actorSort === 'alias' || actorSort === 'alias-desc') {
+        const aliasOrder = actorSort === 'alias'
+          ? a.alias.localeCompare(b.alias, undefined, { sensitivity: 'base' })
+          : b.alias.localeCompare(a.alias, undefined, { sensitivity: 'base' });
+        return aliasOrder || a.name.localeCompare(b.name);
+      }
+      return actorSort === 'name-desc'
+        ? b.name.localeCompare(a.name, undefined, { sensitivity: 'base' })
+        : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
     });
   }, [actorStats, search, selectedAlphabets, actorSort]);
+
+  const startListEditing = () => {
+    setActorDrafts(Object.fromEntries(filteredActors.map((actor) => [
+      actor.name,
+      { name: actor.name, alias: actor.alias, dob: actor.dob },
+    ])));
+    setSelectedActorNames(new Set());
+    setIsEditingList(true);
+  };
+
+  const cancelListEditing = () => {
+    setIsEditingList(false);
+    setActorDrafts({});
+  };
+
+  const updateActorDraft = (name: string, field: keyof ActorEditDraft, value: string) => {
+    setActorDrafts((drafts) => ({
+      ...drafts,
+      [name]: { ...drafts[name], [field]: value },
+    }));
+  };
+
+  const saveListEditing = () => {
+    const draftedActors = actorStats.filter((actor) => actorDrafts[actor.name]);
+    const updatedNames = actorStats.map((actor) => actorDrafts[actor.name]?.name.trim() || actor.name);
+    if (updatedNames.some((name) => !name)) {
+      window.alert('Actor name cannot be empty.');
+      return;
+    }
+    const normalizedNames = updatedNames.map((name) => name.toLowerCase());
+    if (new Set(normalizedNames).size !== normalizedNames.length) {
+      window.alert('Actor names must be unique.');
+      return;
+    }
+    const existingNames = new Set(actorStats.map((actor) => actor.name.toLowerCase()));
+    if (draftedActors.some((actor) => {
+      const updatedName = actorDrafts[actor.name]?.name.trim().toLowerCase();
+      return updatedName && updatedName !== actor.name.toLowerCase() && existingNames.has(updatedName);
+    })) {
+      window.alert('An actor with that name already exists.');
+      return;
+    }
+
+    draftedActors.forEach((actor) => {
+      const draft = actorDrafts[actor.name];
+      if (!draft) return;
+      const name = draft.name.trim();
+      const alias = draft.alias.trim();
+      const dob = draft.dob.trim();
+      if (name === actor.name && alias === actor.alias && dob === actor.dob) return;
+
+      const profile = getActorProfile(actor.name);
+      onUpdateActor(actor.name, {
+        ...profile,
+        name,
+        alias: alias || undefined,
+        dob: dob || profile.dob,
+      });
+    });
+    setActorStatusRevision((revision) => revision + 1);
+    cancelListEditing();
+    onNotify('Actor list updated.');
+  };
+
+  const toggleActorSort = (field: 'name' | 'alias' | 'age' | 'size' | 'duration' | 'movies') => {
+    const nextSort: Record<typeof field, [ActorSortOption, ActorSortOption]> = {
+      name: ['name', 'name-desc'],
+      alias: ['alias', 'alias-desc'],
+      age: ['age-desc', 'age-asc'],
+      size: ['size-asc', 'size-desc'],
+      duration: ['duration-asc', 'duration-desc'],
+      movies: ['movies-asc', 'movies-desc'],
+    };
+    const [ascending, descending] = nextSort[field];
+    setActorSort((current) => current === ascending ? descending : ascending);
+  };
 
   const handleToggleActorSelection = (name: string) => {
     setSelectedActorNames((prev) => {
@@ -187,14 +303,6 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       } else {
         next.add(name);
       }
-      return next;
-    });
-  };
-
-  const handleSelectVisibleActors = () => {
-    setSelectedActorNames((prev) => {
-      const next = new Set(prev);
-      filteredActors.forEach((actor) => next.add(actor.name));
       return next;
     });
   };
@@ -269,9 +377,6 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
             Actors Directory
           </h2>
-          <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-            Browse starring talent across your catalog. Click any actor to view picture, date of birth, and movie titles.
-          </p>
         </div>
 
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-2.5">
@@ -284,12 +389,49 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               className="w-full min-w-0 cursor-pointer bg-transparent text-xs text-zinc-200 focus:outline-none sm:max-w-[125px]"
             >
               <option value="name" className="bg-[#121520]">Name (A–Z)</option>
+              <option value="name-desc" className="bg-[#121520]">Name (Z–A)</option>
+              <option value="alias" className="bg-[#121520]">Alias (A–Z)</option>
+              <option value="alias-desc" className="bg-[#121520]">Alias (Z–A)</option>
               <option value="movies-desc" className="bg-[#121520]">Movies (Most)</option>
               <option value="movies-asc" className="bg-[#121520]">Movies (Fewest)</option>
               <option value="age-desc" className="bg-[#121520]">Age (Oldest)</option>
               <option value="age-asc" className="bg-[#121520]">Age (Youngest)</option>
+              <option value="size-desc" className="bg-[#121520]">Size (Largest)</option>
+              <option value="size-asc" className="bg-[#121520]">Size (Smallest)</option>
+              <option value="duration-desc" className="bg-[#121520]">Duration (Longest)</option>
+              <option value="duration-asc" className="bg-[#121520]">Duration (Shortest)</option>
             </select>
           </div>
+          {actorViewMode === 'list' && (
+            <div className="col-span-2 flex items-center gap-2 sm:col-span-1">
+              {isEditingList ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={saveListEditing}
+                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-zinc-950 hover:bg-amber-300 sm:flex-none"
+                  >
+                    <Save className="h-3.5 w-3.5" /> Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelListEditing}
+                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 sm:flex-none"
+                  >
+                    <Undo2 className="h-3.5 w-3.5" /> Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startListEditing}
+                  className="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-300 hover:border-amber-500/50 hover:text-amber-300 sm:w-auto"
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </button>
+              )}
+            </div>
+          )}
           <div className="relative col-span-2 min-w-0 sm:w-60">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <input
@@ -314,9 +456,10 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           {/* View toggle */}
           <div className="col-span-1 flex min-w-0 items-center justify-center rounded-xl border border-zinc-800 bg-[#121520] p-1 sm:col-span-1 sm:justify-start">
             <button
+              disabled={isEditingList}
               onClick={() => setActorViewMode('grid')}
               title="Grid View"
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 actorViewMode === 'grid'
                   ? 'bg-amber-400 text-zinc-950 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -325,9 +468,10 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
+              disabled={isEditingList}
               onClick={() => setActorViewMode('list')}
               title="List View"
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 actorViewMode === 'list'
                   ? 'bg-amber-400 text-zinc-950 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -336,9 +480,10 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               <List className="w-4 h-4" />
             </button>
             <button
+              disabled={isEditingList}
               onClick={() => setActorViewMode('cover')}
               title="Cover View"
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 actorViewMode === 'cover'
                   ? 'bg-amber-400 text-zinc-950 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -346,54 +491,54 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             >
               <GalleryHorizontal className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => setActorViewMode('photos')}
-              title="Photos Only"
-              aria-label="Photos Only"
-              className={`p-1.5 rounded-lg transition-colors ${
-                actorViewMode === 'photos'
-                  ? 'bg-amber-400 text-zinc-950 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Image className="h-4 w-4" />
-            </button>
           </div>
         </div>
       </div>
 
       {/* Alphabet: Filter Bar - Multi-select */}
-      <div className="flex flex-wrap items-center gap-1 py-1.5 border border-zinc-800/80 bg-[#0d0f16]/80 px-2.5 rounded-xl">
-        <div className="flex items-center gap-1.5 pr-2">
-          <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider whitespace-nowrap">
-            Alphabet:
-          </span>
+      <div className="rounded-xl border border-zinc-800/80 bg-[#0d0f16]/80 px-2.5 py-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setIsAlphabetOpen((open) => !open)}
+            aria-expanded={isAlphabetOpen}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 hover:text-zinc-200"
+          >
+            Alphabet
+            {isAlphabetOpen
+              ? <ChevronUp className="h-3.5 w-3.5" />
+              : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
           {!selectedAlphabets.includes('All') && selectedAlphabets.length > 1 && (
             <span className="text-[10px] bg-amber-400/20 text-amber-300 font-mono px-1.5 py-0.5 rounded border border-amber-500/30">
               {selectedAlphabets.length} selected
             </span>
           )}
         </div>
-        {ALPHABET_LIST.map((char) => {
-          const isSelected = char === 'All'
-            ? selectedAlphabets.includes('All') || selectedAlphabets.length === 0
-            : selectedAlphabets.includes(char);
-          return (
-            <button
-              key={char}
-              onClick={() => handleToggleAlphabet(char)}
-              className={`min-w-6 px-1.5 py-0.5 rounded text-xs font-mono transition-colors text-center ${
-                isSelected
-                  ? 'bg-amber-400 text-zinc-950 font-bold shadow-sm'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-              title={char === 'All' ? 'Show all actors' : `Toggle letter ${char}`}
-            >
-              {char}
-            </button>
-          );
-        })}
-        {!selectedAlphabets.includes('All') && selectedAlphabets.length > 0 && (
+        {isAlphabetOpen && (
+          <div className="mt-2 flex flex-wrap items-center gap-1">
+            {ALPHABET_LIST.map((char) => {
+              const isSelected = char === 'All'
+                ? selectedAlphabets.includes('All') || selectedAlphabets.length === 0
+                : selectedAlphabets.includes(char);
+              return (
+                <button
+                  key={char}
+                  onClick={() => handleToggleAlphabet(char)}
+                  className={`min-w-6 px-1.5 py-0.5 rounded text-xs font-mono transition-colors text-center ${
+                    isSelected
+                      ? 'bg-amber-400 text-zinc-950 font-bold shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                  }`}
+                  title={char === 'All' ? 'Show all actors' : `Toggle letter ${char}`}
+                >
+                  {char}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {isAlphabetOpen && !selectedAlphabets.includes('All') && selectedAlphabets.length > 0 && (
           <button
             onClick={() => handleToggleAlphabet('All')}
             className="text-xs text-zinc-400 hover:text-amber-400 ml-2 px-2 py-0.5 rounded-lg border border-zinc-800 bg-zinc-900 font-mono transition-colors"
@@ -426,58 +571,47 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-[#121520] p-2.5 sm:p-3">
-        <button
-          type="button"
-          onClick={handleSelectVisibleActors}
-          disabled={filteredActors.length === 0}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <CheckSquare className="h-3.5 w-3.5" />
-          Select visible ({filteredActors.length})
-        </button>
-        {selectionMode && (
-          <>
-            <span className="text-xs text-zinc-400">{selectedActorNames.size} selected</span>
-            <button
-              type="button"
-              onClick={() => handleUpdateSelectedActorStatus('favorite')}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20"
-            >
-              <Star className="h-3.5 w-3.5" />
-              Add to favorites
-            </button>
-            <button
-              type="button"
-              onClick={() => handleUpdateSelectedActorStatus('reviewed')}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
-            >
-              <Check className="h-3.5 w-3.5" />
-              Mark reviewed
-            </button>
-            <button
-              type="button"
-              onClick={handleDeleteSelectedActors}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-rose-500"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete selected
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedActorNames(new Set())}
-              className="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
-              aria-label="Clear selected actors"
-            >
-              <X className="h-3.5 w-3.5" />
-              Clear
-            </button>
-          </>
-        )}
-      </div>
+      {selectionMode && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-[#121520] p-2.5 sm:p-3">
+          <span className="text-xs text-zinc-400">{selectedActorNames.size} selected</span>
+          <button
+            type="button"
+            onClick={() => handleUpdateSelectedActorStatus('favorite')}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20"
+          >
+            <Star className="h-3.5 w-3.5" />
+            Add to favorites
+          </button>
+          <button
+            type="button"
+            onClick={() => handleUpdateSelectedActorStatus('reviewed')}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+          >
+            <Check className="h-3.5 w-3.5" />
+            Mark reviewed
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteSelectedActors}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-rose-500"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete selected
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedActorNames(new Set())}
+            className="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+            aria-label="Clear selected actors"
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Actors Cards Grid */}
-      {(actorViewMode === 'cover' || actorViewMode === 'photos') && (
+      {actorViewMode === 'cover' && (
         <div className="flex min-w-0 flex-wrap items-center gap-3 bg-[#121520] border border-zinc-800 rounded-xl p-3">
           <span className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Layout Size:</span>
           <input
@@ -494,15 +628,124 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       )}
       </div>
 
+      {actorViewMode === 'list' ? (
+        <div
+          className="max-h-[calc(100vh-16rem)] min-h-[18rem] overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-800/80 bg-[#121520] shadow-lg"
+          onPointerDown={isEditingList ? undefined : longPressHandlers.onPointerDown}
+          onPointerMove={isEditingList ? undefined : longPressHandlers.onPointerMove}
+          onPointerUp={isEditingList ? undefined : longPressHandlers.onPointerUp}
+          onPointerCancel={isEditingList ? undefined : longPressHandlers.onPointerCancel}
+          onContextMenu={isEditingList ? undefined : longPressHandlers.onContextMenu}
+          onClickCapture={isEditingList ? undefined : longPressHandlers.onClickCapture}
+        >
+          <table className="w-full table-fixed border-collapse text-left">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[8px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
+                <th className="w-[23%] px-1 py-2 sm:px-3">
+                  <button type="button" onClick={() => toggleActorSort('name')} className="hover:text-white">Actor</button>
+                </th>
+                <th className="w-[16%] px-0.5 py-2 sm:px-2">
+                  <button type="button" onClick={() => toggleActorSort('alias')} className="hover:text-white">Alias</button>
+                </th>
+                <th className="w-[18%] px-0.5 py-2 text-center sm:px-2">
+                  <button type="button" onClick={() => toggleActorSort('age')} className="hover:text-white">DOB</button>
+                </th>
+                <th className="w-[13%] px-0.5 py-2 text-center sm:px-2">
+                  <button type="button" onClick={() => toggleActorSort('size')} className="hover:text-white">Size</button>
+                </th>
+                <th className="w-[16%] px-0.5 py-2 text-center sm:px-2">
+                  <button type="button" onClick={() => toggleActorSort('duration')} className="hover:text-white">Min</button>
+                </th>
+                <th className="w-[14%] px-0.5 py-2 text-center sm:px-2">
+                  <button type="button" onClick={() => toggleActorSort('movies')} className="hover:text-white">Movies</button>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800/70">
+              {filteredActors.map((actor) => {
+                const draft = actorDrafts[actor.name];
+                const totalHours = Math.floor(actor.totalMinutes / 60);
+                const duration = totalHours > 0
+                  ? `${totalHours}h ${actor.totalMinutes % 60}m`
+                  : `${actor.totalMinutes}m`;
+                const size = `${(actor.sizeBytes / 1000).toFixed(1)} GB`;
+                return (
+                  <tr
+                    key={actor.name}
+                    data-selection-id={isEditingList ? undefined : actor.name}
+                    onClick={() => {
+                      if (isEditingList) return;
+                      if (selectionMode) handleToggleActorSelection(actor.name);
+                      else onOpenActorDetail(actor.name);
+                    }}
+                    className={`group cursor-pointer transition-colors hover:bg-[#181d2c] ${isEditingList ? 'bg-[#181d2c]' : ''}`}
+                  >
+                    <td className="overflow-hidden px-1 py-2 sm:px-3">
+                      <div className="flex min-w-0 items-center gap-1">
+                        {selectionMode && !isEditingList && (
+                          <input
+                            type="checkbox"
+                            checked={selectedActorNames.has(actor.name)}
+                            onChange={() => handleToggleActorSelection(actor.name)}
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label={`Select ${actor.name}`}
+                            className="h-3 w-3 shrink-0 cursor-pointer accent-amber-400 sm:h-3.5 sm:w-3.5"
+                          />
+                        )}
+                        {isEditingList && draft ? (
+                          <input
+                            aria-label={`Edit name for ${actor.name}`}
+                            className="w-full min-w-0 rounded border border-zinc-700 bg-zinc-950 px-1 py-1 text-[8px] text-zinc-100 focus:border-amber-400 focus:outline-none sm:text-xs"
+                            value={draft.name}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => updateActorDraft(actor.name, 'name', event.target.value)}
+                          />
+                        ) : (
+                          <span className="min-w-0 truncate text-[8px] font-semibold text-zinc-100 group-hover:text-amber-400 sm:text-sm" title={actor.name}>
+                            {actor.name}{actor.favorite && <Star className="ml-1 inline h-2.5 w-2.5 fill-amber-400 text-amber-400" />}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="overflow-hidden px-0.5 py-2 text-[8px] text-zinc-300 sm:px-2 sm:text-xs">
+                      {isEditingList && draft ? (
+                        <input
+                          aria-label={`Edit alias for ${actor.name}`}
+                          className="w-full min-w-0 rounded border border-zinc-700 bg-zinc-950 px-1 py-1 text-[8px] text-zinc-100 focus:border-amber-400 focus:outline-none sm:text-xs"
+                          value={draft.alias}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => updateActorDraft(actor.name, 'alias', event.target.value)}
+                        />
+                      ) : <span className="block truncate" title={actor.alias}>{actor.alias || '—'}</span>}
+                    </td>
+                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs">
+                      {isEditingList && draft ? (
+                        <input
+                          aria-label={`Edit date of birth for ${actor.name}`}
+                          className="w-full min-w-0 rounded border border-zinc-700 bg-zinc-950 px-0.5 py-1 text-center text-[7px] text-zinc-100 focus:border-amber-400 focus:outline-none sm:px-1 sm:text-xs"
+                          value={draft.dob}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => updateActorDraft(actor.name, 'dob', event.target.value)}
+                        />
+                      ) : <span className="block truncate" title={actor.dob}>{formatActorDob(actor.dob)}</span>}
+                    </td>
+                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={size}>{size}</td>
+                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.totalMinutes} min`}>{duration}</td>
+                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:px-2 sm:text-xs">{actor.movies.length}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
       <div
         className={`grid min-w-0 w-full gap-2 sm:gap-4 ${
-          actorViewMode === 'cover' || actorViewMode === 'photos'
+          actorViewMode === 'cover'
             ? ''
-            : actorViewMode === 'list'
-              ? 'grid-cols-1'
-              : 'grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
+            : 'grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
         }`}
-        style={actorViewMode === 'cover' || actorViewMode === 'photos'
+        style={actorViewMode === 'cover'
           ? { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }
           : undefined}
         onPointerDown={longPressHandlers.onPointerDown}
@@ -522,41 +765,11 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                 ? handleToggleActorSelection(actor.name)
                 : onOpenActorDetail(actor.name)}
               className={`relative min-w-0 overflow-hidden border border-zinc-800/90 bg-[#121520] hover:border-amber-500/40 hover:bg-[#151926] transition-all hover:shadow-xl cursor-pointer group ${
-                actorViewMode === 'photos'
-                  ? 'aspect-square rounded-xl'
-                  : actorViewMode === 'cover'
-                    ? 'rounded-xl p-1.5 sm:p-2'
-                    : 'rounded-2xl p-2 sm:p-4'
+                actorViewMode === 'cover'
+                  ? 'rounded-xl p-1.5 sm:p-2'
+                  : 'rounded-2xl p-2 sm:p-4'
               }`}
             >
-              {actorViewMode === 'photos' ? (
-                <>
-                  {actor.photoUrl ? (
-                    <img
-                      src={getImageSource(actor.photoUrl)}
-                      alt={actor.name}
-                      referrerPolicy="no-referrer"
-                      onError={(event) => {
-                        event.currentTarget.style.display = 'none';
-                        const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
-                        if (fallback) fallback.style.display = 'flex';
-                      }}
-                      className="absolute inset-0 h-full w-full bg-zinc-900 object-contain"
-                    />
-                  ) : null}
-                  <div className={`absolute inset-0 items-center justify-center bg-gradient-to-tr from-amber-500/20 via-zinc-800 to-zinc-900 ${
-                    actor.photoUrl ? 'hidden' : 'flex'
-                  }`}>
-                    <User className="h-1/2 w-1/2 text-amber-400" />
-                  </div>
-                  <div className="absolute inset-x-0 bottom-0 flex min-w-0 items-center justify-between gap-1 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-1.5 pb-1 pt-5">
-                    <span className="min-w-0 truncate text-[10px] font-semibold text-white" title={actor.name}>
-                      {actor.name}
-                    </span>
-                    <ActorStatusMarkers favorite={actor.favorite} reviewed={actor.reviewed} />
-                  </div>
-                </>
-              ) : (
                 <div className={`flex min-w-0 items-center ${actorViewMode === 'cover' ? 'flex-col' : 'gap-2 sm:gap-3.5'}`}>
                   {selectionMode && (
                     <input
@@ -599,17 +812,17 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                       <h3 className={`min-w-0 truncate font-bold text-zinc-100 transition-colors group-hover:text-amber-400 ${
                         actorViewMode === 'cover' ? 'text-[9px] sm:text-xs' : 'text-xs sm:text-base'
                       }`}>
-                        {actor.name}
+                        {actor.name}{actorViewMode === 'grid' && ` (${actor.movies.length})`}
                       </h3>
                       <ActorStatusMarkers favorite={actor.favorite} reviewed={actor.reviewed} />
                     </div>
                   </div>
                 </div>
-              )}
             </div>
           );
         })}
       </div>
+      )}
 
       {filteredActors.length === 0 && (
         <div className="py-16 text-center text-zinc-500">

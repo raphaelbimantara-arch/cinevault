@@ -3,6 +3,7 @@ import actorElena from '../assets/images/actor_elena_rostova_1792589785628.jpg';
 
 export interface ActorProfile {
   name: string;
+  alias?: string;
   dob: string; // Date of Birth
   photoUrl: string;
   favorite?: boolean;
@@ -155,7 +156,7 @@ const CUSTOM_ACTORS_KEY = 'cinevault_custom_actors_v1';
 
 export function getCustomActors(): Record<
   string,
-  { dob: string; photoUrl: string; favorite?: boolean; reviewed?: boolean }
+  { alias?: string; dob: string; photoUrl: string; favorite?: boolean; reviewed?: boolean }
 > {
   try {
     const raw = localStorage.getItem(CUSTOM_ACTORS_KEY);
@@ -170,6 +171,7 @@ export function registerCustomActor(profile: ActorProfile): void {
   try {
     const current = getCustomActors();
     current[profile.name.trim()] = {
+      alias: profile.alias?.trim() || undefined,
       dob: profile.dob,
       photoUrl: profile.photoUrl,
       favorite: profile.favorite,
@@ -209,12 +211,16 @@ export function updateActorProfile(oldName: string, updatedProfile: ActorProfile
     const oldTrimmed = oldName.trim();
     const newTrimmed = updatedProfile.name.trim();
     const previousProfile = getActorProfile(oldTrimmed);
+    const existingName = Object.keys(current).find(
+      (name) => name.toLowerCase() === oldTrimmed.toLowerCase()
+    );
 
-    if (oldTrimmed !== newTrimmed && current[oldTrimmed]) {
-      delete current[oldTrimmed];
+    if (oldTrimmed !== newTrimmed && existingName) {
+      delete current[existingName];
     }
 
     current[newTrimmed] = {
+      alias: updatedProfile.alias?.trim() || undefined,
       dob: updatedProfile.dob,
       photoUrl: updatedProfile.photoUrl,
       favorite: updatedProfile.favorite ?? previousProfile.favorite,
@@ -240,6 +246,7 @@ export function updateActorStatuses(
       );
       const profile = getActorProfile(existingKey || trimmed);
       current[existingKey || trimmed] = {
+        alias: profile.alias,
         dob: profile.dob,
         photoUrl: profile.photoUrl,
         favorite: updates.favorite ?? profile.favorite,
@@ -266,6 +273,7 @@ export function getActorProfile(name: string): ActorProfile {
   if (customProfile) {
     return {
       name: trimmed,
+      alias: customProfile.alias,
       dob: customProfile.dob,
       photoUrl: customProfile.photoUrl,
       favorite: customProfile.favorite,
@@ -276,6 +284,7 @@ export function getActorProfile(name: string): ActorProfile {
   if (KNOWN_ACTORS[trimmed]) {
     return {
       name: trimmed,
+      alias: customProfile?.alias,
       dob: KNOWN_ACTORS[trimmed].dob,
       photoUrl: KNOWN_ACTORS[trimmed].photoUrl,
       favorite: customProfile?.favorite,

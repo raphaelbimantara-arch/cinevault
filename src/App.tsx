@@ -606,7 +606,7 @@ export default function App() {
     const oldTrimmed = oldName.trim();
     const newTrimmed = updatedProfile.name.trim();
 
-    if (oldTrimmed.toLowerCase() !== newTrimmed.toLowerCase()) {
+    if (oldTrimmed !== newTrimmed) {
       setMovies((prev) =>
         prev.map((m) => {
           if (m.actors.some((a) => a.trim().toLowerCase() === oldTrimmed.toLowerCase())) {
@@ -997,6 +997,10 @@ export default function App() {
             onDeleteActors={handleDeleteActors}
             onNotify={showActionNotification}
             onTriggerAddActor={() => handleTriggerAdd('actor')}
+            onUpdateActor={(oldName, updatedProfile) => {
+              handleUpdateActor(oldName, updatedProfile);
+              setSelectedActorName(null);
+            }}
           />
         )}
 
