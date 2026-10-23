@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, ArrowUpDown, Star, Check, ChevronDown, ChevronUp, Pencil, Save, Undo2 } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
 import { ActorProfile, getActorProfiles, getActorProfile, updateActorStatuses } from '../data/actorsData';
-import { formatActorDob, getActorAge, getActorDobSortValue, normalizeActorDob } from '../utils/actorDob';
+import { formatActorDob, getActorAge, getActorBirthYear, getActorDobSortValue, normalizeActorDob } from '../utils/actorDob';
 import { ActorDobFields } from './ActorDobFields';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
@@ -25,6 +25,7 @@ interface ActorStat {
   genres: string[];
   studios: string[];
   dob: string;
+  debutAge: number | null;
   sizeBytes: number;
   totalMinutes: number;
   uncensoredMovies: number;
@@ -33,7 +34,7 @@ interface ActorStat {
   reviewed: boolean;
 }
 
-type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'dob-asc' | 'dob-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc' | 'uncensored-asc' | 'uncensored-desc';
+type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'dob-asc' | 'dob-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'debut-age-asc' | 'debut-age-desc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc' | 'uncensored-asc' | 'uncensored-desc';
 type ActorEditDraft = { name: string; dob: string };
 
 const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = ({
@@ -158,6 +159,12 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       const genres = Array.from(new Set(actorMovies.map((m) => m.genre)));
       const studios = Array.from(new Set(actorMovies.map((m) => m.studio)));
       const profile = profiles.get(name.toLowerCase()) || getActorProfile(name);
+      const birthYear = getActorBirthYear(profile.dob);
+      const debutYear = actorMovies.reduce<number | null>((earliest, movie) => (
+        Number.isFinite(movie.year) && (earliest === null || movie.year < earliest)
+          ? movie.year
+          : earliest
+      ), null);
 
       result.push({
         name,
@@ -166,6 +173,9 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         genres,
         studios,
         dob: profile.dob,
+        debutAge: birthYear !== null && debutYear !== null && debutYear >= birthYear
+          ? debutYear - birthYear
+          : null,
         sizeBytes: actorMovies.reduce(
           (total, movie) => total + (movie.sizeBytes ?? (Number.parseFloat(movie.size) || 0) * 1000),
           0,
@@ -226,6 +236,15 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           ? dobA - dobB
           : dobB - dobA;
         return ageOrder || a.name.localeCompare(b.name);
+      }
+      if (actorSort === 'debut-age-asc' || actorSort === 'debut-age-desc') {
+        if (a.debutAge === null && b.debutAge === null) return a.name.localeCompare(b.name);
+        if (a.debutAge === null) return 1;
+        if (b.debutAge === null) return -1;
+        const debutAgeOrder = actorSort === 'debut-age-asc'
+          ? a.debutAge - b.debutAge
+          : b.debutAge - a.debutAge;
+        return debutAgeOrder || a.name.localeCompare(b.name);
       }
       if (actorSort === 'dob-asc' || actorSort === 'dob-desc') {
         const dobA = getActorDobSortValue(a.dob);
@@ -460,6 +479,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               <option value="movies-asc" className="bg-[#121520]">Movies (Fewest)</option>
               <option value="age-desc" className="bg-[#121520]">Age (Oldest)</option>
               <option value="age-asc" className="bg-[#121520]">Age (Youngest)</option>
+              <option value="debut-age-asc" className="bg-[#121520]">Debut age (Youngest)</option>
+              <option value="debut-age-desc" className="bg-[#121520]">Debut age (Oldest)</option>
               <option value="size-desc" className="bg-[#121520]">Size (Largest)</option>
               <option value="size-asc" className="bg-[#121520]">Size (Smallest)</option>
               <option value="duration-desc" className="bg-[#121520]">Duration (Longest)</option>
@@ -714,25 +735,36 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           <table className="w-full table-fixed border-collapse text-left">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[8px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
-                <th className={`${isEditingList ? 'w-[20%]' : 'w-[23%]'} px-1 py-2 sm:px-3`}>
+                <th className={`${isEditingList ? 'w-[20%]' : 'w-[22%]'} px-1 py-2 sm:px-3`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('name', 'name-desc')} className="w-full text-left disabled:cursor-default">Actor</button>
                 </th>
-                <th className={`${isEditingList ? 'w-[27%]' : 'w-[16%]'} px-0.5 py-2 text-center sm:px-2`}>
+                <th className={`${isEditingList ? 'w-[23%]' : 'w-[13%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('dob-asc', 'dob-desc')} className="w-full text-center disabled:cursor-default">DOB</button>
                 </th>
-                <th className={`${isEditingList ? 'w-[7%]' : 'w-[8%]'} px-0.5 py-2 text-center sm:px-1`}>
+                <th className="w-[7%] px-0.5 py-2 text-center sm:px-1">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('age-asc', 'age-desc')} className="w-full text-center disabled:cursor-default">Age</button>
+                </th>
+                <th className={`${isEditingList ? 'w-[8%]' : 'w-[9%]'} px-0.5 py-2 text-center sm:px-1`}>
+                  <button
+                    type="button"
+                    disabled={isEditingList}
+                    onClick={() => toggleActorSort('debut-age-asc', 'debut-age-desc')}
+                    className="w-full text-center leading-tight disabled:cursor-default"
+                    title="Sort by debut age"
+                  >
+                    Debut Age
+                  </button>
                 </th>
                 <th className={`${isEditingList ? 'w-[11%]' : 'w-[12%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('size-asc', 'size-desc')} className="w-full text-center disabled:cursor-default">Size</button>
                 </th>
-                <th className={`${isEditingList ? 'w-[14%]' : 'w-[15%]'} px-0.5 py-2 text-center sm:px-2`}>
+                <th className={`${isEditingList ? 'w-[13%]' : 'w-[14%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('duration-asc', 'duration-desc')} className="w-full text-center disabled:cursor-default">Min</button>
                 </th>
-                <th className={`${isEditingList ? 'w-[10%]' : 'w-[12%]'} px-0.5 py-2 text-center sm:px-2`}>
+                <th className={`${isEditingList ? 'w-[10%]' : 'w-[13%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('movies-asc', 'movies-desc')} className="w-full text-center disabled:cursor-default">Movies</button>
                 </th>
-                <th className={`${isEditingList ? 'w-[11%]' : 'w-[14%]'} px-0.5 py-2 text-center normal-case sm:px-2`}>
+                <th className={`${isEditingList ? 'w-[8%]' : 'w-[10%]'} px-0.5 py-2 text-center normal-case sm:px-1`}>
                   <button
                     type="button"
                     disabled={isEditingList}
@@ -764,7 +796,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     }}
                     className={`group cursor-pointer transition-colors hover:bg-[#181d2c] ${isEditingList ? 'bg-[#181d2c]' : ''}`}
                   >
-                    <td className={`overflow-hidden px-1 py-2 sm:px-3 ${isEditingList ? 'w-[20%]' : ''}`}>
+                    <td className="overflow-hidden px-1 py-2 sm:px-3">
                       <div className="flex min-w-0 items-center gap-1">
                         {selectionMode && !isEditingList && (
                           <input
@@ -803,6 +835,12 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     </td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-1 sm:text-xs" title={age === null ? 'Age unavailable' : `${age} years`}>
                       {age === null ? '—' : age}
+                    </td>
+                    <td
+                      className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-1 sm:text-xs"
+                      title={actor.debutAge === null ? 'Debut age unavailable' : `${actor.debutAge} years old at first film release`}
+                    >
+                      {actor.debutAge ?? '—'}
                     </td>
                     <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={size}>{size}</td>
                     <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.totalMinutes} minutes`}>{minutes} min</td>
