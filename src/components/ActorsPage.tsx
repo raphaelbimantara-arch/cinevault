@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, ArrowUpDown, Star, Check, ChevronDown, ChevronUp, Pencil, Save, Undo2 } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
 import { ActorProfile, getActorProfile, updateActorStatuses } from '../data/actorsData';
