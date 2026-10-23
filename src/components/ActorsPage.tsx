@@ -705,6 +705,9 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                 const draft = actorDrafts[actor.name];
                 const size = `${(actor.sizeBytes / 1000).toFixed(1)} GB`;
                 const age = getActorAge(actor.dob);
+                const minutes = actor.totalMinutes > 1000
+                  ? actor.totalMinutes.toLocaleString('id-ID')
+                  : actor.totalMinutes;
                 return (
                   <tr
                     key={actor.name}
@@ -768,8 +771,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-1 sm:text-xs" title={age === null ? 'Age unavailable' : `${age} years`}>
                       {age === null ? '—' : age}
                     </td>
-                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={size}>{size}</td>
-                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.totalMinutes} minutes`}>{actor.totalMinutes} min</td>
+                    <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={size}>{size}</td>
+                    <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.totalMinutes} minutes`}>{minutes} min</td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:px-2 sm:text-xs">{actor.movies.length}</td>
                   </tr>
                 );
