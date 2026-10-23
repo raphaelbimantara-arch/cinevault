@@ -29,6 +29,7 @@ interface SettingsPageProps {
   onConnectSharedCatalog: (token: string) => void;
   onDisconnectSharedCatalog: () => void;
   onInitializeSharedCatalog: () => Promise<void>;
+  onSaveSharedCatalog: () => Promise<number>;
   onRefreshSharedCatalog: () => Promise<number>;
   onImportMovies: (newMovies: Movie[], mode: 'merge' | 'replace') => void;
   onDeleteMovie: (movieId: string) => void;
@@ -52,6 +53,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onConnectSharedCatalog,
   onDisconnectSharedCatalog,
   onInitializeSharedCatalog,
+  onSaveSharedCatalog,
   onRefreshSharedCatalog,
   onImportMovies,
   onDeleteMovie,
@@ -826,24 +828,45 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </form>
 
           {sharedCatalogToken && (
-            <button
-              type="button"
-              onClick={() => {
-                void onRefreshSharedCatalog()
-                  .then((count) => showToast('success', `Database diperbarui: ${count} film dimuat dari katalog utama.`))
-                  .catch((error: unknown) => {
-                    const message = error instanceof Error
-                      ? error.message
-                      : 'Gagal memperbarui database dari katalog utama.';
-                    showToast('error', message);
-                  });
-              }}
-              disabled={sharedCatalogStatus === 'loading'}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${sharedCatalogStatus === 'loading' ? 'animate-spin' : ''}`} />
-              {sharedCatalogStatus === 'loading' ? 'Memperbarui database...' : 'Update Database'}
-            </button>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm(`Simpan ${movies.length} film dari perangkat ini ke database bersama? Seluruh isi database bersama akan diganti.`)) return;
+                  void onSaveSharedCatalog()
+                    .then((count) => showToast('success', `${count} film berhasil disimpan ke database bersama.`))
+                    .catch((error: unknown) => {
+                      const message = error instanceof Error
+                        ? error.message
+                        : 'Gagal menyimpan database perangkat ini ke katalog bersama.';
+                      showToast('error', message);
+                    });
+                }}
+                disabled={sharedCatalogStatus === 'loading' || movies.length === 0}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Upload className="h-4 w-4" />
+                {sharedCatalogStatus === 'loading' ? 'Menyimpan database...' : 'Save to Database'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void onRefreshSharedCatalog()
+                    .then((count) => showToast('success', `Database diperbarui: ${count} film dimuat dari katalog utama.`))
+                    .catch((error: unknown) => {
+                      const message = error instanceof Error
+                        ? error.message
+                        : 'Gagal memperbarui database dari katalog utama.';
+                      showToast('error', message);
+                    });
+                }}
+                disabled={sharedCatalogStatus === 'loading'}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${sharedCatalogStatus === 'loading' ? 'animate-spin' : ''}`} />
+                {sharedCatalogStatus === 'loading' ? 'Memperbarui database...' : 'Update Database'}
+              </button>
+            </div>
           )}
 
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3.5 space-y-2">
@@ -857,7 +880,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   : 'text-amber-300'
               }`}>
                 {sharedCatalogStatus === 'connected' ? 'Connected' :
-                  sharedCatalogStatus === 'loading' ? 'Connecting...' :
+                  sharedCatalogStatus === 'loading' ? 'Syncing...' :
                   sharedCatalogStatus === 'empty' ? 'Sheet is empty' :
                   sharedCatalogStatus === 'error' ? 'Error' : 'Not connected'}
               </span>

@@ -198,6 +198,33 @@ export default function App() {
     }
   };
 
+  const handleSaveSharedCatalog = async (): Promise<number> => {
+    if (!sharedToken) {
+      throw new Error('Connect this device to the shared catalog first.');
+    }
+    if (moviesRef.current.length === 0) {
+      throw new Error('There are no movies on this device to save.');
+    }
+
+    setSharedCatalogStatus('loading');
+    setSharedCatalogError('');
+    try {
+      await sharedCatalogSaveQueue.current;
+      const moviesToSave = moviesRef.current;
+      await saveSharedCatalog(sharedToken, moviesToSave);
+      setSharedCatalogStatus('connected');
+      return moviesToSave.length;
+    } catch (error) {
+      console.error('Failed to save to the shared catalog:', error);
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to save this device database to the shared catalog.';
+      setSharedCatalogError(message);
+      setSharedCatalogStatus('error');
+      throw error instanceof Error ? error : new Error(message);
+    }
+  };
+
   const handleRefreshSharedCatalog = async (): Promise<number> => {
     if (!sharedToken) {
       throw new Error('Connect this device to the shared catalog first.');
@@ -1060,6 +1087,7 @@ export default function App() {
             onConnectSharedCatalog={handleConnectSharedCatalog}
             onDisconnectSharedCatalog={handleDisconnectSharedCatalog}
             onInitializeSharedCatalog={handleInitializeSharedCatalog}
+            onSaveSharedCatalog={handleSaveSharedCatalog}
             onRefreshSharedCatalog={handleRefreshSharedCatalog}
             onImportMovies={handleImportMovies}
             onDeleteMovie={handleDeleteMovie}
