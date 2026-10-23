@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, Calendar, Film } from 'lucide-react';
+import { Building2, Calendar, Check, Film, Star } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
@@ -67,6 +67,20 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                   className="h-4 w-4 cursor-pointer accent-amber-400"
                 />
               </label>
+            )}
+            {(movie.favorite || movie.reviewed) && (
+              <div className="absolute left-2 top-2 z-10 flex flex-col gap-1">
+                {movie.favorite && (
+                  <span title="Favorite" className="inline-flex items-center gap-1 rounded-md border border-amber-400/40 bg-zinc-950/85 px-1.5 py-1 text-[9px] font-semibold text-amber-300">
+                    <Star className="h-2.5 w-2.5 fill-current" /> Favorite
+                  </span>
+                )}
+                {movie.reviewed && (
+                  <span title="Reviewed" className="inline-flex items-center gap-1 rounded-md border border-emerald-400/40 bg-zinc-950/85 px-1.5 py-1 text-[9px] font-semibold text-emerald-300">
+                    <Check className="h-2.5 w-2.5" /> Reviewed
+                  </span>
+                )}
+              </div>
             )}
             {/* Poster container with aspect 3:4 */}
             <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-900 cursor-pointer">

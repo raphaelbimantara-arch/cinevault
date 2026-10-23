@@ -25,6 +25,10 @@ import { getMovieGenres } from './utils/movieGenres';
 const STORAGE_KEY = 'cinevault_movies_library_v2';
 const SHARED_TOKEN_STORAGE_KEY = 'cinevault_shared_catalog_token_v1';
 type SharedCatalogStatus = 'disconnected' | 'loading' | 'connected' | 'empty' | 'error';
+type MovieSelectionNotice = {
+  message: string;
+  removeStatus?: { field: 'favorite' | 'reviewed'; movieIds: string[]; label: string };
+};
 
 function readSharedToken(): string {
   try {
@@ -181,6 +185,7 @@ export default function App() {
   // Selected movie for detail modal
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [selectedMovieIds, setSelectedMovieIds] = useState<Set<string>>(() => new Set());
+  const [movieSelectionNotice, setMovieSelectionNotice] = useState<MovieSelectionNotice | null>(null);
 
   // Selected actor for actor detail modal
   const [selectedActorName, setSelectedActorName] = useState<string | null>(null);
@@ -392,9 +397,41 @@ export default function App() {
   };
 
   const handleUpdateSelectedMovies = (updates: Pick<Movie, 'favorite' | 'reviewed'>) => {
+    const field = updates.favorite !== undefined ? 'favorite' : 'reviewed';
+    const label = field === 'favorite' ? 'favorite' : 'reviewed';
+    const selectedMovies = movies.filter((movie) => selectedMovieIds.has(movie.id));
+    const alreadyMarked = selectedMovies
+      .filter((movie) => movie[field] === true)
+      .map((movie) => movie.id);
+    const newlyMarkedCount = selectedMovies.length - alreadyMarked.length;
     setMovies((prev) =>
       prev.map((movie) => selectedMovieIds.has(movie.id) ? { ...movie, ...updates } : movie)
     );
+    setMovieSelectionNotice({
+      message: alreadyMarked.length > 0
+        ? `${newlyMarkedCount} film ditandai ${label}; ${alreadyMarked.length} sudah ${label}.`
+        : `${newlyMarkedCount} film ditandai ${label}.`,
+      removeStatus: alreadyMarked.length > 0
+        ? {
+            field,
+            movieIds: alreadyMarked,
+            label: field === 'favorite' ? 'Keluarkan dari favorite' : 'Hapus tanda reviewed',
+          }
+        : undefined,
+    });
+  };
+
+  const handleRemoveSelectedMovieStatus = (field: 'favorite' | 'reviewed', movieIds: string[]) => {
+    const ids = new Set(movieIds);
+    setMovies((prev) => prev.map((movie) => {
+      if (!ids.has(movie.id)) return movie;
+      return field === 'favorite'
+        ? { ...movie, favorite: false }
+        : { ...movie, reviewed: false };
+    }));
+    setMovieSelectionNotice({
+      message: `${movieIds.length} film dikeluarkan dari ${field === 'favorite' ? 'favorite' : 'reviewed'}.`,
+    });
   };
 
   // Update complete movie handler
@@ -715,6 +752,31 @@ export default function App() {
                     <X className="h-3.5 w-3.5" />
                     Clear
                   </button>
+                  {movieSelectionNotice && (
+                    <div role="status" className="flex w-full flex-wrap items-center gap-2 border-t border-zinc-800 pt-2 text-xs text-zinc-300">
+                      <span>{movieSelectionNotice.message}</span>
+                      {movieSelectionNotice.removeStatus && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const status = movieSelectionNotice.removeStatus;
+                            if (status) handleRemoveSelectedMovieStatus(status.field, status.movieIds);
+                          }}
+                          className="rounded-md border border-amber-500/40 px-2 py-1 font-semibold text-amber-300 hover:bg-amber-500/10"
+                        >
+                          {movieSelectionNotice.removeStatus.label}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setMovieSelectionNotice(null)}
+                        aria-label="Dismiss status notification"
+                        className="ml-auto rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

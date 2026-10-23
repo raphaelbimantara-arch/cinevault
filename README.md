@@ -24,7 +24,7 @@ Paste a Google Drive sharing link into a movie's poster URL or an actor's photo 
 
 ## Movie Library
 
-In the library, press and hold a movie to select it. Use the selection actions to add selected movies to Favorites, mark them as Reviewed, or delete them. Filter the catalog by Favorites or Reviewed from the category menu. Clicking anywhere on a movie card or row opens its details. Movie and actor search, sort, filters, and view controls stay pinned below the top navigation while you scroll through their lists.
+In the library, press and hold a movie to select it. Use the selection actions to add selected movies to Favorites, mark them as Reviewed, or delete them. Actors can also be selected by long-press or by selecting visible actors, then marked Favorite or Reviewed. If any selected item already has that status, the notification offers to remove the existing mark. Favorite and Reviewed markers appear on movie and actor cards and in their details. Filter the catalog by Favorites or Reviewed from the category menu. Clicking anywhere on a movie card or row opens its details. Movie and actor search, sort, filters, and view controls stay pinned below the top navigation while you scroll through their lists.
 
 ## Shared Catalog with Google Sheets
 

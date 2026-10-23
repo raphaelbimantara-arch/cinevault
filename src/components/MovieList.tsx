@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film } from 'lucide-react';
+import { Check, Film, Star } from 'lucide-react';
 import { Movie } from '../types';
 import { useLongPress } from '../utils/useLongPress';
 
@@ -76,6 +76,18 @@ export const MovieList: React.FC<MovieListProps> = ({
                   <div className="truncate font-semibold text-[9px] sm:text-sm text-zinc-100 group-hover:text-amber-400 transition-colors" title={movie.title}>
                     {movie.title}
                   </div>
+                  {movie.favorite && (
+                    <span title="Favorite" className="inline-flex shrink-0 items-center gap-0.5 text-[8px] text-amber-300">
+                      <Star className="h-3 w-3 fill-current" />
+                      <span className="hidden sm:inline">Favorite</span>
+                    </span>
+                  )}
+                  {movie.reviewed && (
+                    <span title="Reviewed" className="inline-flex shrink-0 items-center gap-0.5 text-[8px] text-emerald-300">
+                      <Check className="h-3 w-3" />
+                      <span className="hidden sm:inline">Reviewed</span>
+                    </span>
+                  )}
                 </div>
               </td>
               <td className="py-2 px-1 text-center whitespace-nowrap font-mono text-[9px] sm:text-xs text-zinc-300">

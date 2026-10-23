@@ -5,6 +5,8 @@ export interface ActorProfile {
   name: string;
   dob: string; // Date of Birth
   photoUrl: string;
+  favorite?: boolean;
+  reviewed?: boolean;
 }
 
 export const KNOWN_ACTORS: Record<string, { dob: string; photoUrl: string }> = {
@@ -151,7 +153,10 @@ export const KNOWN_ACTORS: Record<string, { dob: string; photoUrl: string }> = {
  */
 const CUSTOM_ACTORS_KEY = 'cinevault_custom_actors_v1';
 
-export function getCustomActors(): Record<string, { dob: string; photoUrl: string }> {
+export function getCustomActors(): Record<
+  string,
+  { dob: string; photoUrl: string; favorite?: boolean; reviewed?: boolean }
+> {
   try {
     const raw = localStorage.getItem(CUSTOM_ACTORS_KEY);
     if (raw) return JSON.parse(raw);
@@ -167,6 +172,8 @@ export function registerCustomActor(profile: ActorProfile): void {
     current[profile.name.trim()] = {
       dob: profile.dob,
       photoUrl: profile.photoUrl,
+      favorite: profile.favorite,
+      reviewed: profile.reviewed,
     };
     localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(current));
   } catch (e) {
@@ -201,6 +208,7 @@ export function updateActorProfile(oldName: string, updatedProfile: ActorProfile
     const current = getCustomActors();
     const oldTrimmed = oldName.trim();
     const newTrimmed = updatedProfile.name.trim();
+    const previousProfile = getActorProfile(oldTrimmed);
 
     if (oldTrimmed !== newTrimmed && current[oldTrimmed]) {
       delete current[oldTrimmed];
@@ -209,11 +217,39 @@ export function updateActorProfile(oldName: string, updatedProfile: ActorProfile
     current[newTrimmed] = {
       dob: updatedProfile.dob,
       photoUrl: updatedProfile.photoUrl,
+      favorite: updatedProfile.favorite ?? previousProfile.favorite,
+      reviewed: updatedProfile.reviewed ?? previousProfile.reviewed,
     };
 
     localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(current));
   } catch (e) {
     console.error('Failed to update custom actor profile', e);
+  }
+}
+
+export function updateActorStatuses(
+  names: string[],
+  updates: Pick<ActorProfile, 'favorite' | 'reviewed'>
+): void {
+  try {
+    const current = getCustomActors();
+    names.forEach((name) => {
+      const trimmed = name.trim();
+      const existingKey = Object.keys(current).find(
+        (key) => key.toLowerCase() === trimmed.toLowerCase()
+      );
+      const profile = getActorProfile(existingKey || trimmed);
+      current[existingKey || trimmed] = {
+        dob: profile.dob,
+        photoUrl: profile.photoUrl,
+        favorite: updates.favorite ?? profile.favorite,
+        reviewed: updates.reviewed ?? profile.reviewed,
+      };
+    });
+    localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(current));
+  } catch (error) {
+    console.error('Failed to update actor statuses:', error);
+    throw error;
   }
 }
 
@@ -223,11 +259,17 @@ export function updateActorProfile(oldName: string, updatedProfile: ActorProfile
 export function getActorProfile(name: string): ActorProfile {
   const trimmed = name.trim();
   const custom = getCustomActors();
-  if (custom[trimmed]) {
+  const customName = Object.keys(custom).find(
+    (actorName) => actorName.toLowerCase() === trimmed.toLowerCase()
+  );
+  const customProfile = customName ? custom[customName] : undefined;
+  if (customProfile) {
     return {
       name: trimmed,
-      dob: custom[trimmed].dob,
-      photoUrl: custom[trimmed].photoUrl,
+      dob: customProfile.dob,
+      photoUrl: customProfile.photoUrl,
+      favorite: customProfile.favorite,
+      reviewed: customProfile.reviewed,
     };
   }
 
@@ -236,6 +278,8 @@ export function getActorProfile(name: string): ActorProfile {
       name: trimmed,
       dob: KNOWN_ACTORS[trimmed].dob,
       photoUrl: KNOWN_ACTORS[trimmed].photoUrl,
+      favorite: customProfile?.favorite,
+      reviewed: customProfile?.reviewed,
     };
   }
 

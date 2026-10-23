@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Calendar, Film, HardDrive, Clock, User, Edit3, Save, Undo2 } from 'lucide-react';
+import { X, Calendar, Film, HardDrive, Clock, User, Edit3, Save, Undo2, Star, Check } from 'lucide-react';
 import { Movie } from '../types';
 import { getActorProfile, ActorProfile } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -287,6 +287,20 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                     <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
                       {actorName}
                     </h2>
+                    {(profile.favorite || profile.reviewed) && (
+                      <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
+                        {profile.favorite && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-[10px] font-semibold text-amber-300">
+                            <Star className="h-3 w-3 fill-current" /> Favorite
+                          </span>
+                        )}
+                        {profile.reviewed && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold text-emerald-300">
+                            <Check className="h-3 w-3" /> Reviewed
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Badges: Date of Birth, Total Size, Total Duration */}
                     <div className="mt-3.5 flex flex-wrap gap-2 justify-center sm:justify-start">
