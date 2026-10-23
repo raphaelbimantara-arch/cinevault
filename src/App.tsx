@@ -611,7 +611,6 @@ export default function App() {
           }
         : undefined
     );
-    setSelectedMovieIds(new Set());
   };
 
   const handleRemoveSelectedMovieStatus = (field: 'favorite' | 'reviewed', movieIds: string[]) => {
