@@ -222,7 +222,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
         )}
       </div>
 
-      {/* Row 4: Active Filter Bar (shown if genre/studio/year/minutes/size filter was clicked) */}
+      {/* Row 4: Active Filter Bar */}
       {activeMetadataFilter && (
         <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-xs">
           <div className="flex items-center gap-2 text-zinc-300">

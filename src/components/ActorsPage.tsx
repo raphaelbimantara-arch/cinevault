@@ -8,6 +8,7 @@ import { useLongPress } from '../utils/useLongPress';
 interface ActorsPageProps {
   movies: Movie[];
   viewMode: ViewMode;
+  keyboardAlphabetEnabled?: boolean;
   onOpenActorDetail: (actorName: string) => void;
   onDeleteActors: (actorNames: string[]) => void;
   onNotify: (message: string, action?: { label: string; onClick: () => void }) => void;
@@ -81,6 +82,7 @@ const ALPHABET_LIST = [
 export const ActorsPage: React.FC<ActorsPageProps> = ({
   movies,
   viewMode,
+  keyboardAlphabetEnabled = true,
   onOpenActorDetail,
   onDeleteActors,
   onNotify,
@@ -101,6 +103,24 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
     setActorSort((current) => current === ascending ? descending : ascending);
   };
   const selectionMode = selectedActorNames.size > 0;
+  useEffect(() => {
+    const handleActorLetterShortcut = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        !keyboardAlphabetEnabled || isEditingList || event.ctrlKey || event.metaKey || event.altKey ||
+        (target instanceof HTMLElement &&
+          (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)))
+      ) return;
+      if (!/^[a-z]$/i.test(event.key)) return;
+
+      setSelectedAlphabets([event.key.toUpperCase()]);
+      setSearch('');
+      setActorSort('name');
+    };
+    window.addEventListener('keydown', handleActorLetterShortcut);
+    return () => window.removeEventListener('keydown', handleActorLetterShortcut);
+  }, [isEditingList, keyboardAlphabetEnabled]);
+
   const longPressHandlers = useLongPress((name) => {
     setSelectedActorNames((prev) => new Set(prev).add(name));
   }, !selectionMode);

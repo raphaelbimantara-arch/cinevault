@@ -25,7 +25,7 @@ interface MovieDetailModalProps {
   onClose: () => void;
   onNavigateMovie: (movie: Movie) => void;
   onSelectActor?: (actorName: string) => void;
-  onFilterByAttribute?: (type: 'genre' | 'minutes' | 'size' | 'studio' | 'year', value: string | number) => void;
+  onFilterByAttribute?: (type: 'genre' | 'minutes' | 'size' | 'studio' | 'year' | 'resolution', value: string | number) => void;
   onUpdateMovie?: (updatedMovie: Movie) => void;
 }
 
@@ -551,10 +551,20 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <HardDrive className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
                   <span className="font-mono">{movie.size}</span>
                 </div>
-                <div className="flex items-center gap-2 text-zinc-400">
-                  <Film className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="text-xs font-semibold">{movie.resolution || 'Standard'}</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!movie.resolution || !onFilterByAttribute) return;
+                    onClose();
+                    onFilterByAttribute('resolution', movie.resolution);
+                  }}
+                  disabled={!movie.resolution || !onFilterByAttribute}
+                  className="flex min-w-0 items-center gap-2 text-left text-zinc-400 transition-colors enabled:cursor-pointer enabled:hover:text-amber-300 disabled:cursor-default"
+                  title={movie.resolution ? 'Show movies with this resolution' : 'Resolution unavailable'}
+                >
+                  <Film className="w-4 h-4 shrink-0 text-amber-400" />
+                  <span className="truncate text-xs font-semibold">{movie.resolution || 'Standard'}</span>
+                </button>
                 {/* Genre */}
                 <div className="col-span-2 pt-1 border-t border-zinc-800/60">
                   <div className="flex flex-wrap items-center gap-2">

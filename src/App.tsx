@@ -438,8 +438,29 @@ export default function App() {
   // Sort option: Alphabetical A-Z by default as requested!
   const [sortBy, setSortBy] = useState<SortOption>('alphabet-asc');
 
-  // Active detail filter (when user clicks genre, studio, year, minutes, or size)
+  // Active detail filter (when user clicks a movie attribute)
   const [activeMetadataFilter, setActiveMetadataFilter] = useState<ActiveFilter | null>(null);
+
+  useEffect(() => {
+    if (activePage !== 'library' || selectedMovie || selectedActorName) return;
+    const handleLibraryLetterShortcut = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        event.ctrlKey || event.metaKey || event.altKey ||
+        (target instanceof HTMLElement &&
+          (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)))
+      ) return;
+      if (!/^[a-z]$/i.test(event.key)) return;
+
+      setSelectedAlphabets([event.key.toUpperCase()]);
+      setSelectedCategory('All');
+      setSearchQuery('');
+      setActiveMetadataFilter(null);
+      setSortBy('alphabet-asc');
+    };
+    window.addEventListener('keydown', handleLibraryLetterShortcut);
+    return () => window.removeEventListener('keydown', handleLibraryLetterShortcut);
+  }, [activePage, selectedMovie, selectedActorName]);
 
 
   // Compute unique actors count
@@ -455,7 +476,7 @@ export default function App() {
    *  and short menu with all categories with aplphabet as default."
    */
   const handleFilterByAttribute = (
-    type: 'genre' | 'studio' | 'year' | 'minutes' | 'size',
+    type: 'genre' | 'studio' | 'year' | 'minutes' | 'size' | 'resolution',
     value: string | number
   ) => {
     // 1. Close detail modal so library is immediately shown
@@ -509,6 +530,13 @@ export default function App() {
         type: 'size',
         label: 'File Size',
         value: sizeStr,
+      });
+    } else if (type === 'resolution') {
+      setSelectedCategory('All');
+      setActiveMetadataFilter({
+        type: 'resolution',
+        label: 'Resolution',
+        value: String(value),
       });
     }
   };
@@ -815,6 +843,10 @@ export default function App() {
           }
           return m.size.toLowerCase().includes(valStr.toLowerCase());
         });
+      } else if (type === 'resolution') {
+        result = result.filter(
+          (m) => (m.resolution || '').toLowerCase() === String(value).toLowerCase()
+        );
       } else if (type === 'actor') {
         result = result.filter((m) =>
           m.actors.some(
@@ -1048,6 +1080,7 @@ export default function App() {
           <ActorsPage
             movies={movies}
             viewMode={viewMode}
+            keyboardAlphabetEnabled={!selectedActorName && !selectedMovie}
             onOpenActorDetail={(name) => setSelectedActorName(name)}
             onDeleteActors={handleDeleteActors}
             onNotify={showActionNotification}

@@ -40,7 +40,7 @@ export type SortOption =
   | 'genre-asc';
 
 export interface ActiveFilter {
-  type: 'genre' | 'studio' | 'year' | 'minutes' | 'size' | 'actor' | 'alphabet' | 'search';
+  type: 'genre' | 'studio' | 'year' | 'minutes' | 'size' | 'resolution' | 'actor' | 'alphabet' | 'search';
   label: string;
   value: string | number;
 }
