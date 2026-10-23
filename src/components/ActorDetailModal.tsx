@@ -91,6 +91,31 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     ? `${totalMinutes} min (${totalHours}h ${remainingMinutes}m)`
     : `${totalMinutes} min`;
   const actorIndex = actorNames.findIndex((name) => name.toLowerCase() === actorName?.toLowerCase());
+  useEffect(() => {
+    if (!actorName || isEditing || zoomedPhotoUrl) return;
+
+    const handleNavigationKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+      ) {
+        return;
+      }
+
+      if (event.key === 'ArrowRight' && actorIndex >= 0 && actorIndex < actorNames.length - 1) {
+        event.preventDefault();
+        onNavigateActor(actorNames[actorIndex + 1]);
+      } else if (event.key === 'ArrowLeft' && actorIndex > 0) {
+        event.preventDefault();
+        onNavigateActor(actorNames[actorIndex - 1]);
+      }
+    };
+
+    window.addEventListener('keydown', handleNavigationKeyDown);
+    return () => window.removeEventListener('keydown', handleNavigationKeyDown);
+  }, [actorName, actorIndex, actorNames, isEditing, onNavigateActor, zoomedPhotoUrl]);
+
   const swipeHandlers = useHorizontalSwipe(
     () => {
       if (actorIndex >= 0 && actorIndex < actorNames.length - 1) onNavigateActor(actorNames[actorIndex + 1]);

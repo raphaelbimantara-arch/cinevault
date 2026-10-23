@@ -209,6 +209,31 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   }, [onClose, zoomedImageUrl]);
 
   const movieIndex = movies.findIndex((item) => item.id === movie?.id);
+  useEffect(() => {
+    if (!movie || isEditing || zoomedImageUrl) return;
+
+    const handleNavigationKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+      ) {
+        return;
+      }
+
+      if (event.key === 'ArrowRight' && movieIndex >= 0 && movieIndex < movies.length - 1) {
+        event.preventDefault();
+        onNavigateMovie(movies[movieIndex + 1]);
+      } else if (event.key === 'ArrowLeft' && movieIndex > 0) {
+        event.preventDefault();
+        onNavigateMovie(movies[movieIndex - 1]);
+      }
+    };
+
+    window.addEventListener('keydown', handleNavigationKeyDown);
+    return () => window.removeEventListener('keydown', handleNavigationKeyDown);
+  }, [isEditing, movie, movieIndex, movies, onNavigateMovie, zoomedImageUrl]);
+
   const swipeHandlers = useHorizontalSwipe(
     () => {
       if (movieIndex >= 0 && movieIndex < movies.length - 1) onNavigateMovie(movies[movieIndex + 1]);
