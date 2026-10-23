@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Movie, SortOption } from '../types';
 import { useLongPress } from '../utils/useLongPress';
 import { getMovieGenres } from '../utils/movieGenres';
+import { getActorProfile } from '../data/actorsData';
 
 type ListSortField = 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio' | 'genre';
 
@@ -66,9 +67,15 @@ export const MovieList: React.FC<MovieListProps> = ({
   const resolutionOptions = [...new Set(
     catalogMovies.map((movie) => movie.resolution?.trim()).filter((resolution): resolution is string => Boolean(resolution)),
   )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  const actorOptions = [...new Set(
+  const actorNames = [...new Set(
     catalogMovies.flatMap((movie) => movie.actors.map((actor) => actor.trim())).filter(Boolean),
   )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const actorOptions: AutocompleteOption[] = actorNames.flatMap((name) => {
+    const alias = getActorProfile(name).alias?.trim();
+    return alias && alias.toLocaleLowerCase() !== name.toLocaleLowerCase()
+      ? [{ label: name, value: name }, { label: `${alias} (${name})`, value: name }]
+      : [name];
+  });
   const studioOptions = [...new Set(
     catalogMovies.map((movie) => movie.studio.trim()).filter(Boolean),
   )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -440,11 +447,13 @@ interface AutocompleteInputProps {
   ariaLabel: string;
   className: string;
   value: string;
-  options: string[];
+  options: AutocompleteOption[];
   tokenMode?: boolean;
   clearOnFocus?: boolean;
   onChange: (value: string) => void;
 }
+
+type AutocompleteOption = string | { label: string; value: string };
 
 const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   ariaLabel,
@@ -461,9 +470,12 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const menuId = useId();
   const query = tokenMode ? value.split(/[,;|]/).pop()?.trim() || '' : value.trim();
-  const suggestions = query
-    ? options.filter((option) => option.toLocaleLowerCase().startsWith(query.toLocaleLowerCase())).slice(0, 8)
-    : options.slice(0, 8);
+  const normalizedOptions = options.map((option) => typeof option === 'string'
+    ? { label: option, value: option }
+    : option);
+  const suggestions = (query
+    ? normalizedOptions.filter((option) => option.label.toLocaleLowerCase().startsWith(query.toLocaleLowerCase()))
+    : normalizedOptions).slice(0, 8);
 
   const updateMenuPosition = () => {
     const input = inputRef.current;
@@ -496,17 +508,18 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
     }
   }, [activeIndex, menuId]);
 
-  const selectOption = (option: string) => {
+  const selectOption = (option: AutocompleteOption) => {
+    const selectedValue = typeof option === 'string' ? option : option.value;
     if (!tokenMode) {
-      onChange(option);
+      onChange(selectedValue);
     } else {
       const lastSeparator = Math.max(value.lastIndexOf(','), value.lastIndexOf(';'), value.lastIndexOf('|'));
       if (lastSeparator < 0) {
-        onChange(option);
+        onChange(selectedValue);
       } else {
         const prefix = value.slice(0, lastSeparator + 1);
         const spacing = value.slice(lastSeparator + 1).match(/^\s*/)?.[0] || ' ';
-        onChange(`${prefix}${spacing}${option}`);
+        onChange(`${prefix}${spacing}${selectedValue}`);
       }
     }
     setIsOpen(false);
@@ -564,7 +577,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
         >
           {suggestions.length > 0 ? suggestions.map((option, index) => (
             <button
-              key={option}
+              key={`${option.label}-${option.value}`}
               id={`${menuId}-option-${index}`}
               type="button"
               role="option"
@@ -573,9 +586,9 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
               onClick={() => selectOption(option)}
               onMouseEnter={() => setActiveIndex(index)}
               className={`block w-full truncate px-2 py-1 text-left text-[10px] sm:text-xs ${activeIndex === index ? 'bg-zinc-800 text-white' : 'text-zinc-200 hover:bg-zinc-800'}`}
-              title={option}
+              title={option.label}
             >
-              {option}
+              {option.label}
             </button>
           )) : query ? (
             <div className="whitespace-nowrap px-2 py-1 text-[9px] text-zinc-500 sm:text-xs">

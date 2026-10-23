@@ -393,9 +393,14 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
               {displayedMovies.map((movie) => (
                 <div
                   key={movie.id}
-                  onClick={() => {
-                    onClose();
-                    onSelectMovie(movie);
+                  onClick={() => onSelectMovie(movie)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSelectMovie(movie);
+                    }
                   }}
                   className="flex items-center gap-3 p-2 rounded-xl bg-[#141824] hover:bg-amber-500/15 border border-zinc-800/90 hover:border-amber-500/40 cursor-pointer transition-all group"
                   title={`Click to view movie details for "${movie.title}"`}

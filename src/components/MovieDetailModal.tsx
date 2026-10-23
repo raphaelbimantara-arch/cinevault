@@ -586,19 +586,15 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {movie.actors.map((actor) => (
-                    <span
+                    <button
                       key={actor}
-                      onClick={() => {
-                        if (onSelectActor) {
-                          onClose();
-                          onSelectActor(actor);
-                        }
-                      }}
+                      type="button"
+                      onClick={() => onSelectActor?.(actor)}
                       className="px-2 py-0.5 text-[10px] rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors"
                       title={`View actor ${actor}`}
                     >
                       {actor}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </div>

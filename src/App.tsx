@@ -1104,7 +1104,10 @@ export default function App() {
         onClose={handleCloseMovieDetail}
         onNavigateMovie={setSelectedMovie}
         onFilterByAttribute={handleFilterByAttribute}
-        onSelectActor={(actorName) => setSelectedActorName(actorName)}
+        onSelectActor={(actorName) => {
+          setSelectedMovie(null);
+          setSelectedActorName(actorName);
+        }}
         onUpdateMovie={handleUpdateMovie}
       />
 
