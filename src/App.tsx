@@ -25,9 +25,9 @@ import { getMovieGenres } from './utils/movieGenres';
 const STORAGE_KEY = 'cinevault_movies_library_v2';
 const SHARED_TOKEN_STORAGE_KEY = 'cinevault_shared_catalog_token_v1';
 type SharedCatalogStatus = 'disconnected' | 'loading' | 'connected' | 'empty' | 'error';
-type MovieSelectionNotice = {
+type ActionNotification = {
   message: string;
-  removeStatus?: { field: 'favorite' | 'reviewed'; movieIds: string[]; label: string };
+  action?: { label: string; onClick: () => void };
 };
 
 function readSharedToken(): string {
@@ -185,10 +185,44 @@ export default function App() {
   // Selected movie for detail modal
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [selectedMovieIds, setSelectedMovieIds] = useState<Set<string>>(() => new Set());
-  const [movieSelectionNotice, setMovieSelectionNotice] = useState<MovieSelectionNotice | null>(null);
+  const [actionNotification, setActionNotification] = useState<ActionNotification | null>(null);
+  const actionNotificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const actionNotificationRef = useRef<HTMLDivElement | null>(null);
 
   // Selected actor for actor detail modal
   const [selectedActorName, setSelectedActorName] = useState<string | null>(null);
+
+  const showActionNotification = (
+    message: string,
+    action?: ActionNotification['action']
+  ) => {
+    if (actionNotificationTimer.current !== null) {
+      clearTimeout(actionNotificationTimer.current);
+    }
+    setActionNotification({ message, action });
+    actionNotificationTimer.current = setTimeout(() => {
+      setActionNotification(null);
+      actionNotificationTimer.current = null;
+    }, 5000);
+  };
+
+  useEffect(() => () => {
+    if (actionNotificationTimer.current !== null) clearTimeout(actionNotificationTimer.current);
+  }, []);
+
+  useEffect(() => {
+    if (!actionNotification) return;
+    const dismissOnOutsidePointer = (event: PointerEvent) => {
+      if (event.target instanceof Node && actionNotificationRef.current?.contains(event.target)) return;
+      if (actionNotificationTimer.current !== null) {
+        clearTimeout(actionNotificationTimer.current);
+        actionNotificationTimer.current = null;
+      }
+      setActionNotification(null);
+    };
+    document.addEventListener('pointerdown', dismissOnOutsidePointer);
+    return () => document.removeEventListener('pointerdown', dismissOnOutsidePointer);
+  }, [actionNotification]);
 
   // Selected studio for studio detail modal
 
@@ -360,6 +394,7 @@ export default function App() {
   // Delete movie handler
   const handleDeleteMovie = (id: string) => {
     setMovies((prev) => prev.filter((m) => m.id !== id));
+    showActionNotification('Film berhasil dihapus.');
     setSelectedMovieIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
@@ -369,9 +404,11 @@ export default function App() {
 
   // Bulk delete movies (for duplicate finder cleanup)
   const handleBulkDeleteMovies = (movieIds: string[]) => {
+    if (movieIds.length === 0) return;
     const idSet = new Set(movieIds);
     setMovies((prev) => prev.filter((m) => !idSet.has(m.id)));
     setSelectedMovieIds((prev) => new Set([...prev].filter((id) => !idSet.has(id))));
+    showActionNotification(`${movieIds.length} film berhasil dihapus.`);
   };
 
   const handleToggleMovieSelection = (movieId: string) => {
@@ -407,18 +444,19 @@ export default function App() {
     setMovies((prev) =>
       prev.map((movie) => selectedMovieIds.has(movie.id) ? { ...movie, ...updates } : movie)
     );
-    setMovieSelectionNotice({
-      message: alreadyMarked.length > 0
+    const message = alreadyMarked.length > 0
         ? `${newlyMarkedCount} film ditandai ${label}; ${alreadyMarked.length} sudah ${label}.`
-        : `${newlyMarkedCount} film ditandai ${label}.`,
-      removeStatus: alreadyMarked.length > 0
+        : `${newlyMarkedCount} film ditandai ${label}.`;
+    showActionNotification(
+      message,
+      alreadyMarked.length > 0
         ? {
-            field,
-            movieIds: alreadyMarked,
-            label: field === 'favorite' ? 'Keluarkan dari favorite' : 'Hapus tanda reviewed',
+            label: field === 'favorite' ? 'Keluarkan dari favorite' : 'Hapus tanda review',
+            onClick: () => handleRemoveSelectedMovieStatus(field, alreadyMarked),
           }
-        : undefined,
-    });
+        : undefined
+    );
+    setSelectedMovieIds(new Set());
   };
 
   const handleRemoveSelectedMovieStatus = (field: 'favorite' | 'reviewed', movieIds: string[]) => {
@@ -429,9 +467,9 @@ export default function App() {
         ? { ...movie, favorite: false }
         : { ...movie, reviewed: false };
     }));
-    setMovieSelectionNotice({
-      message: `${movieIds.length} film dikeluarkan dari ${field === 'favorite' ? 'favorite' : 'reviewed'}.`,
-    });
+    showActionNotification(
+      `${movieIds.length} film dikeluarkan dari ${field === 'favorite' ? 'favorite' : 'review'}.`
+    );
   };
 
   // Update complete movie handler
@@ -692,6 +730,39 @@ export default function App() {
         onTriggerAdd={handleTriggerAdd}
       />
 
+      {actionNotification && (
+        <div
+          ref={actionNotificationRef}
+          role="status"
+          className="fixed left-1/2 top-[68px] z-[70] flex w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 flex-wrap items-center gap-3 rounded-xl border border-zinc-700 bg-[#151926]/95 px-4 py-3 text-sm text-zinc-100 shadow-xl backdrop-blur-md"
+        >
+          <span className="min-w-0 flex-1">{actionNotification.message}</span>
+          {actionNotification.action && (
+            <button
+              type="button"
+              onClick={actionNotification.action.onClick}
+              className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/10"
+            >
+              {actionNotification.action.label}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (actionNotificationTimer.current !== null) {
+                clearTimeout(actionNotificationTimer.current);
+                actionNotificationTimer.current = null;
+              }
+              setActionNotification(null);
+            }}
+            aria-label="Tutup pemberitahuan"
+            className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-clip">
         {activePage === 'library' && (
@@ -752,31 +823,6 @@ export default function App() {
                     <X className="h-3.5 w-3.5" />
                     Clear
                   </button>
-                  {movieSelectionNotice && (
-                    <div role="status" className="flex w-full flex-wrap items-center gap-2 border-t border-zinc-800 pt-2 text-xs text-zinc-300">
-                      <span>{movieSelectionNotice.message}</span>
-                      {movieSelectionNotice.removeStatus && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const status = movieSelectionNotice.removeStatus;
-                            if (status) handleRemoveSelectedMovieStatus(status.field, status.movieIds);
-                          }}
-                          className="rounded-md border border-amber-500/40 px-2 py-1 font-semibold text-amber-300 hover:bg-amber-500/10"
-                        >
-                          {movieSelectionNotice.removeStatus.label}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setMovieSelectionNotice(null)}
-                        aria-label="Dismiss status notification"
-                        className="ml-auto rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -817,6 +863,7 @@ export default function App() {
             viewMode={viewMode}
             onOpenActorDetail={(name) => setSelectedActorName(name)}
             onDeleteActors={handleDeleteActors}
+            onNotify={showActionNotification}
             onTriggerAddActor={() => handleTriggerAdd('actor')}
           />
         )}

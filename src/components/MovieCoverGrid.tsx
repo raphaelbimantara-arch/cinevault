@@ -61,7 +61,9 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
           <div
             key={movie.id}
             data-selection-id={movie.id}
-            onClick={() => onSelectMovie(movie)}
+            onClick={() => selectionMode
+              ? onToggleMovieSelection(movie.id)
+              : onSelectMovie(movie)}
             className="group relative min-w-0 cursor-pointer"
           >
             {selectionMode && (
@@ -88,16 +90,23 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-transparent group-hover:bg-black/20 transition-colors" />
+            </div>
+            <div className="flex min-w-0 items-center justify-between gap-1 pt-1">
+              <span className="min-w-0 truncate text-[10px] font-semibold text-zinc-200" title={movie.title}>
+                {movie.title}
+              </span>
               {(movie.favorite || movie.reviewed) && (
-                <div className="absolute bottom-1 left-1 flex flex-wrap gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                   {movie.favorite && (
-                    <span title="Favorite" className="inline-flex items-center gap-0.5 rounded-md bg-zinc-950/85 px-1 py-0.5 text-[9px] font-semibold text-amber-300">
-                      <Star className="h-2.5 w-2.5 fill-current" /> Favorite
+                    <span title="Favorite" className="inline-flex items-center gap-0.5 text-[8px] font-semibold text-amber-300">
+                      <Star className="h-2.5 w-2.5 fill-current" />
+                      <span>Favorite</span>
                     </span>
                   )}
                   {movie.reviewed && (
-                    <span title="Reviewed" className="inline-flex items-center gap-0.5 rounded-md bg-zinc-950/85 px-1 py-0.5 text-[9px] font-semibold text-emerald-300">
-                      <Check className="h-2.5 w-2.5" /> Reviewed
+                    <span title="Review" className="inline-flex items-center gap-0.5 text-[8px] font-semibold text-rose-400">
+                      <Check className="h-2.5 w-2.5" />
+                      <span>Review</span>
                     </span>
                   )}
                 </div>

@@ -10,6 +10,7 @@ interface ActorsPageProps {
   viewMode: ViewMode;
   onOpenActorDetail: (actorName: string) => void;
   onDeleteActors: (actorNames: string[]) => void;
+  onNotify: (message: string, action?: { label: string; onClick: () => void }) => void;
   onTriggerAddActor?: () => void;
 }
 
@@ -25,10 +26,28 @@ interface ActorStat {
 }
 
 type ActorSortOption = 'name' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc';
-type ActorSelectionNotice = {
-  message: string;
-  removeStatus?: { field: 'favorite' | 'reviewed'; actorNames: string[]; label: string };
-};
+
+const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = ({
+  favorite,
+  reviewed,
+}) => (
+  (favorite || reviewed) ? (
+    <div className="flex shrink-0 items-center gap-1">
+      {favorite && (
+        <span title="Favorite" className="inline-flex items-center gap-0.5 text-[8px] font-semibold text-amber-300">
+          <Star className="h-2.5 w-2.5 fill-current" />
+          <span>Favorite</span>
+        </span>
+      )}
+      {reviewed && (
+        <span title="Review" className="inline-flex items-center gap-0.5 text-[8px] font-semibold text-rose-400">
+          <Check className="h-2.5 w-2.5" />
+          <span>Review</span>
+        </span>
+      )}
+    </div>
+  ) : null
+);
 
 const ALPHABET_LIST = [
   'All',
@@ -42,6 +61,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   viewMode,
   onOpenActorDetail,
   onDeleteActors,
+  onNotify,
   onTriggerAddActor,
 }) => {
   const [actorViewMode, setActorViewMode] = useState<ViewMode | 'photos'>(viewMode);
@@ -51,7 +71,6 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   const [cols, setCols] = useState(4);
   const [selectedActorNames, setSelectedActorNames] = useState<Set<string>>(() => new Set());
   const [actorStatusRevision, setActorStatusRevision] = useState(0);
-  const [selectionNotice, setSelectionNotice] = useState<ActorSelectionNotice | null>(null);
   const selectionMode = selectedActorNames.size > 0;
   const longPressHandlers = useLongPress((name) => {
     setSelectedActorNames((prev) => new Set(prev).add(name));
@@ -187,6 +206,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
     if (namesToDelete.length === 0) return;
     if (!window.confirm(`Delete ${namesToDelete.length} selected actor(s) from the directory and movie credits? This cannot be undone.`)) return;
     onDeleteActors(namesToDelete);
+    onNotify(`${namesToDelete.length} aktor berhasil dihapus.`);
     setSelectedActorNames(new Set());
   };
 
@@ -206,21 +226,22 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         field === 'favorite' ? { favorite: true } : { reviewed: true }
       );
       setActorStatusRevision((revision) => revision + 1);
-      setSelectionNotice({
-        message: alreadyMarked.length > 0
+      const message = alreadyMarked.length > 0
           ? `${newlyMarkedCount} aktor ditandai ${label}; ${alreadyMarked.length} sudah ${label}.`
-          : `${newlyMarkedCount} aktor ditandai ${label}.`,
-        removeStatus: alreadyMarked.length > 0
+          : `${newlyMarkedCount} aktor ditandai ${label}.`;
+      onNotify(
+        message,
+        alreadyMarked.length > 0
           ? {
-              field,
-              actorNames: alreadyMarked,
-              label: field === 'favorite' ? 'Keluarkan dari favorite' : 'Hapus tanda reviewed',
+              label: field === 'favorite' ? 'Keluarkan dari favorite' : 'Hapus tanda review',
+              onClick: () => handleRemoveSelectedActorStatus(field, alreadyMarked),
             }
-          : undefined,
-      });
+          : undefined
+      );
+      setSelectedActorNames(new Set());
     } catch (error) {
       console.error('Failed to update selected actor statuses:', error);
-      setSelectionNotice({ message: 'Status aktor tidak dapat disimpan. Silakan coba lagi.' });
+      onNotify('Status aktor tidak dapat disimpan. Silakan coba lagi.');
     }
   };
 
@@ -231,12 +252,11 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         field === 'favorite' ? { favorite: false } : { reviewed: false }
       );
       setActorStatusRevision((revision) => revision + 1);
-      setSelectionNotice({
-        message: `${actorNames.length} aktor dikeluarkan dari ${field === 'favorite' ? 'favorite' : 'reviewed'}.`,
-      });
+      onNotify(`${actorNames.length} aktor dikeluarkan dari ${field === 'favorite' ? 'favorite' : 'review'}.`);
+      setSelectedActorNames(new Set());
     } catch (error) {
       console.error('Failed to remove selected actor statuses:', error);
-      setSelectionNotice({ message: 'Status aktor tidak dapat dihapus. Silakan coba lagi.' });
+      onNotify('Status aktor tidak dapat dihapus. Silakan coba lagi.');
     }
   };
 
@@ -454,31 +474,6 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             </button>
           </>
         )}
-        {selectionNotice && (
-          <div role="status" className="flex w-full flex-wrap items-center gap-2 border-t border-zinc-800 pt-2 text-xs text-zinc-300">
-            <span>{selectionNotice.message}</span>
-            {selectionNotice.removeStatus && (
-              <button
-                type="button"
-                onClick={() => {
-                  const status = selectionNotice.removeStatus;
-                  if (status) handleRemoveSelectedActorStatus(status.field, status.actorNames);
-                }}
-                className="rounded-md border border-amber-500/40 px-2 py-1 font-semibold text-amber-300 hover:bg-amber-500/10"
-              >
-                {selectionNotice.removeStatus.label}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setSelectionNotice(null)}
-              aria-label="Dismiss status notification"
-              className="ml-auto rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Actors Cards Grid */}
@@ -554,6 +549,12 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                   }`}>
                     <User className="h-1/2 w-1/2 text-amber-400" />
                   </div>
+                  <div className="absolute inset-x-0 bottom-0 flex min-w-0 items-center justify-between gap-1 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-1.5 pb-1 pt-5">
+                    <span className="min-w-0 truncate text-[10px] font-semibold text-white" title={actor.name}>
+                      {actor.name}
+                    </span>
+                    <ActorStatusMarkers favorite={actor.favorite} reviewed={actor.reviewed} />
+                  </div>
                 </>
               ) : (
                 <div className={`flex min-w-0 items-center ${actorViewMode === 'cover' ? 'flex-col' : 'gap-2 sm:gap-3.5'}`}>
@@ -594,26 +595,15 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                   </div>
 
                   <div className={`min-w-0 ${actorViewMode === 'cover' ? 'w-full pt-1 text-center' : 'flex-1'}`}>
-                    <h3 className={`truncate font-bold text-zinc-100 group-hover:text-amber-400 transition-colors ${
-                      actorViewMode === 'cover' ? 'text-[9px] sm:text-xs' : 'text-xs sm:text-base'
-                    }`}>
-                      {actor.name}
-                    </h3>
+                    <div className="flex min-w-0 items-center justify-between gap-1">
+                      <h3 className={`min-w-0 truncate font-bold text-zinc-100 transition-colors group-hover:text-amber-400 ${
+                        actorViewMode === 'cover' ? 'text-[9px] sm:text-xs' : 'text-xs sm:text-base'
+                      }`}>
+                        {actor.name}
+                      </h3>
+                      <ActorStatusMarkers favorite={actor.favorite} reviewed={actor.reviewed} />
+                    </div>
                   </div>
-                </div>
-              )}
-              {(actor.favorite || actor.reviewed) && (
-                <div className="absolute right-1 top-1 z-10 flex max-w-[calc(100%-0.5rem)] flex-wrap justify-end gap-1">
-                  {actor.favorite && (
-                    <span title="Favorite" className="inline-flex items-center gap-0.5 rounded-md border border-amber-400/40 bg-zinc-950/85 px-1 py-0.5 text-[9px] font-semibold text-amber-300">
-                      <Star className="h-2.5 w-2.5 fill-current" /> Favorite
-                    </span>
-                  )}
-                  {actor.reviewed && (
-                    <span title="Reviewed" className="inline-flex items-center gap-0.5 rounded-md border border-emerald-400/40 bg-zinc-950/85 px-1 py-0.5 text-[9px] font-semibold text-emerald-300">
-                      <Check className="h-2.5 w-2.5" /> Reviewed
-                    </span>
-                  )}
                 </div>
               )}
             </div>

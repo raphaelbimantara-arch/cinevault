@@ -284,23 +284,25 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                     <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">
                       Actor Profile
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
-                      {actorName}
-                    </h2>
-                    {(profile.favorite || profile.reviewed) && (
-                      <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
-                        {profile.favorite && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-[10px] font-semibold text-amber-300">
-                            <Star className="h-3 w-3 fill-current" /> Favorite
-                          </span>
-                        )}
-                        {profile.reviewed && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold text-emerald-300">
-                            <Check className="h-3 w-3" /> Reviewed
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    <div className="mt-1 flex min-w-0 items-center justify-between gap-2">
+                      <h2 className="min-w-0 truncate text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+                        {actorName}
+                      </h2>
+                      {(profile.favorite || profile.reviewed) && (
+                        <div className="flex shrink-0 items-center gap-2">
+                          {profile.favorite && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-300">
+                              <Star className="h-3 w-3 fill-current" /> Favorite
+                            </span>
+                          )}
+                          {profile.reviewed && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-300">
+                              <Check className="h-3 w-3" /> Review
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Badges: Date of Birth, Total Size, Total Duration */}
                     <div className="mt-3.5 flex flex-wrap gap-2 justify-center sm:justify-start">

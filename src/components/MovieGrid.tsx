@@ -49,7 +49,9 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
           <div
             key={movie.id}
             data-selection-id={movie.id}
-            onClick={() => onSelectMovie(movie)}
+            onClick={() => selectionMode
+              ? onToggleMovieSelection(movie.id)
+              : onSelectMovie(movie)}
             className="group relative flex flex-col bg-[#121520] rounded-xl border border-zinc-800/80 overflow-hidden hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-200"
           >
             {selectionMode && (
@@ -67,20 +69,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                   className="h-4 w-4 cursor-pointer accent-amber-400"
                 />
               </label>
-            )}
-            {(movie.favorite || movie.reviewed) && (
-              <div className="absolute left-2 top-2 z-10 flex flex-col gap-1">
-                {movie.favorite && (
-                  <span title="Favorite" className="inline-flex items-center gap-1 rounded-md border border-amber-400/40 bg-zinc-950/85 px-1.5 py-1 text-[9px] font-semibold text-amber-300">
-                    <Star className="h-2.5 w-2.5 fill-current" /> Favorite
-                  </span>
-                )}
-                {movie.reviewed && (
-                  <span title="Reviewed" className="inline-flex items-center gap-1 rounded-md border border-emerald-400/40 bg-zinc-950/85 px-1.5 py-1 text-[9px] font-semibold text-emerald-300">
-                    <Check className="h-2.5 w-2.5" /> Reviewed
-                  </span>
-                )}
-              </div>
             )}
             {/* Poster container with aspect 3:4 */}
             <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-900 cursor-pointer">
@@ -109,12 +97,30 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             {/* Card Content & Interactive Metadata Links */}
             <div className="p-3 flex-1 flex flex-col justify-between">
               <div>
-                <h4 
-                  className="text-sm font-bold text-zinc-100 group-hover:text-amber-400 transition-colors line-clamp-1 cursor-pointer"
-                  title={movie.title}
-                >
-                  {movie.title}
-                </h4>
+                <div className="flex min-w-0 items-center justify-between gap-1">
+                  <h4
+                    className="min-w-0 truncate text-sm font-bold text-zinc-100 transition-colors group-hover:text-amber-400 cursor-pointer"
+                    title={movie.title}
+                  >
+                    {movie.title}
+                  </h4>
+                  {(movie.favorite || movie.reviewed) && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      {movie.favorite && (
+                        <span title="Favorite" className="inline-flex items-center gap-0.5 text-[8px] font-semibold text-amber-300">
+                          <Star className="h-2.5 w-2.5 fill-current" />
+                          <span>Favorite</span>
+                        </span>
+                      )}
+                      {movie.reviewed && (
+                        <span title="Review" className="inline-flex items-center gap-0.5 text-[8px] font-semibold text-rose-400">
+                          <Check className="h-2.5 w-2.5" />
+                          <span>Review</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex items-center justify-between mt-1 text-[10px] sm:text-[11px] text-zinc-400">
                   <span

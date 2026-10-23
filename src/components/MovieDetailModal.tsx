@@ -8,6 +8,7 @@ import {
   Clock,
   HardDrive,
   Star,
+  Check,
   Edit3,
   Save,
   Undo2
@@ -505,20 +506,27 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
               /* ===== VIEW MODE ===== */
               <>
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-tight truncate">
-                    {movie.title}
-                  </h2>
-                  {movie.favorite && (
-                    <div className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-amber-400">
-                      <Star className="h-3.5 w-3.5 fill-current" />
-                      Favorite
-                    </div>
-                  )}
-                  {movie.reviewed && (
-                    <div className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-400">
-                      Reviewed
-                    </div>
-                  )}
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <h2 className="min-w-0 truncate text-xl font-extrabold leading-tight tracking-tight text-white sm:text-2xl">
+                      {movie.title}
+                    </h2>
+                    {(movie.favorite || movie.reviewed) && (
+                      <div className="flex shrink-0 items-center gap-2">
+                        {movie.favorite && (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-400">
+                            <Star className="h-3.5 w-3.5 fill-current" />
+                            Favorite
+                          </span>
+                        )}
+                        {movie.reviewed && (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-400">
+                            <Check className="h-3.5 w-3.5" />
+                            Review
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Rearranged Details */}
                   <div className="mt-4 grid grid-cols-2 gap-2 text-xs">

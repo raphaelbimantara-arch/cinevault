@@ -58,7 +58,9 @@ export const MovieList: React.FC<MovieListProps> = ({
             <tr
               key={movie.id}
               data-selection-id={movie.id}
-              onClick={() => onSelectMovie(movie)}
+              onClick={() => selectionMode
+                ? onToggleMovieSelection(movie.id)
+                : onSelectMovie(movie)}
               className="group hover:bg-[#181d2c] transition-colors cursor-pointer"
             >
               <td className="py-2 px-1.5 sm:px-3">
@@ -83,9 +85,9 @@ export const MovieList: React.FC<MovieListProps> = ({
                     </span>
                   )}
                   {movie.reviewed && (
-                    <span title="Reviewed" className="inline-flex shrink-0 items-center gap-0.5 text-[8px] text-emerald-300">
+                    <span title="Review" className="inline-flex shrink-0 items-center gap-0.5 text-[8px] text-rose-400">
                       <Check className="h-3 w-3" />
-                      <span className="hidden sm:inline">Reviewed</span>
+                      <span className="hidden sm:inline">Review</span>
                     </span>
                   )}
                 </div>
