@@ -61,6 +61,7 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
           <div
             key={movie.id}
             data-selection-id={movie.id}
+            data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
             onClick={() => selectionMode
               ? onToggleMovieSelection(movie.id)
               : onSelectMovie(movie)}

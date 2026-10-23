@@ -413,6 +413,7 @@ export default function App() {
 
   // Alphabet multi-select filter
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
+  const [pendingMovieJumpLetter, setPendingMovieJumpLetter] = useState<string | null>(null);
 
   const handleToggleAlphabet = (char: string) => {
     if (char === 'All') {
@@ -452,7 +453,8 @@ export default function App() {
       ) return;
       if (!/^[a-z]$/i.test(event.key)) return;
 
-      setSelectedAlphabets([event.key.toUpperCase()]);
+      setPendingMovieJumpLetter(event.key.toUpperCase());
+      setSelectedAlphabets(['All']);
       setSelectedCategory('All');
       setSearchQuery('');
       setActiveMetadataFilter(null);
@@ -905,6 +907,18 @@ export default function App() {
     activeMetadataFilter,
     sortBy,
   ]);
+
+  useEffect(() => {
+    if (!pendingMovieJumpLetter) return;
+    const letter = pendingMovieJumpLetter;
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`[data-keyboard-letter="${letter}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPendingMovieJumpLetter(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pendingMovieJumpLetter, filteredAndSortedMovies]);
 
   const movieDetailNavigationMovies = useMemo(() => {
     if (!selectedMovie) return filteredAndSortedMovies;

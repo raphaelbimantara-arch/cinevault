@@ -93,6 +93,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   const [search, setSearch] = useState('');
   const [actorSort, setActorSort] = useState<ActorSortOption>('name');
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
+  const [pendingActorJumpLetter, setPendingActorJumpLetter] = useState<string | null>(null);
   const [isAlphabetOpen, setIsAlphabetOpen] = useState(false);
   const [cols, setCols] = useState(4);
   const [selectedActorNames, setSelectedActorNames] = useState<Set<string>>(() => new Set());
@@ -113,7 +114,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       ) return;
       if (!/^[a-z]$/i.test(event.key)) return;
 
-      setSelectedAlphabets([event.key.toUpperCase()]);
+      setPendingActorJumpLetter(event.key.toUpperCase());
+      setSelectedAlphabets(['All']);
       setSearch('');
       setActorSort('name');
     };
@@ -269,6 +271,18 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
     });
   }, [actorStats, search, selectedAlphabets, actorSort]);
+
+  useEffect(() => {
+    if (!pendingActorJumpLetter) return;
+    const letter = pendingActorJumpLetter;
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`[data-keyboard-letter="${letter}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPendingActorJumpLetter(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pendingActorJumpLetter, filteredActors]);
 
   const startListEditing = () => {
     setActorDrafts(Object.fromEntries(filteredActors.map((actor) => [
@@ -732,6 +746,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                   <tr
                     key={actor.name}
                     data-selection-id={isEditingList ? undefined : actor.name}
+                    data-keyboard-letter={actor.name.trim().charAt(0).toUpperCase()}
                     onClick={() => {
                       if (isEditingList) return;
                       if (selectionMode) handleToggleActorSelection(actor.name);
@@ -822,6 +837,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             <div
               key={actor.name}
               data-selection-id={actor.name}
+              data-keyboard-letter={actor.name.trim().charAt(0).toUpperCase()}
               aria-label={`Open ${actor.name}`}
               onClick={() => selectionMode
                 ? handleToggleActorSelection(actor.name)

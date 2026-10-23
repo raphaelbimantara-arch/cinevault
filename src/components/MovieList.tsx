@@ -281,6 +281,7 @@ export const MovieList: React.FC<MovieListProps> = ({
               <tr
                 key={movie.id}
                 data-selection-id={isEditing ? undefined : movie.id}
+                data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
                 onClick={() => {
                   if (isEditing) return;
                   if (selectionMode) onToggleMovieSelection(movie.id);
