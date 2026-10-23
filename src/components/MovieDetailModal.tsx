@@ -223,26 +223,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         onPointerCancel={swipeHandlers.onPointerCancel}
         style={{ touchAction: 'pan-y' }}
       >
-          {/* Top Header Bar with Edit and Close Buttons */}
-          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex items-center gap-2">
-            {onUpdateMovie && !isEditing && (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-zinc-800/70 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 flex items-center justify-center transition-colors"
-                title="Edit movie details"
-              >
-                <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/80 flex items-center justify-center transition-colors"
-              title="Close (Esc)"
-            >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-          </div>
-
           {/* Modal Body Container */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-0">
             {/* Left Column: Front & Back Posters */}
@@ -500,6 +480,15 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     <Undo2 className="w-3.5 h-3.5" />
                     Cancel
                   </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+                    title="Close movie details"
+                    aria-label="Close movie details"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               </form>
             ) : (
@@ -513,10 +502,16 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     {(movie.favorite || movie.reviewed) && (
                       <div className="flex shrink-0 items-center gap-2">
                         {movie.favorite && (
-                          <Star aria-label="Favorite" title="Favorite" className="h-4 w-4 fill-amber-400 text-amber-400" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-300">
+                            <Star aria-label="Favorite" title="Favorite" className="h-4 w-4 fill-amber-400 text-amber-400" />
+                            Favorite
+                          </span>
                         )}
                         {movie.reviewed && (
-                          <Check aria-label="Review" title="Review" className="h-4 w-4 text-rose-400" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-300">
+                            <Check aria-label="Review" title="Review" className="h-4 w-4 text-rose-400" />
+                            Review
+                          </span>
                         )}
                       </div>
                     )}
@@ -609,16 +604,27 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Bottom Actions - Very Compact */}
-            <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between gap-3">
-              <span className="text-[10px] text-zinc-500">
-                Press <kbd className="px-1 py-0.5 rounded bg-zinc-800 text-[9px] text-zinc-400 font-mono">Esc</kbd>
-              </span>
+            {/* Bottom Actions */}
+            <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-end gap-2">
+              {onUpdateMovie && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-zinc-950"
+                  title="Edit movie details"
+                  aria-label="Edit movie details"
+                >
+                  <Edit3 className="h-4 w-4" />
+                </button>
+              )}
               <button
+                type="button"
                 onClick={onClose}
-                className="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-zinc-950 font-semibold text-xs transition-colors"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+                title="Close movie details"
+                aria-label="Close movie details"
               >
-                Back
+                <X className="h-4 w-4" />
               </button>
             </div>
           </>
@@ -646,7 +652,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 setZoomedImageUrl(null);
               }}
               className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 flex items-center justify-center transition-colors"
-              title="Close (Esc)"
+              title="Close image"
             >
               <X className="w-4 h-4" />
             </button>
