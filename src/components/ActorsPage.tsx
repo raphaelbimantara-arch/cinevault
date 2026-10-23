@@ -737,16 +737,16 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           <table className="w-full table-fixed border-collapse text-left">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[8px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
-                <th className={`${isEditingList ? 'w-[20%]' : 'w-[22%]'} px-1 py-2 sm:px-3`}>
+                <th className={`${isEditingList ? 'w-[20%] sm:w-[20%]' : 'w-[26%] sm:w-[22%]'} px-1 py-2 sm:px-3`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('name', 'name-desc')} className="w-full text-left disabled:cursor-default">Actor</button>
                 </th>
-                <th className={`${isEditingList ? 'w-[23%]' : 'w-[13%]'} px-0.5 py-2 text-center sm:px-2`}>
+                <th className={`${isEditingList ? 'w-[23%] sm:w-[23%]' : 'w-[20%] sm:w-[13%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('dob-asc', 'dob-desc')} className="w-full text-center disabled:cursor-default">DOB</button>
                 </th>
-                <th className="w-[7%] px-0.5 py-2 text-center sm:px-1">
+                <th className="w-[6%] px-0.5 py-2 text-center sm:w-[7%] sm:px-1">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('age-asc', 'age-desc')} className="w-full text-center disabled:cursor-default">Age</button>
                 </th>
-                <th className={`${isEditingList ? 'w-[8%]' : 'w-[9%]'} px-0.5 py-2 text-center sm:px-1`}>
+                <th className={`${isEditingList ? 'w-[8%] sm:w-[8%]' : 'w-[8%] sm:w-[9%]'} px-0.5 py-2 text-center sm:px-1`}>
                   <button
                     type="button"
                     disabled={isEditingList}
@@ -757,23 +757,23 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     Debut Age
                   </button>
                 </th>
-                <th className={`${isEditingList ? 'w-[11%]' : 'w-[12%]'} px-0.5 py-2 text-center sm:px-2`}>
+                <th className={`${isEditingList ? 'w-[11%] sm:w-[11%]' : 'w-[11%] sm:w-[12%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('size-asc', 'size-desc')} className="w-full text-center disabled:cursor-default">Size</button>
                 </th>
-                <th className={`${isEditingList ? 'w-[13%]' : 'w-[14%]'} px-0.5 py-2 text-center sm:px-2`}>
+                <th className={`${isEditingList ? 'w-[10%] sm:w-[13%]' : 'w-[10%] sm:w-[14%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('duration-asc', 'duration-desc')} className="w-full text-center disabled:cursor-default">Min</button>
                 </th>
-                <th className={`${isEditingList ? 'w-[10%]' : 'w-[13%]'} px-0.5 py-2 text-center sm:px-2`}>
+                <th className={`${isEditingList ? 'w-[12%] sm:w-[10%]' : 'w-[11%] sm:w-[13%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('movies-asc', 'movies-desc')} className="w-full text-center disabled:cursor-default">Movies</button>
                 </th>
-                <th className={`${isEditingList ? 'w-[8%]' : 'w-[10%]'} px-0.5 py-2 text-center normal-case sm:px-1`}>
+                <th className={`${isEditingList ? 'w-[10%] sm:w-[8%]' : 'w-[8%] sm:w-[10%]'} px-0.5 py-2 text-center normal-case sm:px-1`}>
                   <button
                     type="button"
                     disabled={isEditingList}
                     onClick={() => toggleActorSort('uncensored-asc', 'uncensored-desc')}
                     className="w-full text-center disabled:cursor-default"
                   >
-                    Uncensored
+                    Uncen
                   </button>
                 </th>
               </tr>
@@ -819,7 +819,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                             onChange={(event) => updateActorDraft(actor.name, 'name', event.target.value)}
                           />
                         ) : (
-                          <span className="min-w-0 truncate text-[8px] font-semibold text-zinc-100 group-hover:text-amber-400 sm:text-sm" title={actor.name}>
+                          <span className="min-w-0 whitespace-normal break-words text-[8px] font-semibold leading-tight text-zinc-100 group-hover:text-amber-400 sm:text-sm" title={actor.name}>
                             {actor.name}{actor.favorite && <Star className="ml-1 inline h-2.5 w-2.5 fill-amber-400 text-amber-400" />}
                           </span>
                         )}
@@ -833,7 +833,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                           actorName={actor.name}
                           compact
                         />
-                      ) : <span className="block truncate" title={actor.dob}>{formatActorDob(actor.dob)}</span>}
+                      ) : <span className="block whitespace-normal break-words leading-tight" title={actor.dob}>{formatActorDob(actor.dob)}</span>}
                     </td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-1 sm:text-xs" title={age === null ? 'Age unavailable' : `${age} years`}>
                       {age === null ? '—' : age}
@@ -845,7 +845,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                       {actor.debutAge ?? '—'}
                     </td>
                     <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={size}>{size}</td>
-                    <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.totalMinutes} minutes`}>{minutes} min</td>
+                    <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.totalMinutes} minutes`}>{minutes}</td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:px-2 sm:text-xs">{actor.movies.length}</td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.uncensoredMovies} uncensored movies`}>
                       {actor.uncensoredMovies}
