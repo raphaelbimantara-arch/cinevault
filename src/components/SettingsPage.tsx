@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { startTransition, useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Download, 
   Upload, 
@@ -59,7 +59,54 @@ interface ActorDuplicateGroup {
   actors: ActorDuplicateCandidate[];
 }
 
+interface KeepDuplicateButtonProps {
+  onConfirm: () => void;
+  title: string;
+  className?: string;
+}
+
 const REVIEWED_DUPLICATE_GROUPS_KEY = 'cinevault_reviewed_duplicate_groups_v1';
+
+const KeepDuplicateButton: React.FC<KeepDuplicateButtonProps> = ({ onConfirm, title, className }) => {
+  const [confirming, setConfirming] = useState(false);
+
+  if (confirming) {
+    return (
+      <div className="flex flex-wrap items-center justify-end gap-2" role="group" aria-label="Confirm keeping duplicate entries">
+        <span className="text-[11px] text-amber-200">Keep all entries? Nothing will be deleted.</span>
+        <button
+          type="button"
+          onClick={() => {
+            setConfirming(false);
+            onConfirm();
+          }}
+          className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30"
+        >
+          Confirm
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          className="rounded-lg px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-zinc-800"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      className={className}
+      title={title}
+    >
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      Keep These
+    </button>
+  );
+};
 
 function getMovieDuplicateReviewKey(group: DuplicateGroup): string {
   return group.movies.map((movie) => movie.id).sort().join('|');
@@ -189,12 +236,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [autoImportEnabled, setAutoImportEnabled] = useState(false);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(REVIEWED_DUPLICATE_GROUPS_KEY, JSON.stringify([...reviewedDuplicateGroups]));
-    } catch (error) {
-      console.error('Failed to save reviewed duplicate groups:', error);
-      showToast('error', 'Could not save duplicate review decisions on this device.');
-    }
+    const timer = window.setTimeout(() => {
+      try {
+        localStorage.setItem(REVIEWED_DUPLICATE_GROUPS_KEY, JSON.stringify([...reviewedDuplicateGroups]));
+      } catch (error) {
+        console.error('Failed to save reviewed duplicate groups:', error);
+        showToast('error', 'Could not save duplicate review decisions on this device.');
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [reviewedDuplicateGroups]);
 
   // Auto-dismiss notification after 4s
@@ -860,12 +910,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     [visibleActorDuplicateGroups],
   );
 
-  const handleKeepDuplicateGroup = (type: 'movie' | 'actor', key: string, names: string[]) => {
+  const handleKeepDuplicateGroup = (type: 'movie' | 'actor', key: string) => {
     const kind = type === 'movie' ? 'film' : 'aktor';
-    const entries = names.map((name) => `• ${name}`).join('\n');
-    if (!window.confirm(`Anda telah meninjau kemungkinan duplikat ${kind} berikut:\n\n${entries}\n\nSimpan semuanya dan tandai grup ini sudah ditinjau? Data tidak akan dihapus.`)) return;
-    setReviewedDuplicateGroups((previous) => new Set(previous).add(`${type}:${key}`));
-    showToast('success', `Grup ${kind} ditandai sudah ditinjau. Data tetap disimpan.`);
+    startTransition(() => {
+      setReviewedDuplicateGroups((previous) => new Set(previous).add(`${type}:${key}`));
+      showToast('success', `Grup ${kind} ditandai sudah ditinjau. Data tetap disimpan.`);
+    });
   };
 
   const handleMergeActorGroup = (group: ActorDuplicateGroup, primaryName: string) => {
@@ -1538,19 +1588,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                     {/* Quick group action: Merge */}
                     <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <button
-                        type="button"
-                        onClick={() => handleKeepDuplicateGroup(
-                          'movie',
-                          getMovieDuplicateReviewKey(group),
-                          group.movies.map((movie) => `${movie.title} (${movie.year})`),
-                        )}
+                      <KeepDuplicateButton
+                        onConfirm={() => handleKeepDuplicateGroup('movie', getMovieDuplicateReviewKey(group))}
                         className="w-full sm:w-auto px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                         title="Keep every movie in this reviewed group"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Keep These</span>
-                      </button>
+                      />
                       <button
                         onClick={() => handleMergeGroup(group)}
                         className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
@@ -1683,15 +1725,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                             : 'Possible spelling variation'}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleKeepDuplicateGroup('actor', group.key, group.actors.map((actor) => actor.name))}
+                    <KeepDuplicateButton
+                      onConfirm={() => handleKeepDuplicateGroup('actor', group.key)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
                       title="Keep all actor entries in this reviewed group"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Keep These
-                    </button>
+                    />
                   </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {group.actors.map((actor) => (
