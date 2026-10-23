@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X, Calendar, Film, Clock, User, Edit3, Save, Undo2, Star, Check } from 'lucide-react';
 import { Movie } from '../types';
 import { getActorProfile, ActorProfile } from '../data/actorsData';
+import { formatActorDob, getActorAge, normalizeActorDob } from '../utils/actorDob';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useHorizontalSwipe } from '../utils/useHorizontalSwipe';
 
@@ -100,15 +101,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   if (!actorName) return null;
 
   const profile = getActorProfile(actorName);
-  const birthDate = new Date(profile.dob);
-  const actorAge = Number.isNaN(birthDate.getTime()) || birthDate > new Date()
-    ? null
-    : (() => {
-        const today = new Date();
-        const birthdayPending = today.getMonth() < birthDate.getMonth()
-          || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
-        return today.getFullYear() - birthDate.getFullYear() - Number(birthdayPending);
-      })();
+  const actorAge = getActorAge(profile.dob);
 
   // Enter edit mode: populate fields from current profile
   const handleStartEdit = () => {
@@ -135,10 +128,15 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
       alert('Actor name cannot be empty.');
       return;
     }
+    const dob = normalizeActorDob(editDob);
+    if (dob === null) {
+      alert('Enter a valid date of birth: a month, a year, a month and year, a full date, or leave it blank.');
+      return;
+    }
     const updated: ActorProfile = {
       name: trimmedName,
       alias: editAlias.trim() || undefined,
-      dob: editDob.trim() || profile.dob,
+      dob,
       photoUrl: getImageSource(editPhotoUrl),
     };
     onUpdateActor(actorName, updated);
@@ -265,7 +263,8 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                         value={editDob}
                         onChange={(e) => setEditDob(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                        placeholder="e.g. January 15, 1985"
+                        placeholder="Month, year, month + year, full date, or blank"
+                        title="Examples: April, 1985, April 1985, April 15, 1985, or leave blank"
                       />
                     </div>
 
@@ -336,7 +335,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                         <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                         <span className="text-zinc-400">Date of Birth:</span>
                         <span className="font-semibold text-zinc-100 font-mono">
-                          {profile.dob}
+                          {formatActorDob(profile.dob)}
                         </span>
                         <span aria-hidden="true" className="text-zinc-600">·</span>
                         <span className="text-zinc-400">Age:</span>

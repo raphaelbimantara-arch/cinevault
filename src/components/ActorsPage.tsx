@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, ArrowUpDown, Star, Check, ChevronDown, ChevronUp, Pencil, Save, Undo2 } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
 import { ActorProfile, getActorProfiles, getActorProfile, updateActorStatuses } from '../data/actorsData';
+import { formatActorDob, getActorAge, getActorDobSortValue, normalizeActorDob } from '../utils/actorDob';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
 
@@ -55,23 +56,6 @@ const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = (
     </div>
   ) : null
 );
-
-const formatActorDob = (dob: string) => {
-  const match = dob.match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})$/);
-  if (!match) return dob;
-  return `${match[2].padStart(2, '0')} ${match[1].slice(0, 3)} ${match[3]}`;
-};
-
-const getActorAge = (dob: string) => {
-  const birthDate = new Date(dob);
-  if (Number.isNaN(birthDate.getTime()) || birthDate > new Date()) return null;
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const birthdayPending = today.getMonth() < birthDate.getMonth()
-    || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
-  if (birthdayPending) age -= 1;
-  return age;
-};
 
 const ALPHABET_LIST = [
   'All',
@@ -232,24 +216,22 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         return a.movies.length - b.movies.length || a.name.localeCompare(b.name);
       }
       if (actorSort === 'age-desc' || actorSort === 'age-asc') {
-        const dobA = Date.parse(a.dob);
-        const dobB = Date.parse(b.dob);
-        const hasInvalidDateA = Number.isNaN(dobA);
-        const hasInvalidDateB = Number.isNaN(dobB);
-        if (hasInvalidDateA !== hasInvalidDateB) return hasInvalidDateA ? 1 : -1;
-        if (hasInvalidDateA) return a.name.localeCompare(b.name);
+        const dobA = getActorDobSortValue(a.dob);
+        const dobB = getActorDobSortValue(b.dob);
+        if (dobA === null && dobB === null) return a.name.localeCompare(b.name);
+        if (dobA === null) return 1;
+        if (dobB === null) return -1;
         const ageOrder = actorSort === 'age-desc'
           ? dobA - dobB
           : dobB - dobA;
         return ageOrder || a.name.localeCompare(b.name);
       }
       if (actorSort === 'dob-asc' || actorSort === 'dob-desc') {
-        const dobA = Date.parse(a.dob);
-        const dobB = Date.parse(b.dob);
-        const hasInvalidDateA = Number.isNaN(dobA);
-        const hasInvalidDateB = Number.isNaN(dobB);
-        if (hasInvalidDateA !== hasInvalidDateB) return hasInvalidDateA ? 1 : -1;
-        if (hasInvalidDateA) return a.name.localeCompare(b.name);
+        const dobA = getActorDobSortValue(a.dob);
+        const dobB = getActorDobSortValue(b.dob);
+        if (dobA === null && dobB === null) return a.name.localeCompare(b.name);
+        if (dobA === null) return 1;
+        if (dobB === null) return -1;
         const dobOrder = actorSort === 'dob-asc' ? dobA - dobB : dobB - dobA;
         return dobOrder || a.name.localeCompare(b.name);
       }
@@ -335,20 +317,33 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       return;
     }
 
+    const invalidActor = draftedActors.find((actor) => {
+      const draft = actorDrafts[actor.name];
+      return draft !== undefined && normalizeActorDob(draft.dob) === null;
+    });
+    if (invalidActor) {
+      window.alert(`Enter a valid date of birth for ${invalidActor.name}: a month, a year, a month and year, a full date, or leave it blank.`);
+      return;
+    }
+
+    const updates: Array<{ oldName: string; profile: ActorProfile }> = [];
     draftedActors.forEach((actor) => {
       const draft = actorDrafts[actor.name];
       if (!draft) return;
       const name = draft.name.trim();
-      const dob = draft.dob.trim();
-      if (name === actor.name && dob === actor.dob) return;
-
+      const dob = normalizeActorDob(draft.dob);
+      if (dob === null || (name === actor.name && dob === actor.dob)) return;
       const profile = getActorProfile(actor.name);
-      onUpdateActor(actor.name, {
+      updates.push({
+        oldName: actor.name,
+        profile: {
         ...profile,
         name,
-        dob: dob || profile.dob,
+        dob,
+        },
       });
     });
+    updates.forEach((update) => onUpdateActor(update.oldName, update.profile));
     setActorStatusRevision((revision) => revision + 1);
     cancelListEditing();
     onNotify('Actor list updated.');
@@ -799,10 +794,12 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                       {isEditingList && draft ? (
                         <input
                           aria-label={`Edit date of birth for ${actor.name}`}
+                          title="Enter a month, year, month and year, a full date, or leave blank"
                           className="w-full min-w-0 rounded border border-zinc-700 bg-zinc-950 px-0.5 py-1 text-center text-[7px] text-zinc-100 focus:border-amber-400 focus:outline-none sm:px-1 sm:text-xs"
                           value={draft.dob}
                           onClick={(event) => event.stopPropagation()}
                           onChange={(event) => updateActorDraft(actor.name, 'dob', event.target.value)}
+                          placeholder="Month/year"
                         />
                       ) : <span className="block truncate" title={actor.dob}>{formatActorDob(actor.dob)}</span>}
                     </td>
