@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
-import { getCustomActors, KNOWN_ACTORS } from '../data/actorsData';
+import { getActorAliases, getCustomActors, KNOWN_ACTORS } from '../data/actorsData';
 
 interface SettingsPageProps {
   movies: Movie[];
@@ -144,8 +144,8 @@ function getActorDuplicateReason(
   first: ActorDuplicateCandidate,
   second: ActorDuplicateCandidate,
 ): ActorDuplicateGroup['reason'] | null {
-  const firstIdentities = [first.name, first.alias].map(normalizePersonName).filter(Boolean);
-  const secondIdentities = [second.name, second.alias].map(normalizePersonName).filter(Boolean);
+  const firstIdentities = [first.name, ...getActorAliases(first.alias)].map(normalizePersonName).filter(Boolean);
+  const secondIdentities = [second.name, ...getActorAliases(second.alias)].map(normalizePersonName).filter(Boolean);
   if (firstIdentities.some((identity) => secondIdentities.includes(identity))) {
     return 'name-or-alias';
   }
@@ -1736,7 +1736,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       <article key={actor.name} className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-3">
                         <h4 className="truncate text-sm font-semibold text-zinc-100">{actor.name}</h4>
                         <p className="mt-1 truncate text-xs text-zinc-400">
-                          Alias: {actor.alias || '—'}
+                          Alias: {getActorAliases(actor.alias).join(', ') || '—'}
                         </p>
                         <p className="mt-1 text-[11px] text-zinc-500">
                           {actor.movieCount} movie credits

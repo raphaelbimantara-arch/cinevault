@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Calendar, Film, Clock, User, Edit3, Save, Undo2, Star, Check } from 'lucide-react';
+import { X, Calendar, Film, Clock, User, Edit3, Save, Undo2, Star, Check, Plus, Trash2 } from 'lucide-react';
 import { Movie } from '../types';
-import { getActorProfile, ActorProfile } from '../data/actorsData';
+import { formatActorAliases, getActorAliases, getActorProfile, ActorProfile } from '../data/actorsData';
 import { formatActorDob, getActorAge, normalizeActorDob } from '../utils/actorDob';
 import { ActorDobFields } from './ActorDobFields';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -32,7 +32,8 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   // Edit mode states
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
-  const [editAlias, setEditAlias] = useState('');
+  const [editAliases, setEditAliases] = useState<string[]>([]);
+  const [newAlias, setNewAlias] = useState('');
   const [editDob, setEditDob] = useState('');
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
   const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
@@ -42,7 +43,8 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     if (actorName) {
       const p = getActorProfile(actorName);
       setEditName(actorName);
-      setEditAlias(p.alias || '');
+      setEditAliases(getActorAliases(p.alias));
+      setNewAlias('');
       setEditDob(p.dob);
       setEditPhotoUrl(p.photoUrl);
       setIsEditing(false);
@@ -107,7 +109,8 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   // Enter edit mode: populate fields from current profile
   const handleStartEdit = () => {
     setEditName(actorName);
-    setEditAlias(profile.alias || '');
+    setEditAliases(getActorAliases(profile.alias));
+    setNewAlias('');
     setEditDob(profile.dob);
     setEditPhotoUrl(profile.photoUrl);
     setEditSavedToast(null);
@@ -118,6 +121,37 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditSavedToast(null);
+  };
+
+  const handleSaveAlias = () => {
+    const alias = newAlias.trim();
+    if (!alias) return;
+    if (alias.toLocaleLowerCase() === actorName.trim().toLocaleLowerCase()) {
+      alert('An alias cannot be the same as the actor name.');
+      return;
+    }
+    if (editAliases.some((existing) => existing.toLocaleLowerCase() === alias.toLocaleLowerCase())) {
+      alert('This alias has already been added.');
+      return;
+    }
+    const nextAliases = [...editAliases, alias];
+    setEditAliases(nextAliases);
+    setNewAlias('');
+    onUpdateActor?.(actorName, {
+      ...profile,
+      alias: formatActorAliases(nextAliases),
+    });
+    setEditSavedToast('Alias saved.');
+    setTimeout(() => setEditSavedToast(null), 3500);
+  };
+
+  const handleRemoveAlias = (alias: string) => {
+    const nextAliases = editAliases.filter((item) => item !== alias);
+    setEditAliases(nextAliases);
+    onUpdateActor?.(actorName, {
+      ...profile,
+      alias: formatActorAliases(nextAliases),
+    });
   };
 
   // Save edited profile
@@ -136,7 +170,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     }
     const updated: ActorProfile = {
       name: trimmedName,
-      alias: editAlias.trim() || undefined,
+      alias: formatActorAliases(editAliases),
       dob,
       photoUrl: getImageSource(editPhotoUrl),
     };
@@ -244,16 +278,50 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                       />
                     </div>
 
-                    {/* Alias */}
+                    {/* Aliases */}
                     <div>
-                      <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Alias</label>
-                      <input
-                        type="text"
-                        value={editAlias}
-                        onChange={(e) => setEditAlias(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                        placeholder="Actor alias"
-                      />
+                      <label className="mb-1 block text-[10px] font-semibold uppercase text-zinc-500">Aliases</label>
+                      <div className="space-y-2">
+                        {editAliases.map((alias) => (
+                          <div key={alias} className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/70 px-2.5 py-1.5">
+                            <span className="min-w-0 flex-1 break-words text-sm text-zinc-200">{alias}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAlias(alias)}
+                              className="shrink-0 rounded p-1 text-zinc-500 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
+                              aria-label={`Remove alias ${alias}`}
+                              title="Remove alias"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newAlias}
+                            onChange={(event) => setNewAlias(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault();
+                                handleSaveAlias();
+                              }
+                            }}
+                            className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 transition-colors focus:border-amber-400/60 focus:outline-none"
+                            placeholder="Add another actor name"
+                            aria-label="New actor alias"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleSaveAlias}
+                            disabled={!newAlias.trim()}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Save alias
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Date of Birth */}
@@ -318,8 +386,12 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                         </div>
                       )}
                     </div>
-                    {profile.alias && (
-                      <p className="mt-1 w-full break-words text-sm text-zinc-400 sm:text-base">{profile.alias}</p>
+                    {getActorAliases(profile.alias).length > 0 && (
+                      <div className="mt-1 w-full space-y-0.5">
+                        {getActorAliases(profile.alias).map((alias) => (
+                          <p key={alias} className="break-words text-sm text-zinc-400 sm:text-base">{alias}</p>
+                        ))}
+                      </div>
                     )}
 
                     {/* Badges: Date of Birth and Total Duration */}

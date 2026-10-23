@@ -10,6 +10,22 @@ export interface ActorProfile {
   reviewed?: boolean;
 }
 
+export function getActorAliases(alias?: string): string[] {
+  if (!alias) return [];
+  const aliases = (alias.includes('\n') ? alias.split(/\r?\n/) : alias.split(/[,;]/))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return [...new Map(aliases.map((value) => [value.toLocaleLowerCase(), value])).values()];
+}
+
+export function formatActorAliases(aliases: string[]): string | undefined {
+  const uniqueAliases = [...new Map(
+    aliases.map((value) => value.trim()).filter(Boolean)
+      .map((value) => [value.toLocaleLowerCase(), value]),
+  ).values()];
+  return uniqueAliases.length ? uniqueAliases.join('\n') : undefined;
+}
+
 export const KNOWN_ACTORS: Record<string, { dob: string; photoUrl: string }> = {
   'Victor Lynch': {
     dob: 'April 14, 1974',

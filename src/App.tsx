@@ -16,7 +16,7 @@ import { ActorsPage } from './components/ActorsPage';
 import { AddMoviePage } from './components/AddMoviePage';
 import { SettingsPage } from './components/SettingsPage';
 import { ALL_GENRES, INITIAL_MOVIES } from './data/initialMovies';
-import { ActorProfile, getActorProfile, removeCustomActors, updateActorProfile } from './data/actorsData';
+import { ActorProfile, formatActorAliases, getActorAliases, getActorProfile, removeCustomActors, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
 import { Check, RotateCcw, Star, Trash2, X } from 'lucide-react';
 import { loadSharedCatalog, saveSharedCatalog } from './utils/sharedCatalog';
@@ -731,16 +731,16 @@ export default function App() {
     const primaryProfile = getActorProfile(primaryName);
     const mergedProfiles = mergedNames.map((name) => getActorProfile(name));
     const aliases = [
-      primaryProfile.alias,
-      ...mergedProfiles.flatMap((profile, index) => [profile.alias, mergedNames[index]]),
-    ].map((alias) => alias?.trim()).filter((alias): alias is string => Boolean(alias));
-    const uniqueAliases = [...new Set(aliases.filter(
-      (alias) => alias.toLowerCase() !== primaryName.trim().toLowerCase()
-    ))];
+      ...getActorAliases(primaryProfile.alias),
+      ...mergedProfiles.flatMap((profile, index) => [
+        ...getActorAliases(profile.alias),
+        mergedNames[index],
+      ]),
+    ].filter((alias) => alias.toLowerCase() !== primaryName.trim().toLowerCase());
 
     updateActorProfile(primaryName, {
       ...primaryProfile,
-      alias: uniqueAliases.join(', ') || undefined,
+      alias: formatActorAliases(aliases),
       favorite: primaryProfile.favorite === true || mergedProfiles.some((profile) => profile.favorite === true),
       reviewed: primaryProfile.reviewed === true || mergedProfiles.some((profile) => profile.reviewed === true),
     });
