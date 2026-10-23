@@ -3,6 +3,7 @@ import { Check, Film, Pencil, Save, Star, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Movie, SortOption } from '../types';
 import { useLongPress } from '../utils/useLongPress';
+import { getMovieGenres } from '../utils/movieGenres';
 
 type ListSortField = 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio' | 'genre';
 
@@ -32,13 +33,20 @@ interface MovieEditDraft {
 const toDraft = (movie: Movie): MovieEditDraft => ({
   title: movie.title,
   year: String(movie.year),
-  size: movie.size,
+  size: movie.size.match(/\d+(?:[.,]\d+)?/)?.[0].replace('.', ',') || '',
   minutes: String(movie.minutes),
   resolution: movie.resolution || '',
   actors: movie.actors.join(', '),
   studio: movie.studio,
   genre: movie.genre,
 });
+
+const sanitizeSizeInput = (value: string) => {
+  const numericValue = value.replace(/[^\d,]/g, '');
+  const firstCommaIndex = numericValue.indexOf(',');
+  if (firstCommaIndex < 0) return numericValue;
+  return `${numericValue.slice(0, firstCommaIndex + 1)}${numericValue.slice(firstCommaIndex + 1).replace(/,/g, '')}`;
+};
 
 export const MovieList: React.FC<MovieListProps> = ({
   movies,
@@ -63,6 +71,9 @@ export const MovieList: React.FC<MovieListProps> = ({
   )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   const studioOptions = [...new Set(
     catalogMovies.map((movie) => movie.studio.trim()).filter(Boolean),
+  )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const genreOptions = [...new Set(
+    catalogMovies.flatMap((movie) => getMovieGenres(movie.genre)),
   )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   const startEditing = () => {
@@ -130,8 +141,7 @@ export const MovieList: React.FC<MovieListProps> = ({
 
       const year = Number(draft.year);
       const minutes = Number(draft.minutes);
-      const size = draft.size.trim();
-      const sizeNumber = parseFloat(size.replace(/[^\d.]/g, ''));
+      const sizeNumber = Number(draft.size.replace(',', '.'));
       if (!draft.title.trim()) {
         window.alert(`Movie title cannot be empty (${movie.title}).`);
         return;
@@ -140,24 +150,24 @@ export const MovieList: React.FC<MovieListProps> = ({
         window.alert(`Year and duration must be positive whole numbers (${movie.title}).`);
         return;
       }
-      if (!size || !Number.isFinite(sizeNumber) || sizeNumber <= 0) {
+      if (!draft.size || !Number.isFinite(sizeNumber) || sizeNumber <= 0) {
         window.alert(`Enter a valid movie size (${movie.title}).`);
         return;
       }
 
-      const sizeMultiplier = /tb/i.test(size) ? 1000000 : /mb/i.test(size) ? 1 : 1000;
       const actors = draft.actors.split(/[|,;]/).map((actor) => actor.trim()).filter(Boolean);
+      const genres = draft.genre.split(/[|,;]/).map((genre) => genre.trim()).filter(Boolean);
       updatedMovies.push({
         ...movie,
         title: draft.title.trim(),
         year,
-        size,
-        sizeBytes: Math.round(sizeNumber * sizeMultiplier),
+        size: `${sizeNumber} GB`,
+        sizeBytes: Math.round(sizeNumber * 1000),
         minutes,
         resolution: draft.resolution.trim() || undefined,
         actors: actors.length > 0 ? actors : ['Cast'],
         studio: draft.studio.trim() || movie.studio,
-        genre: draft.genre.trim() || movie.genre,
+        genre: genres.length > 0 ? genres.join(', ') : movie.genre,
       });
     }
 
@@ -288,6 +298,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                         aria-label={`Edit title for ${movie.title}`}
                         className={inputClassName}
                         value={draft.title}
+                        onFocus={() => updateDraft(movie.id, 'title', '')}
                         onClick={(event) => event.stopPropagation()}
                         onChange={(event) => updateDraft(movie.id, 'title', event.target.value)}
                       />
@@ -312,6 +323,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                       inputMode="numeric"
                       className={`${inputClassName} appearance-none`}
                       value={draft.year}
+                      onFocus={() => updateDraft(movie.id, 'year', '')}
                       onClick={(event) => event.stopPropagation()}
                       onChange={(event) => updateDraft(movie.id, 'year', event.target.value)}
                     />
@@ -319,13 +331,20 @@ export const MovieList: React.FC<MovieListProps> = ({
                 </td>
                 <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:text-xs">
                   {isEditing && draft ? (
-                    <input
-                      aria-label={`Edit size for ${movie.title}`}
-                      className={inputClassName}
-                      value={draft.size}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={(event) => updateDraft(movie.id, 'size', event.target.value)}
-                    />
+                    <div className="flex items-center gap-0.5">
+                      <input
+                        aria-label={`Edit size in GB for ${movie.title}`}
+                        type="text"
+                        inputMode="text"
+                        pattern="[0-9,]*"
+                        className={`${inputClassName} text-right`}
+                        value={draft.size}
+                        onFocus={() => updateDraft(movie.id, 'size', '')}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => updateDraft(movie.id, 'size', sanitizeSizeInput(event.target.value))}
+                      />
+                      <span className="shrink-0 text-[8px] text-zinc-400">GB</span>
+                    </div>
                   ) : movie.size}
                 </td>
                 <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:text-xs">
@@ -336,6 +355,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                       inputMode="numeric"
                       className={`${inputClassName} appearance-none`}
                       value={draft.minutes}
+                      onFocus={() => updateDraft(movie.id, 'minutes', '')}
                       onClick={(event) => event.stopPropagation()}
                       onChange={(event) => updateDraft(movie.id, 'minutes', event.target.value)}
                     />
@@ -348,6 +368,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                       className={inputClassName}
                       value={draft.resolution}
                       options={resolutionOptions}
+                      clearOnFocus
                       onChange={(value) => updateDraft(movie.id, 'resolution', value)}
                     />
                   ) : (
@@ -364,6 +385,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                       value={draft.actors}
                       options={actorOptions}
                       tokenMode
+                      clearOnFocus
                       onChange={(value) => updateDraft(movie.id, 'actors', value)}
                     />
                   ) : (
@@ -379,6 +401,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                       className={inputClassName}
                       value={draft.studio}
                       options={studioOptions}
+                      clearOnFocus
                       onChange={(value) => updateDraft(movie.id, 'studio', value)}
                     />
                   ) : (
@@ -387,14 +410,16 @@ export const MovieList: React.FC<MovieListProps> = ({
                     </span>
                   )}
                 </td>
-                <td className="overflow-hidden px-0.5 py-2 text-[8px] text-zinc-300 sm:px-3 sm:text-xs">
+                <td className={`px-0.5 py-2 text-[8px] text-zinc-300 sm:px-3 sm:text-xs ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
                   {isEditing && draft ? (
-                    <input
-                      aria-label={`Edit genre for ${movie.title}`}
+                    <AutocompleteInput
+                      ariaLabel={`Edit genre for ${movie.title}`}
                       className={inputClassName}
                       value={draft.genre}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={(event) => updateDraft(movie.id, 'genre', event.target.value)}
+                      options={genreOptions}
+                      tokenMode
+                      clearOnFocus
+                      onChange={(value) => updateDraft(movie.id, 'genre', value)}
                     />
                   ) : (
                     <span className="block truncate" title={movie.genre}>
@@ -417,6 +442,7 @@ interface AutocompleteInputProps {
   value: string;
   options: string[];
   tokenMode?: boolean;
+  clearOnFocus?: boolean;
   onChange: (value: string) => void;
 }
 
@@ -426,6 +452,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   value,
   options,
   tokenMode = false,
+  clearOnFocus = false,
   onChange,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -497,7 +524,11 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
         autoComplete="off"
         className={className}
         value={value}
-        onFocus={() => { setActiveIndex(-1); setIsOpen(true); }}
+        onFocus={() => {
+          setActiveIndex(-1);
+          if (clearOnFocus) onChange('');
+          setIsOpen(true);
+        }}
         onBlur={() => setIsOpen(false)}
         onChange={(event) => { onChange(event.target.value); setActiveIndex(-1); setIsOpen(true); }}
         onKeyDown={(event) => {
