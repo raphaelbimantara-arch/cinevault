@@ -98,16 +98,10 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
               {(movie.favorite || movie.reviewed) && (
                 <div className="flex shrink-0 items-center gap-1">
                   {movie.favorite && (
-                    <span title="Favorite" className="inline-flex items-center gap-0.5 text-[8px] font-semibold text-amber-300">
-                      <Star className="h-2.5 w-2.5 fill-current" />
-                      <span>Favorite</span>
-                    </span>
+                    <Star aria-label="Favorite" title="Favorite" className="h-3 w-3 fill-amber-400 text-amber-400" />
                   )}
                   {movie.reviewed && (
-                    <span title="Review" className="inline-flex items-center gap-0.5 text-[8px] font-semibold text-rose-400">
-                      <Check className="h-2.5 w-2.5" />
-                      <span>Review</span>
-                    </span>
+                    <Check aria-label="Review" title="Review" className="h-3 w-3 text-rose-400" />
                   )}
                 </div>
               )}

@@ -513,16 +513,10 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     {(movie.favorite || movie.reviewed) && (
                       <div className="flex shrink-0 items-center gap-2">
                         {movie.favorite && (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-400">
-                            <Star className="h-3.5 w-3.5 fill-current" />
-                            Favorite
-                          </span>
+                          <Star aria-label="Favorite" title="Favorite" className="h-4 w-4 fill-amber-400 text-amber-400" />
                         )}
                         {movie.reviewed && (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-400">
-                            <Check className="h-3.5 w-3.5" />
-                            Review
-                          </span>
+                          <Check aria-label="Review" title="Review" className="h-4 w-4 text-rose-400" />
                         )}
                       </div>
                     )}

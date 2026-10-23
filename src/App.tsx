@@ -480,6 +480,16 @@ export default function App() {
     setSelectedMovie(updatedMovie);
   };
 
+  const handleUpdateMovieFromList = (updatedMovie: Movie) => {
+    setMovies((prev) =>
+      prev.map((movie) => (movie.id === updatedMovie.id ? updatedMovie : movie))
+    );
+  };
+
+  const handleToggleListTitleSort = () => {
+    setSortBy((current) => current === 'alphabet-asc' ? 'alphabet-desc' : 'alphabet-asc');
+  };
+
   // Update actor profile handler
   const handleUpdateActor = (oldName: string, updatedProfile: ActorProfile) => {
     updateActorProfile(oldName, updatedProfile);
@@ -840,9 +850,12 @@ export default function App() {
               <MovieList
                 movies={filteredAndSortedMovies}
                 onSelectMovie={setSelectedMovie}
+                onUpdateMovie={handleUpdateMovieFromList}
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
                 selectionMode={selectedMovieCount > 0}
+                sortDirection={sortBy === 'alphabet-asc' ? 'asc' : sortBy === 'alphabet-desc' ? 'desc' : null}
+                onToggleTitleSort={handleToggleListTitleSort}
               />
             ) : (
               <MovieCoverGrid
