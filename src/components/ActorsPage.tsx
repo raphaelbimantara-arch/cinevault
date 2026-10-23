@@ -60,6 +60,17 @@ const formatActorDob = (dob: string) => {
   return `${match[2].padStart(2, '0')} ${match[1].slice(0, 3)} ${match[3]}`;
 };
 
+const getActorAge = (dob: string) => {
+  const birthDate = new Date(dob);
+  if (Number.isNaN(birthDate.getTime()) || birthDate > new Date()) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const birthdayPending = today.getMonth() < birthDate.getMonth()
+    || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+  if (birthdayPending) age -= 1;
+  return age;
+};
+
 const ALPHABET_LIST = [
   'All',
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
@@ -90,6 +101,13 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   const longPressHandlers = useLongPress((name) => {
     setSelectedActorNames((prev) => new Set(prev).add(name));
   }, !selectionMode);
+  const setActorView = (mode: ViewMode) => {
+    if (mode !== 'grid') {
+      setSearch('');
+      setActorSort('name');
+    }
+    setActorViewMode(mode);
+  };
 
   const handleToggleAlphabet = (char: string) => {
     if (char === 'All') {
@@ -282,19 +300,6 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
     onNotify('Actor list updated.');
   };
 
-  const toggleActorSort = (field: 'name' | 'alias' | 'age' | 'size' | 'duration' | 'movies') => {
-    const nextSort: Record<typeof field, [ActorSortOption, ActorSortOption]> = {
-      name: ['name', 'name-desc'],
-      alias: ['alias', 'alias-desc'],
-      age: ['age-desc', 'age-asc'],
-      size: ['size-asc', 'size-desc'],
-      duration: ['duration-asc', 'duration-desc'],
-      movies: ['movies-asc', 'movies-desc'],
-    };
-    const [ascending, descending] = nextSort[field];
-    setActorSort((current) => current === ascending ? descending : ascending);
-  };
-
   const handleToggleActorSelection = (name: string) => {
     setSelectedActorNames((prev) => {
       const next = new Set(prev);
@@ -370,16 +375,25 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
 
   return (
     <div className="space-y-5">
-      <div className="sticky top-[56px] z-20 -mx-3 space-y-3 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-3 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="sticky top-[56px] z-20 -mx-3 space-y-2 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-2 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
       {/* Top Page Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-zinc-800">
+      <div className={`flex justify-between border-b border-zinc-800 pb-2 ${
+        actorViewMode === 'grid'
+          ? 'flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4'
+          : 'flex-row items-center gap-1.5'
+      }`}>
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-            Actors Directory
+          <h2 className={`font-bold text-white tracking-tight ${
+            actorViewMode === 'grid' ? 'text-xl sm:text-2xl' : 'text-base sm:text-xl'
+          }`}>
+            {actorViewMode === 'grid' ? 'Actors Directory' : 'Actors'}
           </h2>
         </div>
 
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-2.5">
+        <div className={actorViewMode === 'grid'
+          ? 'grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-2.5'
+          : 'flex w-auto shrink-0 items-center gap-1'}>
+          {actorViewMode === 'grid' && (
           <div className="col-span-2 flex min-w-0 items-center gap-1 rounded-xl border border-zinc-800 bg-[#121520] px-2 py-1.5 sm:col-span-1">
             <ArrowUpDown className="h-3 w-3 text-amber-400 shrink-0" />
             <select
@@ -402,6 +416,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               <option value="duration-asc" className="bg-[#121520]">Duration (Shortest)</option>
             </select>
           </div>
+          )}
           {actorViewMode === 'list' && (
             <div className="col-span-2 flex items-center gap-2 sm:col-span-1">
               {isEditingList ? (
@@ -432,7 +447,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               )}
             </div>
           )}
-          <div className="relative col-span-2 min-w-0 sm:w-60">
+          {actorViewMode === 'grid' && <div className="relative col-span-2 min-w-0 sm:w-60">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <input
               type="text"
@@ -441,23 +456,27 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               placeholder="Search actors or movies..."
               className="w-full min-w-0 bg-[#121520] border border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500/50"
             />
-          </div>
+          </div>}
           {onTriggerAddActor && (
             <button
               onClick={onTriggerAddActor}
-              className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-amber-400 px-2 py-1.5 text-xs font-bold text-zinc-950 shadow-sm transition-colors hover:bg-amber-300 sm:shrink-0 sm:px-3"
+              className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-amber-400 px-2 py-1.5 text-xs font-bold text-zinc-950 shadow-sm transition-colors hover:bg-amber-300 sm:shrink-0 sm:px-3 ${
+                actorViewMode === 'grid' ? '' : 'h-8 w-8 shrink-0 p-1.5'
+              }`}
               title="Add New Actor to Directory"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add Actor</span>
+              <span className={actorViewMode === 'grid' ? '' : 'hidden'}>Add Actor</span>
             </button>
           )}
 
           {/* View toggle */}
-          <div className="col-span-1 flex min-w-0 items-center justify-center rounded-xl border border-zinc-800 bg-[#121520] p-1 sm:col-span-1 sm:justify-start">
+          <div className={`col-span-1 flex min-w-0 items-center justify-center rounded-xl border border-zinc-800 bg-[#121520] p-1 sm:col-span-1 sm:justify-start ${
+            actorViewMode === 'grid' ? '' : 'shrink-0'
+          }`}>
             <button
               disabled={isEditingList}
-              onClick={() => setActorViewMode('grid')}
+              onClick={() => setActorView('grid')}
               title="Grid View"
               className={`p-1.5 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 actorViewMode === 'grid'
@@ -469,7 +488,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             </button>
             <button
               disabled={isEditingList}
-              onClick={() => setActorViewMode('list')}
+              onClick={() => setActorView('list')}
               title="List View"
               className={`p-1.5 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 actorViewMode === 'list'
@@ -481,7 +500,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             </button>
             <button
               disabled={isEditingList}
-              onClick={() => setActorViewMode('cover')}
+              onClick={() => setActorView('cover')}
               title="Cover View"
               className={`p-1.5 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 actorViewMode === 'cover'
@@ -552,7 +571,11 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       {/* Actors Count & Active Alphabet Status */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400 px-1">
         <span>
-          Showing <strong className="text-zinc-200 font-mono">{filteredActors.length}</strong> of <span className="font-mono">{actorStats.length}</span> actors
+          {actorViewMode === 'grid' ? 'Showing ' : ''}
+          <strong className="text-zinc-200 font-mono">{filteredActors.length}</strong>
+          {actorViewMode === 'grid'
+            ? <> of <span className="font-mono">{actorStats.length}</span> actors</>
+            : <> / <span className="font-mono">{actorStats.length}</span></>}
           {!selectedAlphabets.includes('All') && selectedAlphabets.length > 0 && (
             <> · Starts with <strong className="text-amber-400 font-mono">"{[...selectedAlphabets].sort().join(', ')}"</strong></>
           )}
@@ -612,8 +635,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
 
       {/* Actors Cards Grid */}
       {actorViewMode === 'cover' && (
-        <div className="flex min-w-0 flex-wrap items-center gap-3 bg-[#121520] border border-zinc-800 rounded-xl p-3">
-          <span className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Layout Size:</span>
+        <div className="flex min-w-0 flex-nowrap items-center gap-2 bg-[#121520] border border-zinc-800 rounded-xl px-2 py-1.5">
+          <span className="shrink-0 text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Cols</span>
           <input
             type="range"
             min="1"
@@ -621,9 +644,9 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             value={cols}
             onChange={(e) => setCols(Number(e.target.value))}
             aria-label="Actors per row"
-            className="w-full sm:w-48 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
+            className="h-1.5 w-32 max-w-full bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400 sm:w-48"
           />
-          <span className="text-xs text-zinc-500 font-mono">{cols} per row</span>
+          <span className="shrink-0 text-[10px] text-zinc-500 font-mono">{cols} / row</span>
         </div>
       )}
       </div>
@@ -641,34 +664,20 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           <table className="w-full table-fixed border-collapse text-left">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[8px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
-                <th className="w-[23%] px-1 py-2 sm:px-3">
-                  <button type="button" onClick={() => toggleActorSort('name')} className="hover:text-white">Actor</button>
-                </th>
-                <th className="w-[16%] px-0.5 py-2 sm:px-2">
-                  <button type="button" onClick={() => toggleActorSort('alias')} className="hover:text-white">Alias</button>
-                </th>
-                <th className="w-[18%] px-0.5 py-2 text-center sm:px-2">
-                  <button type="button" onClick={() => toggleActorSort('age')} className="hover:text-white">DOB</button>
-                </th>
-                <th className="w-[13%] px-0.5 py-2 text-center sm:px-2">
-                  <button type="button" onClick={() => toggleActorSort('size')} className="hover:text-white">Size</button>
-                </th>
-                <th className="w-[16%] px-0.5 py-2 text-center sm:px-2">
-                  <button type="button" onClick={() => toggleActorSort('duration')} className="hover:text-white">Min</button>
-                </th>
-                <th className="w-[14%] px-0.5 py-2 text-center sm:px-2">
-                  <button type="button" onClick={() => toggleActorSort('movies')} className="hover:text-white">Movies</button>
-                </th>
+                <th className="w-[23%] px-1 py-2 sm:px-3">Actor</th>
+                <th className="w-[14%] px-0.5 py-2 sm:px-2">Alias</th>
+                <th className="w-[16%] px-0.5 py-2 text-center sm:px-2">DOB</th>
+                <th className="w-[8%] px-0.5 py-2 text-center sm:px-1">Age</th>
+                <th className="w-[12%] px-0.5 py-2 text-center sm:px-2">Size</th>
+                <th className="w-[15%] px-0.5 py-2 text-center sm:px-2">Min</th>
+                <th className="w-[12%] px-0.5 py-2 text-center sm:px-2">Movies</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/70">
               {filteredActors.map((actor) => {
                 const draft = actorDrafts[actor.name];
-                const totalHours = Math.floor(actor.totalMinutes / 60);
-                const duration = totalHours > 0
-                  ? `${totalHours}h ${actor.totalMinutes % 60}m`
-                  : `${actor.totalMinutes}m`;
                 const size = `${(actor.sizeBytes / 1000).toFixed(1)} GB`;
+                const age = getActorAge(actor.dob);
                 return (
                   <tr
                     key={actor.name}
@@ -729,8 +738,11 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                         />
                       ) : <span className="block truncate" title={actor.dob}>{formatActorDob(actor.dob)}</span>}
                     </td>
+                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-1 sm:text-xs" title={age === null ? 'Age unavailable' : `${age} years`}>
+                      {age === null ? '—' : age}
+                    </td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={size}>{size}</td>
-                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.totalMinutes} min`}>{duration}</td>
+                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.totalMinutes} minutes`}>{actor.totalMinutes} min</td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:px-2 sm:text-xs">{actor.movies.length}</td>
                   </tr>
                 );
