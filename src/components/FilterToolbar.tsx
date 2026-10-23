@@ -114,6 +114,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
             >
               <option value="All" className="bg-[#121520]">All</option>
               <option value="__favorites__" className="bg-[#121520]">Favorites</option>
+              <option value="__reviewed__" className="bg-[#121520]">Reviewed</option>
               {genreOptions.map((genre) => (
                 <option key={genre} value={genre} className="bg-[#121520]">{genre}</option>
               ))}

@@ -514,6 +514,11 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                       Favorite
                     </div>
                   )}
+                  {movie.reviewed && (
+                    <div className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-400">
+                      Reviewed
+                    </div>
+                  )}
 
                   {/* Rearranged Details */}
                   <div className="mt-4 grid grid-cols-2 gap-2 text-xs">

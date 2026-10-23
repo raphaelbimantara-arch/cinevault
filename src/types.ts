@@ -13,6 +13,7 @@ export interface Movie {
   actors: string[];
   castCount?: number;
   favorite?: boolean;
+  reviewed?: boolean;
   addedDate?: string;
 }
 

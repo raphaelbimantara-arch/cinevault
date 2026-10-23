@@ -182,6 +182,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
 
   return (
     <div className="space-y-5">
+      <div className="sticky top-[56px] z-20 -mx-3 space-y-3 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-3 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
       {/* Top Page Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-zinc-800">
         <div>
@@ -381,7 +382,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
 
       {/* Actors Cards Grid */}
       {(actorViewMode === 'cover' || actorViewMode === 'photos') && (
-        <div className="flex min-w-0 flex-wrap items-center gap-3 mb-4 bg-[#121520] border border-zinc-800 rounded-xl p-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3 bg-[#121520] border border-zinc-800 rounded-xl p-3">
           <span className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Layout Size:</span>
           <input
             type="range"
@@ -395,6 +396,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           <span className="text-xs text-zinc-500 font-mono">{cols} per row</span>
         </div>
       )}
+      </div>
 
       <div
         className={`grid min-w-0 w-full gap-2 sm:gap-4 ${

@@ -6,7 +6,6 @@ import { useLongPress } from '../utils/useLongPress';
 interface MovieListProps {
   movies: Movie[];
   onSelectMovie: (movie: Movie) => void;
-  onFilterByAttribute: (type: 'genre' | 'studio' | 'year' | 'minutes' | 'size', value: string | number) => void;
   selectedMovieIds: Set<string>;
   onToggleMovieSelection: (movieId: string) => void;
   selectionMode: boolean;

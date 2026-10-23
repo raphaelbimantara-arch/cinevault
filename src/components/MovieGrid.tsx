@@ -8,7 +8,6 @@ import { getMovieGenres } from '../utils/movieGenres';
 interface MovieGridProps {
   movies: Movie[];
   onSelectMovie: (movie: Movie) => void;
-  onFilterByAttribute: (type: 'genre' | 'studio' | 'year' | 'minutes' | 'size', value: string | number) => void;
   selectedMovieIds: Set<string>;
   onToggleMovieSelection: (movieId: string) => void;
   selectionMode: boolean;
@@ -17,7 +16,6 @@ interface MovieGridProps {
 export const MovieGrid: React.FC<MovieGridProps> = ({
   movies,
   onSelectMovie,
-  onFilterByAttribute,
   selectedMovieIds,
   onToggleMovieSelection,
   selectionMode,
@@ -51,6 +49,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
           <div
             key={movie.id}
             data-selection-id={movie.id}
+            onClick={() => onSelectMovie(movie)}
             className="group relative flex flex-col bg-[#121520] rounded-xl border border-zinc-800/80 overflow-hidden hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-200"
           >
             {selectionMode && (
@@ -70,10 +69,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               </label>
             )}
             {/* Poster container with aspect 3:4 */}
-            <div 
-              onClick={() => onSelectMovie(movie)}
-              className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-900 cursor-pointer"
-            >
+            <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-900 cursor-pointer">
               <img
                 src={getImageSource(movie.posterUrl)}
                 alt={movie.title}
@@ -100,7 +96,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             <div className="p-3 flex-1 flex flex-col justify-between">
               <div>
                 <h4 
-                  onClick={() => onSelectMovie(movie)}
                   className="text-sm font-bold text-zinc-100 group-hover:text-amber-400 transition-colors line-clamp-1 cursor-pointer"
                   title={movie.title}
                 >
@@ -108,29 +103,21 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                 </h4>
 
                 <div className="flex items-center justify-between mt-1 text-[10px] sm:text-[11px] text-zinc-400">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onFilterByAttribute('studio', movie.studio);
-                    }}
-                    className="hover:text-amber-400 truncate max-w-[80px] sm:max-w-[100px] text-left transition-colors flex items-center gap-1"
-                    title={`Filter by Studio: ${movie.studio}`}
+                  <span
+                    className="truncate max-w-[80px] sm:max-w-[100px] text-left flex items-center gap-1"
+                    title={movie.studio}
                   >
                     <Building2 className="w-2.5 h-2.5 shrink-0 text-zinc-500" />
                     <span className="truncate">{movie.studio}</span>
-                  </button>
+                  </span>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onFilterByAttribute('year', movie.year);
-                    }}
-                    className="hover:text-amber-400 font-mono transition-colors flex items-center gap-0.5 shrink-0 text-[10px] sm:text-[11px]"
-                    title={`Filter by Year: ${movie.year}`}
+                  <span
+                    className="font-mono flex items-center gap-0.5 shrink-0 text-[10px] sm:text-[11px]"
+                    title={`Year: ${movie.year}`}
                   >
                     <Calendar className="w-2.5 h-2.5 text-zinc-500" />
                     <span>{movie.year}</span>
-                  </button>
+                  </span>
                 </div>
               </div>
 
@@ -138,42 +125,24 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               <div className="mt-2.5 pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-1 text-[9px] sm:text-[10px]">
                 <div className="flex min-w-0 items-center gap-1 overflow-hidden">
                   {getMovieGenres(movie.genre).map((genre) => (
-                    <button
+                    <span
                       key={genre}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onFilterByAttribute('genre', genre);
-                      }}
-                      className="px-1.5 py-0.5 rounded bg-zinc-800/70 text-zinc-300 hover:text-white hover:bg-amber-500/20 hover:border-amber-500/40 border border-zinc-700/60 transition-colors truncate max-w-[60px]"
-                      title={`Filter by Genre: ${genre}`}
+                      className="px-1.5 py-0.5 rounded bg-zinc-800/70 text-zinc-300 border border-zinc-700/60 truncate max-w-[60px]"
+                      title={genre}
                     >
                       {genre}
-                    </button>
+                    </span>
                   ))}
                 </div>
 
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onFilterByAttribute('minutes', movie.minutes);
-                    }}
-                    className="text-zinc-400 hover:text-amber-400 font-mono transition-colors"
-                    title={`Filter by duration: ~${movie.minutes} min`}
-                  >
+                  <span className="text-zinc-400 font-mono" title={`Duration: ${movie.minutes} min`}>
                     {movie.minutes}m
-                  </button>
+                  </span>
                   <span className="text-zinc-600">·</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onFilterByAttribute('size', movie.size);
-                    }}
-                    className="text-zinc-400 hover:text-amber-400 font-mono transition-colors"
-                    title={`Filter by file size: ${movie.size}`}
-                  >
+                  <span className="text-zinc-400 font-mono" title={`File size: ${movie.size}`}>
                     {movie.size}
-                  </button>
+                  </span>
                 </div>
               </div>
             </div>

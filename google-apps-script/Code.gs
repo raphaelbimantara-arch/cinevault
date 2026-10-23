@@ -13,6 +13,8 @@ const HEADERS = [
   'backdropUrl',
   'actors',
   'addedDate',
+  'favorite',
+  'reviewed',
 ];
 
 function doPost(event) {
@@ -105,6 +107,8 @@ function readMovies(sheet) {
       backdropUrl: record.backdropUrl || undefined,
       actors,
       addedDate: record.addedDate || undefined,
+      favorite: String(record.favorite || '').toLowerCase() === 'true',
+      reviewed: String(record.reviewed || '').toLowerCase() === 'true',
     };
   });
 }
@@ -128,6 +132,8 @@ function toRow(movie) {
     String(movie.backdropUrl || ''),
     JSON.stringify(Array.isArray(movie.actors) ? movie.actors : []),
     String(movie.addedDate || ''),
+    String(movie.favorite === true),
+    String(movie.reviewed === true),
   ];
 }
 

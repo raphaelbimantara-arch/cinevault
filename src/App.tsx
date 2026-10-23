@@ -18,7 +18,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { ALL_GENRES, INITIAL_MOVIES } from './data/initialMovies';
 import { ActorProfile, removeCustomActors, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
-import { RotateCcw, Trash2, X } from 'lucide-react';
+import { Check, RotateCcw, Star, Trash2, X } from 'lucide-react';
 import { loadSharedCatalog, saveSharedCatalog } from './utils/sharedCatalog';
 import { getMovieGenres } from './utils/movieGenres';
 
@@ -391,6 +391,12 @@ export default function App() {
     setSelectedMovieIds(new Set());
   };
 
+  const handleUpdateSelectedMovies = (updates: Pick<Movie, 'favorite' | 'reviewed'>) => {
+    setMovies((prev) =>
+      prev.map((movie) => selectedMovieIds.has(movie.id) ? { ...movie, ...updates } : movie)
+    );
+  };
+
   // Update complete movie handler
   const handleUpdateMovie = (updatedMovie: Movie) => {
     setMovies((prev) =>
@@ -492,7 +498,9 @@ export default function App() {
     if (selectedCategory !== 'All') {
       result = selectedCategory === '__favorites__'
         ? result.filter((movie) => movie.favorite === true)
-        : result.filter(
+        : selectedCategory === '__reviewed__'
+          ? result.filter((movie) => movie.reviewed === true)
+          : result.filter(
             (movie) => getMovieGenres(movie.genre).some((genre) => genre.toLowerCase() === selectedCategory.toLowerCase())
           );
     }
@@ -636,7 +644,7 @@ export default function App() {
   const selectedMovieCount = movies.filter((movie) => selectedMovieIds.has(movie.id)).length;
 
   return (
-    <div className="min-h-screen bg-[#08090d] text-zinc-100 flex flex-col font-sans pb-24 selection:bg-amber-400 selection:text-black w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-[#08090d] text-zinc-100 flex flex-col font-sans pb-24 selection:bg-amber-400 selection:text-black w-full max-w-full overflow-x-clip">
       {/* Top Bar Header */}
       <Navbar
         activePage={activePage}
@@ -648,31 +656,48 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-clip">
         {activePage === 'library' && (
           <div className="space-y-6">
-            {/* Short menu with all categories, Alphabet bar, Search, Sort, View Toggle */}
-            <FilterToolbar
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              selectedCategory={selectedCategory}
-              genreOptions={availableGenres}
-              setSelectedCategory={setSelectedCategory}
-              selectedAlphabets={selectedAlphabets}
-              onToggleAlphabet={handleToggleAlphabet}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              sortBy={sortBy}
-              setSortBy={setSortBy}
-              activeMetadataFilter={activeMetadataFilter}
-              clearActiveMetadataFilter={handleClearMetadataFilter}
-              totalFilteredCount={filteredAndSortedMovies.length}
-              totalCatalogCount={movies.length}
-            />
+            <div className="sticky top-[56px] z-20 -mx-3 space-y-3 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-2 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+              {/* Short menu with all categories, Alphabet bar, Search, Sort, View Toggle */}
+              <FilterToolbar
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                selectedCategory={selectedCategory}
+                genreOptions={availableGenres}
+                setSelectedCategory={setSelectedCategory}
+                selectedAlphabets={selectedAlphabets}
+                onToggleAlphabet={handleToggleAlphabet}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                activeMetadataFilter={activeMetadataFilter}
+                clearActiveMetadataFilter={handleClearMetadataFilter}
+                totalFilteredCount={filteredAndSortedMovies.length}
+                totalCatalogCount={movies.length}
+              />
 
-            {selectedMovieCount > 0 && (
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-[#121520] p-2.5 sm:p-3">
+              {selectedMovieCount > 0 && (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-[#121520] p-2.5 sm:p-3">
                   <span className="text-xs text-zinc-400">{selectedMovieCount} selected</span>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateSelectedMovies({ favorite: true })}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20"
+                  >
+                    <Star className="h-3.5 w-3.5" />
+                    Add to favorites
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateSelectedMovies({ reviewed: true })}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Mark reviewed
+                  </button>
                   <button
                     type="button"
                     onClick={handleDeleteSelectedMovies}
@@ -690,15 +715,15 @@ export default function App() {
                     <X className="h-3.5 w-3.5" />
                     Clear
                   </button>
-              </div>
-            )}
+                </div>
+              )}
+            </div>
 
             {/* Movies Display: Grid or List or Cover View */}
             {viewMode === 'grid' ? (
               <MovieGrid
                 movies={filteredAndSortedMovies}
                 onSelectMovie={setSelectedMovie}
-                onFilterByAttribute={handleFilterByAttribute}
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
                 selectionMode={selectedMovieCount > 0}
@@ -707,7 +732,6 @@ export default function App() {
               <MovieList
                 movies={filteredAndSortedMovies}
                 onSelectMovie={setSelectedMovie}
-                onFilterByAttribute={handleFilterByAttribute}
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
                 selectionMode={selectedMovieCount > 0}
@@ -716,7 +740,6 @@ export default function App() {
               <MovieCoverGrid
                 movies={filteredAndSortedMovies}
                 onSelectMovie={setSelectedMovie}
-                onFilterByAttribute={handleFilterByAttribute}
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
                 selectionMode={selectedMovieCount > 0}

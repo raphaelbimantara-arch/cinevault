@@ -22,6 +22,10 @@ https://ai.studio/apps/05dbe0b3-f678-4d90-9177-ec26f808c69a
 
 Paste a Google Drive sharing link into a movie's poster URL or an actor's photo URL. In Google Drive, open **Share** and set **General access** to **Anyone with the link** (Viewer); private files cannot be displayed. The app converts standard Drive file-sharing links to image URLs automatically.
 
+## Movie Library
+
+In the library, press and hold a movie to select it. Use the selection actions to add selected movies to Favorites, mark them as Reviewed, or delete them. Filter the catalog by Favorites or Reviewed from the category menu. Clicking anywhere on a movie card or row opens its details. Movie and actor search, sort, filters, and view controls stay pinned below the top navigation while you scroll through their lists.
+
 ## Shared Catalog with Google Sheets
 
 The web app and Android APK can share a movie catalog through a Google Sheet. The Vercel API proxies requests to Apps Script so the Apps Script URL and shared key are not embedded in the app bundle.
