@@ -72,6 +72,16 @@ function getOrCreateSheet(spreadsheet) {
   if (!sheet) sheet = spreadsheet.insertSheet(SHEET_NAME);
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  } else {
+    const lastColumn = sheet.getLastColumn();
+    const existingHeaders = new Set(
+      sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0]
+        .map((header) => String(header).trim().toLowerCase())
+    );
+    const missingHeaders = HEADERS.filter((header) => !existingHeaders.has(header.toLowerCase()));
+    if (missingHeaders.length > 0) {
+      sheet.getRange(1, lastColumn + 1, 1, missingHeaders.length).setValues([missingHeaders]);
+    }
   }
   return sheet;
 }

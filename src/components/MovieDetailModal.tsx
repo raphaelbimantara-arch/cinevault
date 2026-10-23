@@ -11,6 +11,7 @@ import {
   Check,
   Edit3,
   Save,
+  Trash2,
   Undo2
 } from 'lucide-react';
 import { Movie } from '../types';
@@ -18,6 +19,7 @@ import { ALL_GENRES, ALL_STUDIOS } from '../data/initialMovies';
 import { getImageSource } from '../utils/googleDriveImage';
 import { getMovieGenres } from '../utils/movieGenres';
 import { useHorizontalSwipe } from '../utils/useHorizontalSwipe';
+import { useLongPress } from '../utils/useLongPress';
 
 interface MovieDetailModalProps {
   movie: Movie | null;
@@ -27,6 +29,8 @@ interface MovieDetailModalProps {
   onSelectActor?: (actorName: string) => void;
   onFilterByAttribute?: (type: 'genre' | 'minutes' | 'size' | 'studio' | 'year' | 'resolution', value: string | number) => void;
   onUpdateMovie?: (updatedMovie: Movie) => void;
+  onDeleteMovie?: (movieId: string) => void;
+  onNotify?: (message: string) => void;
 }
 
 export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
@@ -37,8 +41,11 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   onSelectActor,
   onFilterByAttribute,
   onUpdateMovie,
+  onDeleteMovie,
+  onNotify,
 }) => {
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
+  const [showLongPressActions, setShowLongPressActions] = useState(false);
 
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
@@ -130,6 +137,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   // Reset & sync states when movie changes
   useEffect(() => {
     if (movie) {
+      setShowLongPressActions(false);
       setEditTitle(movie.title);
       setEditGenres(getMovieGenres(movie.genre));
       setEditStudio(movie.studio);
@@ -210,6 +218,10 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     },
     !isEditing && !zoomedImageUrl
   );
+  const longPressHandlers = useLongPress(
+    () => setShowLongPressActions(true),
+    !isEditing && !zoomedImageUrl
+  );
 
   if (!movie) return null;
 
@@ -220,12 +232,81 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     >
       <div 
         className="relative w-full max-w-4xl bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150"
+        data-selection-id={movie.id}
         onClick={(e) => e.stopPropagation()}
-        onPointerDown={swipeHandlers.onPointerDown}
-        onPointerUp={swipeHandlers.onPointerUp}
-        onPointerCancel={swipeHandlers.onPointerCancel}
+        onClickCapture={(event) => {
+          if (event.target instanceof Element && event.target.closest('[data-long-press-actions]')) return;
+          longPressHandlers.onClickCapture(event);
+        }}
+        onPointerDown={(event) => {
+          swipeHandlers.onPointerDown(event);
+          longPressHandlers.onPointerDown(event);
+        }}
+        onPointerMove={longPressHandlers.onPointerMove}
+        onPointerUp={(event) => {
+          swipeHandlers.onPointerUp(event);
+          longPressHandlers.onPointerUp();
+        }}
+        onPointerCancel={(event) => {
+          swipeHandlers.onPointerCancel(event);
+          longPressHandlers.onPointerCancel();
+        }}
+        onContextMenu={longPressHandlers.onContextMenu}
         style={{ touchAction: 'pan-y' }}
       >
+          {showLongPressActions && (
+            <div
+              data-long-press-actions
+              className="flex flex-wrap items-center gap-2 border-b border-zinc-800 bg-[#151926] px-3 py-2 sm:px-5"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <span className="mr-auto text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Movie actions</span>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateMovie?.({ ...movie, favorite: !movie.favorite });
+                  onNotify?.(movie.favorite ? 'Film dikeluarkan dari favorite.' : 'Film ditandai favorite.');
+                  setShowLongPressActions(false);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"
+              >
+                <Star className="h-3.5 w-3.5" />
+                {movie.favorite ? 'Remove favorite' : 'Favorite'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateMovie?.({ ...movie, reviewed: !movie.reviewed });
+                  onNotify?.(movie.reviewed ? 'Tanda review dihapus dari film.' : 'Film ditandai untuk review.');
+                  setShowLongPressActions(false);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20"
+              >
+                <Check className="h-3.5 w-3.5" />
+                {movie.reviewed ? 'Remove review' : 'Review'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm(`Delete "${movie.title}"? This cannot be undone.`)) return;
+                  onDeleteMovie?.(movie.id);
+                  setShowLongPressActions(false);
+                  onClose();
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-500"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLongPressActions(false)}
+                className="rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+          )}
           {/* Modal Body Container */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-0">
             {/* Left Column: Front & Back Posters */}

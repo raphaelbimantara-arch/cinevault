@@ -1156,6 +1156,8 @@ export default function App() {
           setSelectedActorName(actorName);
         }}
         onUpdateMovie={handleUpdateMovie}
+        onDeleteMovie={handleDeleteMovie}
+        onNotify={showActionNotification}
       />
 
       {/* Actor Detail Modal (Shows Picture, Date of Birth, and Movies Title) */}

@@ -311,10 +311,10 @@ export const MovieList: React.FC<MovieListProps> = ({
                         onChange={(event) => updateDraft(movie.id, 'title', event.target.value)}
                       />
                     ) : (
-                      <div className="flex min-w-0 items-center gap-1 text-[9px] font-semibold text-zinc-100 transition-colors group-hover:text-amber-400 sm:text-sm" title={movie.uncensored ? `${movie.title} Uncensored` : movie.title}>
-                        <span className="min-w-0 truncate">{movie.title}</span>
+                      <div className="flex min-w-0 flex-col items-start text-[9px] font-semibold text-zinc-100 transition-colors group-hover:text-amber-400 sm:text-sm" title={movie.uncensored ? `${movie.title} Uncensored` : movie.title}>
+                        <span className="block w-full truncate">{movie.title}</span>
                         {movie.uncensored && (
-                          <span className="shrink-0 text-[7px] font-bold uppercase tracking-wide text-rose-300 sm:text-[9px]">
+                          <span className="mt-0.5 text-[7px] font-bold uppercase tracking-wide text-rose-300 sm:text-[9px]">
                             Uncensored
                           </span>
                         )}
