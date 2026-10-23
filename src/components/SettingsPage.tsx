@@ -29,6 +29,7 @@ interface SettingsPageProps {
   onConnectSharedCatalog: (token: string) => void;
   onDisconnectSharedCatalog: () => void;
   onInitializeSharedCatalog: () => Promise<void>;
+  onRefreshSharedCatalog: () => Promise<number>;
   onImportMovies: (newMovies: Movie[], mode: 'merge' | 'replace') => void;
   onDeleteMovie: (movieId: string) => void;
   onBulkDeleteMovies: (movieIds: string[]) => void;
@@ -51,6 +52,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onConnectSharedCatalog,
   onDisconnectSharedCatalog,
   onInitializeSharedCatalog,
+  onRefreshSharedCatalog,
   onImportMovies,
   onDeleteMovie,
   onBulkDeleteMovies,
@@ -814,6 +816,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <button
                   type="button"
                   onClick={onDisconnectSharedCatalog}
+                  disabled={sharedCatalogStatus === 'loading'}
                   className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-colors"
                 >
                   Disconnect
@@ -821,6 +824,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               )}
             </div>
           </form>
+
+          {sharedCatalogToken && (
+            <button
+              type="button"
+              onClick={() => {
+                void onRefreshSharedCatalog()
+                  .then((count) => showToast('success', `Database diperbarui: ${count} film dimuat dari katalog utama.`))
+                  .catch((error: unknown) => {
+                    const message = error instanceof Error
+                      ? error.message
+                      : 'Gagal memperbarui database dari katalog utama.';
+                    showToast('error', message);
+                  });
+              }}
+              disabled={sharedCatalogStatus === 'loading'}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-50 sm:hidden"
+            >
+              <RefreshCw className={`h-4 w-4 ${sharedCatalogStatus === 'loading' ? 'animate-spin' : ''}`} />
+              {sharedCatalogStatus === 'loading' ? 'Memperbarui database...' : 'Update Database'}
+            </button>
+          )}
 
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-3">

@@ -198,6 +198,35 @@ export default function App() {
     }
   };
 
+  const handleRefreshSharedCatalog = async (): Promise<number> => {
+    if (!sharedToken) {
+      throw new Error('Connect this device to the shared catalog first.');
+    }
+
+    setSharedCatalogStatus('loading');
+    setSharedCatalogError('');
+    try {
+      await sharedCatalogSaveQueue.current;
+      const sharedMovies = await loadSharedCatalog(sharedToken);
+      if (sharedMovies.length === 0) {
+        throw new Error('The main catalog is empty. The database on this device was not changed.');
+      }
+
+      setMovies(sharedMovies);
+      setSelectedMovieIds(new Set());
+      setSharedCatalogStatus('connected');
+      return sharedMovies.length;
+    } catch (error) {
+      console.error('Failed to refresh from the shared catalog:', error);
+      const message = error instanceof Error
+        ? error.message
+        : 'Unable to update the database from the main catalog.';
+      setSharedCatalogError(message);
+      setSharedCatalogStatus('error');
+      throw error instanceof Error ? error : new Error(message);
+    }
+  };
+
   // Active page for bottom navigation
   const [activePage, setActivePage] = useState<ActivePage>('library');
 
@@ -1031,6 +1060,7 @@ export default function App() {
             onConnectSharedCatalog={handleConnectSharedCatalog}
             onDisconnectSharedCatalog={handleDisconnectSharedCatalog}
             onInitializeSharedCatalog={handleInitializeSharedCatalog}
+            onRefreshSharedCatalog={handleRefreshSharedCatalog}
             onImportMovies={handleImportMovies}
             onDeleteMovie={handleDeleteMovie}
             onBulkDeleteMovies={handleBulkDeleteMovies}
