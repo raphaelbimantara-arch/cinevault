@@ -79,6 +79,14 @@ export default function App() {
   const moviesRef = useRef(movies);
   moviesRef.current = movies;
   const [sharedToken, setSharedToken] = useState(readSharedToken);
+  const preparedSharedCatalogSave = useMemo(() => (
+    sharedToken
+      ? {
+          movies,
+          body: JSON.stringify({ action: 'save', token: sharedToken, movies }),
+        }
+      : null
+  ), [movies, sharedToken]);
   const [sharedCatalogStatus, setSharedCatalogStatus] = useState<SharedCatalogStatus>(
     () => (readSharedToken() ? 'loading' : 'disconnected')
   );
@@ -203,18 +211,18 @@ export default function App() {
     if (!sharedToken) {
       throw new Error('Connect this device to the shared catalog first.');
     }
-    if (moviesRef.current.length === 0) {
+    if (!preparedSharedCatalogSave || preparedSharedCatalogSave.movies.length === 0) {
       throw new Error('There are no movies on this device to save.');
     }
 
+    const saveSnapshot = preparedSharedCatalogSave;
     setSharedCatalogStatus('loading');
     setSharedCatalogError('');
     try {
       await sharedCatalogSaveQueue.current;
-      const moviesToSave = moviesRef.current;
-      await saveSharedCatalog(sharedToken, moviesToSave);
+      await saveSharedCatalog(sharedToken, saveSnapshot.movies, saveSnapshot.body);
       setSharedCatalogStatus('connected');
-      return moviesToSave.length;
+      return saveSnapshot.movies.length;
     } catch (error) {
       console.error('Failed to save to the shared catalog:', error);
       const message = error instanceof Error

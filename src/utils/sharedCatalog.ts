@@ -8,11 +8,11 @@ async function requestCatalog(payload: {
   action: 'load' | 'save';
   token: string;
   movies?: Movie[];
-}): Promise<{ movies?: Movie[]; count?: number }> {
+}, serializedPayload?: string): Promise<{ movies?: Movie[]; count?: number }> {
   const response = await fetch(CATALOG_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: serializedPayload ?? JSON.stringify(payload),
   });
   const result = (await response.json()) as {
     movies?: Movie[];
@@ -34,6 +34,10 @@ export async function loadSharedCatalog(token: string): Promise<Movie[]> {
   return result.movies;
 }
 
-export async function saveSharedCatalog(token: string, movies: Movie[]): Promise<void> {
-  await requestCatalog({ action: 'save', token, movies });
+export async function saveSharedCatalog(
+  token: string,
+  movies: Movie[],
+  serializedPayload?: string,
+): Promise<void> {
+  await requestCatalog({ action: 'save', token, movies }, serializedPayload);
 }
