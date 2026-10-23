@@ -65,7 +65,80 @@ interface KeepDuplicateButtonProps {
   className?: string;
 }
 
+interface SaveSharedCatalogButtonProps {
+  movieCount: number;
+  isLoading: boolean;
+  onSave: () => Promise<number>;
+  onNotify: (type: 'success' | 'error', message: string) => void;
+}
+
 const REVIEWED_DUPLICATE_GROUPS_KEY = 'cinevault_reviewed_duplicate_groups_v1';
+
+const SaveSharedCatalogButton: React.FC<SaveSharedCatalogButtonProps> = ({
+  movieCount,
+  isLoading,
+  onSave,
+  onNotify,
+}) => {
+  const [confirming, setConfirming] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const count = await onSave();
+      onNotify('success', `${count} film berhasil disimpan ke database bersama.`);
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Gagal menyimpan database perangkat ini ke katalog bersama.';
+      onNotify('error', message);
+    } finally {
+      setSaving(false);
+      setConfirming(false);
+    }
+  };
+
+  if (confirming) {
+    return (
+      <div className="space-y-2 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 sm:col-span-2">
+        <p className="text-xs text-zinc-200">
+          Replace the shared database with all {movieCount} movies from this device?
+        </p>
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            disabled={saving || isLoading}
+            className="rounded-lg px-3 py-1.5 text-xs font-semibold text-zinc-400 transition-colors hover:bg-zinc-800 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saving || isLoading}
+            className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/30 disabled:opacity-50"
+          >
+            {saving || isLoading ? 'Saving...' : 'Confirm and save'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      disabled={isLoading || movieCount === 0}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <Upload className="h-4 w-4" />
+      {isLoading ? 'Menyimpan database...' : 'Save to Database'}
+    </button>
+  );
+};
 
 const KeepDuplicateButton: React.FC<KeepDuplicateButtonProps> = ({ onConfirm, title, className }) => {
   const [confirming, setConfirming] = useState(false);
@@ -1121,25 +1194,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
           {sharedCatalogToken && (
             <div className="grid gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!window.confirm(`Simpan ${movies.length} film dari perangkat ini ke database bersama? Seluruh isi database bersama akan diganti.`)) return;
-                  void onSaveSharedCatalog()
-                    .then((count) => showToast('success', `${count} film berhasil disimpan ke database bersama.`))
-                    .catch((error: unknown) => {
-                      const message = error instanceof Error
-                        ? error.message
-                        : 'Gagal menyimpan database perangkat ini ke katalog bersama.';
-                      showToast('error', message);
-                    });
-                }}
-                disabled={sharedCatalogStatus === 'loading' || movies.length === 0}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Upload className="h-4 w-4" />
-                {sharedCatalogStatus === 'loading' ? 'Menyimpan database...' : 'Save to Database'}
-              </button>
+              <SaveSharedCatalogButton
+                movieCount={movies.length}
+                isLoading={sharedCatalogStatus === 'loading'}
+                onSave={onSaveSharedCatalog}
+                onNotify={showToast}
+              />
               <button
                 type="button"
                 onClick={() => {

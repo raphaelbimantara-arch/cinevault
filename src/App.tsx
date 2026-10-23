@@ -216,8 +216,10 @@ export default function App() {
     }
 
     const saveSnapshot = preparedSharedCatalogSave;
-    setSharedCatalogStatus('loading');
-    setSharedCatalogError('');
+    startTransition(() => {
+      setSharedCatalogStatus('loading');
+      setSharedCatalogError('');
+    });
     try {
       await sharedCatalogSaveQueue.current;
       await saveSharedCatalog(sharedToken, saveSnapshot.movies, saveSnapshot.body);
