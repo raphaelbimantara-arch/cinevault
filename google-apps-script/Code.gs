@@ -15,6 +15,7 @@ const HEADERS = [
   'addedDate',
   'favorite',
   'reviewed',
+  'uncensored',
 ];
 
 function doPost(event) {
@@ -109,6 +110,7 @@ function readMovies(sheet) {
       addedDate: record.addedDate || undefined,
       favorite: String(record.favorite || '').toLowerCase() === 'true',
       reviewed: String(record.reviewed || '').toLowerCase() === 'true',
+      uncensored: String(record.uncensored || '').toLowerCase() === 'true',
     };
   });
 }
@@ -134,6 +136,7 @@ function toRow(movie) {
     String(movie.addedDate || ''),
     String(movie.favorite === true),
     String(movie.reviewed === true),
+    String(movie.uncensored === true),
   ];
 }
 

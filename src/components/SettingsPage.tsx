@@ -105,7 +105,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         'addedDate',
         'castCount',
         'favorite',
-        'reviewed'
+        'reviewed',
+        'uncensored'
       ];
 
       const escapeCsvCell = (val: unknown): string => {
@@ -132,7 +133,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         escapeCsvCell(m.addedDate || new Date().toISOString().split('T')[0]),
         escapeCsvCell(m.castCount ?? ''),
         escapeCsvCell(m.favorite ? 'true' : ''),
-        escapeCsvCell(m.reviewed ? 'true' : '')
+        escapeCsvCell(m.reviewed ? 'true' : ''),
+        escapeCsvCell(m.uncensored ? 'true' : '')
       ]);
 
       const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
@@ -155,8 +157,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   };
 
   const handleDownloadSampleCsv = () => {
-    const sampleHeaders = 'id,title,genre,studio,year,minutes,size,resolution,posterUrl,backdropUrl,actors,addedDate,castCount,favorite,reviewed';
-    const sampleRow = '"m-sample-01","Inception Reloaded","Sci-Fi","Warner Bros.",2024,148,"12.4 GB","4K UHD HDR","https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800","","Leonardo DiCaprio | Joseph Gordon-Levitt","2024-01-15","","false","false"';
+    const sampleHeaders = 'id,title,genre,studio,year,minutes,size,resolution,posterUrl,backdropUrl,actors,addedDate,castCount,favorite,reviewed,uncensored';
+    const sampleRow = '"m-sample-01","Inception Reloaded","Sci-Fi","Warner Bros.",2024,148,"12.4 GB","4K UHD HDR","https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800","","Leonardo DiCaprio | Joseph Gordon-Levitt","2024-01-15","","false","false","false"';
     const sampleContent = '\uFEFF' + [sampleHeaders, sampleRow].join('\r\n');
     const blob = new Blob([sampleContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -310,6 +312,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       const castCountIdx = findIdx('castcount', 'actorcount', 'actorscount', 'jumlahaktor', 'jumlahpemain');
       const favoriteIdx = findIdx('favorite', 'isfavorite', 'favorit');
       const reviewedIdx = findIdx('reviewed', 'isreviewed', 'reviewedstatus', 'sudahdireview');
+      const uncensoredIdx = findIdx('uncensored', 'isuncensored', 'uncensoredstatus');
 
       // Check if row 0 looks like a header or actual data
       const isHeaderRow = rawHeaders.some((h) => 
@@ -457,6 +460,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           : undefined;
         const favorite = ['true', '1', 'yes', 'y'].includes(getCell(favoriteIdx).trim().toLowerCase());
         const reviewed = ['true', '1', 'yes', 'y'].includes(getCell(reviewedIdx).trim().toLowerCase());
+        const uncensored = ['true', '1', 'yes', 'y'].includes(getCell(uncensoredIdx).trim().toLowerCase());
 
         // Compute size bytes
         const sizeNum = parseFloat(size.replace(/[^\d.]/g, '')) || 4.5;
@@ -483,6 +487,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           castCount,
           favorite,
           reviewed,
+          uncensored,
           addedDate,
         });
       }

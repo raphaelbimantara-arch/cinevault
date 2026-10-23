@@ -14,6 +14,7 @@ export interface Movie {
   castCount?: number;
   favorite?: boolean;
   reviewed?: boolean;
+  uncensored?: boolean;
   addedDate?: string;
 }
 

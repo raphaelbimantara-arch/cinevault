@@ -54,6 +54,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const [editActors, setEditActors] = useState<string[]>([]);
   const [editCastCount, setEditCastCount] = useState('');
   const [editFavorite, setEditFavorite] = useState(false);
+  const [editUncensored, setEditUncensored] = useState(false);
   const [newActor, setNewActor] = useState('');
   const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
 
@@ -141,6 +142,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditActors([...movie.actors]);
       setEditCastCount(movie.castCount === undefined ? '' : String(movie.castCount));
       setEditFavorite(movie.favorite === true);
+      setEditUncensored(movie.uncensored === true);
       setNewActor('');
       setIsEditing(false);
       setEditSavedToast(null);
@@ -174,6 +176,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       actors: editActors.length > 0 ? editActors : ['Cast'],
       castCount: editCastCount.trim() === '' ? undefined : Number(editCastCount),
       favorite: editFavorite,
+      uncensored: editUncensored,
     };
 
     onUpdateMovie(updated);
@@ -293,6 +296,15 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   />
                   <Star className={`h-4 w-4 ${editFavorite ? 'fill-amber-400 text-amber-400' : 'text-zinc-500'}`} />
                   Favorite
+                </label>
+                <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={editUncensored}
+                    onChange={(e) => setEditUncensored(e.target.checked)}
+                    className="h-4 w-4 accent-amber-400"
+                  />
+                  Uncensored
                 </label>
 
                 {/* Genres */}
@@ -496,8 +508,13 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
               <>
                 <div>
                   <div className="flex min-w-0 items-center justify-between gap-2">
-                    <h2 className="min-w-0 truncate text-xl font-extrabold leading-tight tracking-tight text-white sm:text-2xl">
-                      {movie.title}
+                    <h2 className="flex min-w-0 items-center gap-2 text-xl font-extrabold leading-tight tracking-tight text-white sm:text-2xl">
+                      <span className="min-w-0 truncate">{movie.title}</span>
+                      {movie.uncensored && (
+                        <span className="shrink-0 rounded-md border border-rose-500/40 bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-300 sm:text-[10px]">
+                          Uncensored
+                        </span>
+                      )}
                     </h2>
                     {(movie.favorite || movie.reviewed) && (
                       <div className="flex shrink-0 items-center gap-2">

@@ -208,56 +208,21 @@ export const MovieList: React.FC<MovieListProps> = ({
         <thead className="sticky top-0 z-10">
           <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[9px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
             <th
-              className="w-[21%] overflow-hidden px-0.5 py-2 sm:px-3"
+              className="w-[19%] overflow-hidden px-0.5 py-2 sm:px-3"
               aria-sort={
                 sortBy === sortOptions.title.asc
                   ? 'ascending'
                   : sortBy === sortOptions.title.desc ? 'descending' : undefined
               }
             >
-              <div className="flex items-center justify-between gap-1">
-                <button
-                  type="button"
-                  onClick={() => onToggleSort('title')}
-                  className="hover:text-white"
-                  aria-label={`Sort by Title${sortBy === sortOptions.title.asc ? ' descending' : ' ascending'}`}
-                >
-                  Title
-                </button>
-                {isEditing ? (
-                  <div className="inline-flex shrink-0 items-center gap-0.5">
-                    <button
-                      type="button"
-                      onClick={saveEditing}
-                      title="Save all changes"
-                      aria-label="Save all movie edits"
-                      className="rounded p-1 text-emerald-400 hover:bg-emerald-500/10"
-                    >
-                      <Save className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelEditing}
-                      title="Cancel editing"
-                      aria-label="Cancel all movie edits"
-                      className="rounded p-1 text-zinc-400 hover:bg-zinc-700"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={startEditing}
-                    title="Edit list"
-                    aria-label="Edit movie list"
-                    className="rounded p-1 text-zinc-400 hover:bg-amber-500/10 hover:text-amber-300"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => onToggleSort('title')}
+                className="hover:text-white"
+                aria-label={`Sort by Title${sortBy === sortOptions.title.asc ? ' descending' : ' ascending'}`}
+              >
+                Title
+              </button>
             </th>
             {renderSortHeader('year', 'Year', 'w-[8%] overflow-hidden px-0.5 py-2 text-center')}
             {renderSortHeader('size', 'Size', 'w-[10%] overflow-hidden px-0.5 py-2 text-center')}
@@ -268,9 +233,44 @@ export const MovieList: React.FC<MovieListProps> = ({
               'w-[12%] overflow-hidden px-0.5 py-2 text-center',
               'Res.',
             )}
-            {renderSortHeader('actors', 'Actor', 'w-[14%] overflow-hidden px-0.5 py-2 sm:px-3')}
-            {renderSortHeader('studio', 'Studio', 'w-[14%] overflow-hidden px-0.5 py-2 sm:px-3')}
-            {renderSortHeader('genre', 'Genre', 'w-[14%] overflow-hidden px-0.5 py-2 sm:px-3')}
+            {renderSortHeader('actors', 'Actor', 'w-[13%] overflow-hidden px-0.5 py-2 sm:px-3')}
+            {renderSortHeader('studio', 'Studio', 'w-[13%] overflow-hidden px-0.5 py-2 sm:px-3')}
+            {renderSortHeader('genre', 'Genre', 'w-[12%] overflow-hidden px-0.5 py-2 sm:px-3')}
+            <th className="w-[6%] overflow-hidden px-0.5 py-2 text-right sm:px-2">
+              {isEditing ? (
+                <div className="inline-flex items-center justify-end gap-0.5">
+                  <button
+                    type="button"
+                    onClick={saveEditing}
+                    title="Save all changes"
+                    aria-label="Save all movie edits"
+                    className="rounded p-1 text-emerald-400 hover:bg-emerald-500/10"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelEditing}
+                    title="Cancel editing"
+                    aria-label="Cancel all movie edits"
+                    className="rounded p-1 text-zinc-400 hover:bg-zinc-700"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={startEditing}
+                  title="Edit list"
+                  aria-label="Edit movie list"
+                  className="rounded p-1 text-zinc-400 hover:bg-amber-500/10 hover:text-amber-300"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-800/60">
@@ -311,15 +311,14 @@ export const MovieList: React.FC<MovieListProps> = ({
                         onChange={(event) => updateDraft(movie.id, 'title', event.target.value)}
                       />
                     ) : (
-                      <div className="min-w-0 truncate text-[9px] font-semibold text-zinc-100 transition-colors group-hover:text-amber-400 sm:text-sm" title={movie.title}>
-                        {movie.title}
+                      <div className="flex min-w-0 items-center gap-1 text-[9px] font-semibold text-zinc-100 transition-colors group-hover:text-amber-400 sm:text-sm" title={movie.uncensored ? `${movie.title} Uncensored` : movie.title}>
+                        <span className="min-w-0 truncate">{movie.title}</span>
+                        {movie.uncensored && (
+                          <span className="shrink-0 text-[7px] font-bold uppercase tracking-wide text-rose-300 sm:text-[9px]">
+                            Uncensored
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {!isEditing && movie.favorite && (
-                      <Star aria-label="Favorite" title="Favorite" className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
-                    )}
-                    {!isEditing && movie.reviewed && (
-                      <Check aria-label="Review" title="Review" className="h-3 w-3 shrink-0 text-rose-400" />
                     )}
                   </div>
                 </td>
@@ -433,6 +432,18 @@ export const MovieList: React.FC<MovieListProps> = ({
                     <span className="block truncate" title={movie.genre}>
                       {movie.genre}
                     </span>
+                  )}
+                </td>
+                <td className="overflow-hidden px-0.5 py-2 sm:px-2">
+                  {(movie.favorite || movie.reviewed) && (
+                    <div className="flex items-center justify-end gap-1">
+                      {movie.favorite && (
+                        <Star aria-label="Favorite" title="Favorite" className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
+                      )}
+                      {movie.reviewed && (
+                        <Check aria-label="Review" title="Review" className="h-3 w-3 shrink-0 text-rose-400" />
+                      )}
+                    </div>
                   )}
                 </td>
               </tr>
