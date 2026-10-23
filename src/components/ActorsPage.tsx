@@ -31,7 +31,7 @@ interface ActorStat {
   reviewed: boolean;
 }
 
-type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'dob-asc' | 'dob-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc';
+type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'dob-asc' | 'dob-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc' | 'uncensored-asc' | 'uncensored-desc';
 type ActorEditDraft = { name: string; dob: string };
 
 const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = ({
@@ -261,6 +261,12 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           ? b.totalMinutes - a.totalMinutes
           : a.totalMinutes - b.totalMinutes;
         return durationOrder || a.name.localeCompare(b.name);
+      }
+      if (actorSort === 'uncensored-desc' || actorSort === 'uncensored-asc') {
+        const uncensoredOrder = actorSort === 'uncensored-desc'
+          ? b.uncensoredMovies - a.uncensoredMovies
+          : a.uncensoredMovies - b.uncensoredMovies;
+        return uncensoredOrder || a.name.localeCompare(b.name);
       }
       if (actorSort === 'alias' || actorSort === 'alias-desc') {
         const aliasOrder = actorSort === 'alias'
@@ -714,9 +720,6 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                 <th className="w-[23%] px-1 py-2 sm:px-3">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('name', 'name-desc')} className="w-full text-left disabled:cursor-default">Actor</button>
                 </th>
-                <th className="w-[14%] px-0.5 py-2 text-center sm:px-2">
-                  <span className="block text-center">Uncensored</span>
-                </th>
                 <th className="w-[16%] px-0.5 py-2 text-center sm:px-2">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('dob-asc', 'dob-desc')} className="w-full text-center disabled:cursor-default">DOB</button>
                 </th>
@@ -731,6 +734,16 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                 </th>
                 <th className="w-[12%] px-0.5 py-2 text-center sm:px-2">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('movies-asc', 'movies-desc')} className="w-full text-center disabled:cursor-default">Movies</button>
+                </th>
+                <th className="w-[14%] px-0.5 py-2 text-center normal-case sm:px-2">
+                  <button
+                    type="button"
+                    disabled={isEditingList}
+                    onClick={() => toggleActorSort('uncensored-asc', 'uncensored-desc')}
+                    className="w-full text-center disabled:cursor-default"
+                  >
+                    Uncensored
+                  </button>
                 </th>
               </tr>
             </thead>
@@ -781,11 +794,6 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="overflow-hidden px-0.5 py-2 text-[8px] text-zinc-300 sm:px-2 sm:text-xs">
-                      <span className="block text-center font-mono" title={`${actor.uncensoredMovies} uncensored movies`}>
-                        {actor.uncensoredMovies}
-                      </span>
-                    </td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs">
                       {isEditingList && draft ? (
                         <input
@@ -803,6 +811,9 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={size}>{size}</td>
                     <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.totalMinutes} minutes`}>{minutes} min</td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:px-2 sm:text-xs">{actor.movies.length}</td>
+                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.uncensoredMovies} uncensored movies`}>
+                      {actor.uncensoredMovies}
+                    </td>
                   </tr>
                 );
               })}
