@@ -486,8 +486,18 @@ export default function App() {
     );
   };
 
-  const handleToggleListTitleSort = () => {
-    setSortBy((current) => current === 'alphabet-asc' ? 'alphabet-desc' : 'alphabet-asc');
+  const handleToggleListSort = (field: 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio') => {
+    const options = {
+      title: ['alphabet-asc', 'alphabet-desc'],
+      year: ['year-asc', 'year-desc'],
+      size: ['size-asc', 'size-desc'],
+      minutes: ['minutes-asc', 'minutes-desc'],
+      resolution: ['quality-asc', 'quality-desc'],
+      actors: ['actor-asc', 'actor-desc'],
+      studio: ['studio-asc', 'studio-desc'],
+    } as const;
+    const [ascending, descending] = options[field];
+    setSortBy((current) => current === ascending ? descending : ascending);
   };
 
   // Update actor profile handler
@@ -679,13 +689,17 @@ export default function App() {
         case 'size-asc':
           return (a.sizeBytes || 0) - (b.sizeBytes || 0);
         case 'actor-asc':
-          return (a.actors[0] || '').localeCompare(b.actors[0] || '');
+          return a.actors.join(', ').localeCompare(b.actors.join(', '), undefined, { numeric: true });
         case 'actor-desc':
-          return (b.actors[0] || '').localeCompare(a.actors[0] || '');
+          return b.actors.join(', ').localeCompare(a.actors.join(', '), undefined, { numeric: true });
         case 'quality-desc':
           return (b.resolution || '').localeCompare(a.resolution || '');
         case 'quality-asc':
           return (a.resolution || '').localeCompare(b.resolution || '');
+        case 'studio-desc':
+          return b.studio.localeCompare(a.studio, undefined, { numeric: true });
+        case 'studio-asc':
+          return a.studio.localeCompare(b.studio, undefined, { numeric: true });
         default:
           return a.title.localeCompare(b.title);
       }
@@ -849,13 +863,14 @@ export default function App() {
             ) : viewMode === 'list' ? (
               <MovieList
                 movies={filteredAndSortedMovies}
+                catalogMovies={movies}
                 onSelectMovie={setSelectedMovie}
                 onUpdateMovie={handleUpdateMovieFromList}
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
                 selectionMode={selectedMovieCount > 0}
-                sortDirection={sortBy === 'alphabet-asc' ? 'asc' : sortBy === 'alphabet-desc' ? 'desc' : null}
-                onToggleTitleSort={handleToggleListTitleSort}
+                sortBy={sortBy}
+                onToggleSort={handleToggleListSort}
               />
             ) : (
               <MovieCoverGrid

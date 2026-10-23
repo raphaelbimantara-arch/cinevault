@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { ArrowDownAZ, ArrowUpAZ, Check, Film, Pencil, Save, Star, X } from 'lucide-react';
-import { Movie } from '../types';
+import { Check, Film, Pencil, Save, Star, X } from 'lucide-react';
+import { Movie, SortOption } from '../types';
 import { useLongPress } from '../utils/useLongPress';
+
+type ListSortField = 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio';
 
 interface MovieListProps {
   movies: Movie[];
+  catalogMovies: Movie[];
   onSelectMovie: (movie: Movie) => void;
   onUpdateMovie: (movie: Movie) => void;
   selectedMovieIds: Set<string>;
   onToggleMovieSelection: (movieId: string) => void;
   selectionMode: boolean;
-  sortDirection: 'asc' | 'desc' | null;
-  onToggleTitleSort: () => void;
+  sortBy: SortOption;
+  onToggleSort: (field: ListSortField) => void;
 }
 
 interface MovieEditDraft {
@@ -36,18 +39,25 @@ const toDraft = (movie: Movie): MovieEditDraft => ({
 
 export const MovieList: React.FC<MovieListProps> = ({
   movies,
+  catalogMovies,
   onSelectMovie,
   onUpdateMovie,
   selectedMovieIds,
   onToggleMovieSelection,
   selectionMode,
-  sortDirection,
-  onToggleTitleSort,
+  sortBy,
+  onToggleSort,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, MovieEditDraft>>({});
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
   const inputClassName = 'w-full min-w-0 rounded border border-zinc-700 bg-zinc-950 px-0.5 py-1 text-[8px] text-zinc-100 focus:border-amber-400 focus:outline-none sm:px-1.5 sm:text-xs';
+  const resolutionOptions = [...new Set(
+    catalogMovies.map((movie) => movie.resolution?.trim()).filter((resolution): resolution is string => Boolean(resolution)),
+  )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const actorOptions = [...new Set(
+    catalogMovies.flatMap((movie) => movie.actors.map((actor) => actor.trim())).filter(Boolean),
+  )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   const startEditing = () => {
     setDrafts(Object.fromEntries(movies.map((movie) => [movie.id, toDraft(movie)])));
@@ -64,6 +74,44 @@ export const MovieList: React.FC<MovieListProps> = ({
       ...current,
       [movieId]: { ...current[movieId], [field]: value },
     }));
+  };
+
+  const sortOptions: Record<ListSortField, { asc: SortOption; desc: SortOption }> = {
+    title: { asc: 'alphabet-asc', desc: 'alphabet-desc' },
+    year: { asc: 'year-asc', desc: 'year-desc' },
+    size: { asc: 'size-asc', desc: 'size-desc' },
+    minutes: { asc: 'minutes-asc', desc: 'minutes-desc' },
+    resolution: { asc: 'quality-asc', desc: 'quality-desc' },
+    actors: { asc: 'actor-asc', desc: 'actor-desc' },
+    studio: { asc: 'studio-asc', desc: 'studio-desc' },
+  };
+
+  const renderSortHeader = (
+    field: ListSortField,
+    label: string,
+    className: string,
+    mobileLabel?: string,
+  ) => {
+    const direction = sortBy === sortOptions[field].asc
+      ? 'ascending'
+      : sortBy === sortOptions[field].desc ? 'descending' : undefined;
+    return (
+      <th className={className} aria-sort={direction}>
+        <button
+          type="button"
+          onClick={() => onToggleSort(field)}
+          className="hover:text-white"
+          aria-label={`Sort by ${label}${direction === 'ascending' ? ' descending' : ' ascending'}`}
+        >
+          {mobileLabel ? (
+            <>
+              <span className="sm:hidden">{mobileLabel}</span>
+              <span className="hidden sm:inline">{label}</span>
+            </>
+          ) : label}
+        </button>
+      </th>
+    );
   };
 
   const saveEditing = () => {
@@ -136,18 +184,20 @@ export const MovieList: React.FC<MovieListProps> = ({
           <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[9px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
             <th
               className="w-[23%] overflow-hidden px-0.5 py-2 sm:px-3"
-              aria-sort={sortDirection === 'asc' ? 'ascending' : sortDirection === 'desc' ? 'descending' : undefined}
+              aria-sort={
+                sortBy === sortOptions.title.asc
+                  ? 'ascending'
+                  : sortBy === sortOptions.title.desc ? 'descending' : undefined
+              }
             >
               <div className="flex items-center justify-between gap-1">
                 <button
                   type="button"
-                  onClick={onToggleTitleSort}
-                  className="inline-flex items-center gap-1 hover:text-white"
-                  aria-label={`Sort title ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+                  onClick={() => onToggleSort('title')}
+                  className="hover:text-white"
+                  aria-label={`Sort by Title${sortBy === sortOptions.title.asc ? ' descending' : ' ascending'}`}
                 >
                   Title
-                  {sortDirection === 'asc' && <ArrowUpAZ className="h-3 w-3" />}
-                  {sortDirection === 'desc' && <ArrowDownAZ className="h-3 w-3" />}
                 </button>
                 {isEditing ? (
                   <div className="inline-flex shrink-0 items-center gap-0.5">
@@ -184,15 +234,17 @@ export const MovieList: React.FC<MovieListProps> = ({
                 )}
               </div>
             </th>
-            <th className="w-[10%] overflow-hidden px-0.5 py-2 text-center">Year</th>
-            <th className="w-[12%] overflow-hidden px-0.5 py-2 text-center">Size</th>
-            <th className="w-[8%] overflow-hidden px-0.5 py-2 text-center">Min</th>
-            <th className="w-[13%] overflow-hidden px-0.5 py-2 text-center">
-              <span className="sm:hidden">Res.</span>
-              <span className="hidden sm:inline">Resolution</span>
-            </th>
-            <th className="w-[17%] overflow-hidden px-0.5 py-2 sm:px-3">Actor</th>
-            <th className="w-[17%] overflow-hidden px-0.5 py-2 sm:px-3">Studio</th>
+            {renderSortHeader('year', 'Year', 'w-[10%] overflow-hidden px-0.5 py-2 text-center')}
+            {renderSortHeader('size', 'Size', 'w-[12%] overflow-hidden px-0.5 py-2 text-center')}
+            {renderSortHeader('minutes', 'Min', 'w-[8%] overflow-hidden px-0.5 py-2 text-center')}
+            {renderSortHeader(
+              'resolution',
+              'Resolution',
+              'w-[13%] overflow-hidden px-0.5 py-2 text-center',
+              'Res.',
+            )}
+            {renderSortHeader('actors', 'Actor', 'w-[17%] overflow-hidden px-0.5 py-2 sm:px-3')}
+            {renderSortHeader('studio', 'Studio', 'w-[17%] overflow-hidden px-0.5 py-2 sm:px-3')}
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-800/60">
@@ -247,8 +299,9 @@ export const MovieList: React.FC<MovieListProps> = ({
                   {isEditing && draft ? (
                     <input
                       aria-label={`Edit year for ${movie.title}`}
-                      type="number"
-                      className={inputClassName}
+                      type="text"
+                      inputMode="numeric"
+                      className={`${inputClassName} appearance-none`}
                       value={draft.year}
                       onClick={(event) => event.stopPropagation()}
                       onChange={(event) => updateDraft(movie.id, 'year', event.target.value)}
@@ -270,23 +323,23 @@ export const MovieList: React.FC<MovieListProps> = ({
                   {isEditing && draft ? (
                     <input
                       aria-label={`Edit duration for ${movie.title}`}
-                      type="number"
-                      min="1"
-                      className={inputClassName}
+                      type="text"
+                      inputMode="numeric"
+                      className={`${inputClassName} appearance-none`}
                       value={draft.minutes}
                       onClick={(event) => event.stopPropagation()}
                       onChange={(event) => updateDraft(movie.id, 'minutes', event.target.value)}
                     />
                   ) : `${movie.minutes}m`}
                 </td>
-                <td className="overflow-hidden px-0.5 py-2 text-center text-[8px] text-zinc-300 sm:text-xs">
+                <td className={`px-0.5 py-2 text-center text-[8px] text-zinc-300 sm:text-xs ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
                   {isEditing && draft ? (
-                    <input
-                      aria-label={`Edit resolution for ${movie.title}`}
+                    <AutocompleteInput
+                      ariaLabel={`Edit resolution for ${movie.title}`}
                       className={inputClassName}
                       value={draft.resolution}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={(event) => updateDraft(movie.id, 'resolution', event.target.value)}
+                      options={resolutionOptions}
+                      onChange={(value) => updateDraft(movie.id, 'resolution', value)}
                     />
                   ) : (
                     <span className="block truncate" title={movie.resolution || '—'}>
@@ -294,14 +347,15 @@ export const MovieList: React.FC<MovieListProps> = ({
                     </span>
                   )}
                 </td>
-                <td className="overflow-hidden px-0.5 py-2 text-[8px] text-zinc-300 sm:px-3 sm:text-xs">
+                <td className={`px-0.5 py-2 text-[8px] text-zinc-300 sm:px-3 sm:text-xs ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
                   {isEditing && draft ? (
-                    <input
-                      aria-label={`Edit actors for ${movie.title}`}
+                    <AutocompleteInput
+                      ariaLabel={`Edit actors for ${movie.title}`}
                       className={inputClassName}
                       value={draft.actors}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={(event) => updateDraft(movie.id, 'actors', event.target.value)}
+                      options={actorOptions}
+                      tokenMode
+                      onChange={(value) => updateDraft(movie.id, 'actors', value)}
                     />
                   ) : (
                     <span className="block truncate" title={movie.actors.join(', ')}>
@@ -329,6 +383,80 @@ export const MovieList: React.FC<MovieListProps> = ({
           })}
         </tbody>
       </table>
+    </div>
+  );
+};
+
+interface AutocompleteInputProps {
+  ariaLabel: string;
+  className: string;
+  value: string;
+  options: string[];
+  tokenMode?: boolean;
+  onChange: (value: string) => void;
+}
+
+const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
+  ariaLabel,
+  className,
+  value,
+  options,
+  tokenMode = false,
+  onChange,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const query = tokenMode ? value.split(/[,;|]/).pop()?.trim() || '' : value.trim();
+  const suggestions = query
+    ? options.filter((option) => option.toLocaleLowerCase().startsWith(query.toLocaleLowerCase())).slice(0, 8)
+    : options.slice(0, 8);
+
+  const selectOption = (option: string) => {
+    if (!tokenMode) {
+      onChange(option);
+    } else {
+      const lastSeparator = Math.max(value.lastIndexOf(','), value.lastIndexOf(';'), value.lastIndexOf('|'));
+      if (lastSeparator < 0) {
+        onChange(option);
+      } else {
+        const prefix = value.slice(0, lastSeparator + 1);
+        const spacing = value.slice(lastSeparator + 1).match(/^\s*/)?.[0] || ' ';
+        onChange(`${prefix}${spacing}${option}`);
+      }
+    }
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" onClick={(event) => event.stopPropagation()}>
+      <input
+        aria-label={ariaLabel}
+        autoComplete="off"
+        className={className}
+        value={value}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        onChange={(event) => { onChange(event.target.value); setIsOpen(true); }}
+      />
+      {isOpen && (
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-36 min-w-full max-w-[min(14rem,80vw)] overflow-y-auto rounded border border-zinc-700 bg-zinc-950 py-1 text-left shadow-xl">
+          {suggestions.length > 0 ? suggestions.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => selectOption(option)}
+              className="block w-full truncate px-2 py-1 text-left text-[10px] text-zinc-200 hover:bg-zinc-800 sm:text-xs"
+              title={option}
+            >
+              {option}
+            </button>
+          )) : query ? (
+            <div className="whitespace-nowrap px-2 py-1 text-[9px] text-zinc-500 sm:text-xs">
+              No match; this value will be added when saved.
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 };

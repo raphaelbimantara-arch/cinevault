@@ -33,7 +33,9 @@ export type SortOption =
   | 'actor-asc'
   | 'actor-desc'
   | 'quality-desc'
-  | 'quality-asc';
+  | 'quality-asc'
+  | 'studio-desc'
+  | 'studio-asc';
 
 export interface ActiveFilter {
   type: 'genre' | 'studio' | 'year' | 'minutes' | 'size' | 'actor' | 'alphabet' | 'search';
