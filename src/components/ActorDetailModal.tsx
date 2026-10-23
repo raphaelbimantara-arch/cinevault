@@ -3,6 +3,7 @@ import { X, Calendar, Film, Clock, User, Edit3, Save, Undo2, Star, Check } from 
 import { Movie } from '../types';
 import { getActorProfile, ActorProfile } from '../data/actorsData';
 import { formatActorDob, getActorAge, normalizeActorDob } from '../utils/actorDob';
+import { ActorDobFields } from './ActorDobFields';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useHorizontalSwipe } from '../utils/useHorizontalSwipe';
 
@@ -257,15 +258,8 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
 
                     {/* Date of Birth */}
                     <div>
-                      <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Date of Birth</label>
-                      <input
-                        type="text"
-                        value={editDob}
-                        onChange={(e) => setEditDob(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                        placeholder="Month, year, month + year, full date, or blank"
-                        title="Examples: April, 1985, April 1985, April 15, 1985, or leave blank"
-                      />
+                      <label className="mb-1 block text-[10px] font-semibold uppercase text-zinc-500">Date of Birth</label>
+                      <ActorDobFields value={editDob} onChange={setEditDob} actorName={actorName} />
                     </div>
 
                     {/* Photo URL */}

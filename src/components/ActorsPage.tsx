@@ -3,6 +3,7 @@ import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, Arr
 import { Movie, ViewMode } from '../types';
 import { ActorProfile, getActorProfiles, getActorProfile, updateActorStatuses } from '../data/actorsData';
 import { formatActorDob, getActorAge, getActorDobSortValue, normalizeActorDob } from '../utils/actorDob';
+import { ActorDobFields } from './ActorDobFields';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
 
@@ -713,25 +714,25 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           <table className="w-full table-fixed border-collapse text-left">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[8px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
-                <th className="w-[23%] px-1 py-2 sm:px-3">
+                <th className={`${isEditingList ? 'w-[20%]' : 'w-[23%]'} px-1 py-2 sm:px-3`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('name', 'name-desc')} className="w-full text-left disabled:cursor-default">Actor</button>
                 </th>
-                <th className="w-[16%] px-0.5 py-2 text-center sm:px-2">
+                <th className={`${isEditingList ? 'w-[27%]' : 'w-[16%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('dob-asc', 'dob-desc')} className="w-full text-center disabled:cursor-default">DOB</button>
                 </th>
-                <th className="w-[8%] px-0.5 py-2 text-center sm:px-1">
+                <th className={`${isEditingList ? 'w-[7%]' : 'w-[8%]'} px-0.5 py-2 text-center sm:px-1`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('age-asc', 'age-desc')} className="w-full text-center disabled:cursor-default">Age</button>
                 </th>
-                <th className="w-[12%] px-0.5 py-2 text-center sm:px-2">
+                <th className={`${isEditingList ? 'w-[11%]' : 'w-[12%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('size-asc', 'size-desc')} className="w-full text-center disabled:cursor-default">Size</button>
                 </th>
-                <th className="w-[15%] px-0.5 py-2 text-center sm:px-2">
+                <th className={`${isEditingList ? 'w-[14%]' : 'w-[15%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('duration-asc', 'duration-desc')} className="w-full text-center disabled:cursor-default">Min</button>
                 </th>
-                <th className="w-[12%] px-0.5 py-2 text-center sm:px-2">
+                <th className={`${isEditingList ? 'w-[10%]' : 'w-[12%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('movies-asc', 'movies-desc')} className="w-full text-center disabled:cursor-default">Movies</button>
                 </th>
-                <th className="w-[14%] px-0.5 py-2 text-center normal-case sm:px-2">
+                <th className={`${isEditingList ? 'w-[11%]' : 'w-[14%]'} px-0.5 py-2 text-center normal-case sm:px-2`}>
                   <button
                     type="button"
                     disabled={isEditingList}
@@ -763,7 +764,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     }}
                     className={`group cursor-pointer transition-colors hover:bg-[#181d2c] ${isEditingList ? 'bg-[#181d2c]' : ''}`}
                   >
-                    <td className="overflow-hidden px-1 py-2 sm:px-3">
+                    <td className={`overflow-hidden px-1 py-2 sm:px-3 ${isEditingList ? 'w-[20%]' : ''}`}>
                       <div className="flex min-w-0 items-center gap-1">
                         {selectionMode && !isEditingList && (
                           <input
@@ -792,14 +793,11 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     </td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs">
                       {isEditingList && draft ? (
-                        <input
-                          aria-label={`Edit date of birth for ${actor.name}`}
-                          title="Enter a month, year, month and year, a full date, or leave blank"
-                          className="w-full min-w-0 rounded border border-zinc-700 bg-zinc-950 px-0.5 py-1 text-center text-[7px] text-zinc-100 focus:border-amber-400 focus:outline-none sm:px-1 sm:text-xs"
+                        <ActorDobFields
                           value={draft.dob}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => updateActorDraft(actor.name, 'dob', event.target.value)}
-                          placeholder="Month/year"
+                          onChange={(value) => updateActorDraft(actor.name, 'dob', value)}
+                          actorName={actor.name}
+                          compact
                         />
                       ) : <span className="block truncate" title={actor.dob}>{formatActorDob(actor.dob)}</span>}
                     </td>

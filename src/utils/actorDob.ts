@@ -9,6 +9,12 @@ interface ParsedActorDob {
   year: number | null;
 }
 
+export interface ActorDobParts {
+  month: string;
+  day: string;
+  year: string;
+}
+
 function parseMonth(value: string): number {
   const normalized = value.replace(/\.$/, '').toLowerCase();
   return MONTHS.findIndex((month) => (
@@ -18,7 +24,24 @@ function parseMonth(value: string): number {
 
 function parseActorDob(value: string): ParsedActorDob | null {
   const dob = value.trim();
-  if (!dob) return { month: null, day: null, year: null };
+  if (!dob || dob === '--') return { month: null, day: null, year: null };
+
+  const partialDate = dob.match(/^(\d{1,4})?-(\d{1,2})?-(\d{1,2})?$/);
+  if (partialDate && (partialDate[1] || partialDate[2] || partialDate[3])) {
+    const year = partialDate[1] ? Number(partialDate[1]) : null;
+    const month = partialDate[2] ? Number(partialDate[2]) - 1 : null;
+    const day = partialDate[3] ? Number(partialDate[3]) : null;
+    if (year !== null && year < 1) return null;
+    if (month !== null && (month < 0 || month > 11)) return null;
+    if (day !== null && (day < 1 || day > 31)) return null;
+    const validationYear = year ?? 2000;
+    const validationMonth = month ?? 0;
+    const isLeapYear = validationYear % 4 === 0
+      && (validationYear % 100 !== 0 || validationYear % 400 === 0);
+    const daysInMonth = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][validationMonth];
+    if (day !== null && day > daysInMonth) return null;
+    return { year, month, day };
+  }
 
   if (/^\d{4}$/.test(dob)) {
     const year = Number(dob);
@@ -50,36 +73,43 @@ function parseActorDob(value: string): ParsedActorDob | null {
   return day <= daysInMonth ? { month, day, year } : null;
 }
 
+export function getActorDobParts(value: string): ActorDobParts {
+  const parsed = parseActorDob(value);
+  if (!parsed) return { year: '', month: '', day: '' };
+  return {
+    year: parsed.year === null ? '' : String(parsed.year),
+    month: parsed.month === null ? '' : String(parsed.month + 1),
+    day: parsed.day === null ? '' : String(parsed.day),
+  };
+}
+
 export function normalizeActorDob(value: string): string | null {
   const parsed = parseActorDob(value);
   if (!parsed) return null;
-  if (parsed.month === null) return parsed.year === null ? '' : String(parsed.year);
-  if (parsed.year === null) return MONTHS[parsed.month];
-  if (parsed.day === null) return `${MONTHS[parsed.month]} ${parsed.year}`;
-  return `${MONTHS[parsed.month]} ${parsed.day}, ${parsed.year}`;
+  if (parsed.year === null && parsed.month === null && parsed.day === null) return '';
+  return `${parsed.year ?? ''}-${parsed.month === null ? '' : parsed.month + 1}-${parsed.day ?? ''}`;
 }
 
 export function formatActorDob(value: string): string {
   const normalized = normalizeActorDob(value);
   if (normalized === null) return value || '—';
   if (!normalized) return '—';
-
   const parsed = parseActorDob(normalized);
-  if (!parsed || parsed.month === null) return normalized;
-  if (parsed.day === null) {
-    return parsed.year === null
-      ? MONTHS[parsed.month].slice(0, 3)
-      : `${MONTHS[parsed.month].slice(0, 3)} ${parsed.year}`;
-  }
-  return `${String(parsed.day).padStart(2, '0')} ${MONTHS[parsed.month].slice(0, 3)} ${parsed.year}`;
+  const parsed = parseActorDob(normalized);
+  if (!parsed) return normalized;
+  return [
+    parsed.day === null ? null : String(parsed.day).padStart(2, '0'),
+    parsed.month === null ? null : MONTHS[parsed.month].slice(0, 3),
+    parsed.year === null ? null : String(parsed.year),
+  ].filter(Boolean).join(' ') || '—';
 }
 
 export function getActorAge(value: string): number | null {
   const parsed = parseActorDob(value);
-  if (!parsed || parsed.year === null || parsed.month === null || parsed.day === null) return null;
+  if (!parsed || parsed.year === null) return null;
 
   const birthDate = new Date(0);
-  birthDate.setFullYear(parsed.year, parsed.month, parsed.day);
+  birthDate.setFullYear(parsed.year, parsed.month ?? 0, parsed.day ?? 1);
   birthDate.setHours(0, 0, 0, 0);
   const today = new Date();
   if (Number.isNaN(birthDate.getTime()) || birthDate > today) return null;
