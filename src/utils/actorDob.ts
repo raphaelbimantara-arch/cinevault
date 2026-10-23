@@ -95,7 +95,6 @@ export function formatActorDob(value: string): string {
   if (normalized === null) return value || '—';
   if (!normalized) return '—';
   const parsed = parseActorDob(normalized);
-  const parsed = parseActorDob(normalized);
   if (!parsed) return normalized;
   return [
     parsed.day === null ? null : String(parsed.day).padStart(2, '0'),
