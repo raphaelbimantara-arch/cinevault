@@ -28,7 +28,7 @@ In the library, press and hold a movie to select it. Once selection mode is acti
 
 ## Actors
 
-In the Actors page, Grid cards show each actor's movie count. List view includes actor name, alias, date of birth, age, total film size, total duration in minutes, and movie count; edit actor name, alias, and date of birth with the List Edit action. Alias is also shown below the actor name in actor details. Film size, duration, and count are calculated from the movies in the catalog. Sort and search controls are shown in Grid view; List and Cover views use a compact toolbar without those controls.
+In the Actors page, Grid cards show each actor's movie count. List view includes actor name, alias, date of birth, age, total film size, total duration in minutes, and movie count; edit actor name, alias, and date of birth with the List Edit action. Actor details show the alias below the name, age beside date of birth, and the total movie count in the Movies Title heading. Film size, duration, and count are calculated from the movies in the catalog. Sort and search controls are shown in Grid view; List and Cover views use a compact toolbar without those controls.
 
 ## Shared Catalog with Google Sheets
 

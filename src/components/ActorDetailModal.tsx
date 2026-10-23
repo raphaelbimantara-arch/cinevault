@@ -86,7 +86,6 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   const durationFormatted = totalHours > 0
     ? `${totalMinutes} min (${totalHours}h ${remainingMinutes}m)`
     : `${totalMinutes} min`;
-
   const actorIndex = actorNames.findIndex((name) => name.toLowerCase() === actorName?.toLowerCase());
   const swipeHandlers = useHorizontalSwipe(
     () => {
@@ -101,6 +100,15 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   if (!actorName) return null;
 
   const profile = getActorProfile(actorName);
+  const birthDate = new Date(profile.dob);
+  const actorAge = Number.isNaN(birthDate.getTime()) || birthDate > new Date()
+    ? null
+    : (() => {
+        const today = new Date();
+        const birthdayPending = today.getMonth() < birthDate.getMonth()
+          || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+        return today.getFullYear() - birthDate.getFullYear() - Number(birthdayPending);
+      })();
 
   // Enter edit mode: populate fields from current profile
   const handleStartEdit = () => {
@@ -215,7 +223,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
               </div>
 
               {/* Actor Information — View or Edit */}
-              <div className="flex-1 text-center sm:text-left w-full">
+              <div className="flex-1 text-center sm:text-left w-full min-w-0">
                 {isEditing ? (
                   /* ===== EDIT MODE ===== */
                   <form onSubmit={handleSaveEdit} className="space-y-3 w-full">
@@ -298,12 +306,12 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                     <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">
                       Actor Profile
                     </div>
-                    <div className="mt-1 flex min-w-0 items-center justify-between gap-2">
-                      <h2 className="min-w-0 truncate text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+                    <div className="mt-1 flex min-w-0 flex-col items-center gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                      <h2 className="w-full min-w-0 break-words text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-left sm:text-3xl">
                         {actorName}
                       </h2>
                       {(profile.favorite || profile.reviewed) && (
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 sm:justify-end">
                           {profile.favorite && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-300">
                               <Star className="h-3 w-3 fill-current" /> Favorite
@@ -318,17 +326,22 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                       )}
                     </div>
                     {profile.alias && (
-                      <p className="mt-1 text-sm text-zinc-400 sm:text-base">{profile.alias}</p>
+                      <p className="mt-1 w-full break-words text-sm text-zinc-400 sm:text-base">{profile.alias}</p>
                     )}
 
                     {/* Badges: Date of Birth and Total Duration */}
                     <div className="mt-3.5 flex flex-wrap gap-2 justify-center sm:justify-start">
                       {/* DATE OF BIRTH */}
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
+                      <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs sm:justify-start">
                         <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                         <span className="text-zinc-400">Date of Birth:</span>
                         <span className="font-semibold text-zinc-100 font-mono">
                           {profile.dob}
+                        </span>
+                        <span aria-hidden="true" className="text-zinc-600">·</span>
+                        <span className="text-zinc-400">Age:</span>
+                        <span className="font-semibold text-zinc-100 font-mono">
+                          {actorAge === null ? '—' : actorAge}
                         </span>
                       </div>
 
@@ -351,7 +364,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
               <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Film className="w-4 h-4 text-amber-400" />
-                <span>Movies Title</span>
+                <span>Movies Title ({actorMovies.length})</span>
               </h3>
 
               {/* Option to show 10, 25, & All Movies */}
