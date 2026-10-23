@@ -172,7 +172,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     const updated: Movie = {
       ...movie,
       title: editTitle.trim(),
-      genre: editGenres.join(', ') || 'Drama',
+      genre: editGenres.join(', '),
       studio: editStudio.trim() || 'Independent Studio',
       year: Number(editYear) || 2024,
       minutes: Number(editMinutes) || 110,

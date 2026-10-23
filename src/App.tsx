@@ -24,6 +24,7 @@ import { getMovieGenres } from './utils/movieGenres';
 
 const STORAGE_KEY = 'cinevault_movies_library_v2';
 const SHARED_TOKEN_STORAGE_KEY = 'cinevault_shared_catalog_token_v1';
+const MOVIE_COVER_COLS_STORAGE_KEY = 'cinevault_movie_cover_cols_v1';
 type SharedCatalogStatus = 'disconnected' | 'loading' | 'connected' | 'empty' | 'error';
 type ActionNotification = {
   message: string;
@@ -397,6 +398,23 @@ export default function App() {
 
   // View mode: 'grid' or 'list'
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [movieCoverCols, setMovieCoverCols] = useState(() => {
+    try {
+      const savedCols = Number(localStorage.getItem(MOVIE_COVER_COLS_STORAGE_KEY));
+      return Number.isInteger(savedCols) && savedCols >= 1 && savedCols <= 7 ? savedCols : 4;
+    } catch (error) {
+      console.error('Failed to load movie cover layout:', error);
+      return 4;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MOVIE_COVER_COLS_STORAGE_KEY, String(movieCoverCols));
+    } catch (error) {
+      console.error('Failed to save movie cover layout:', error);
+    }
+  }, [movieCoverCols]);
 
   // Short menu: category
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -780,9 +798,11 @@ export default function App() {
         ? result.filter((movie) => movie.favorite === true)
         : selectedCategory === '__reviewed__'
           ? result.filter((movie) => movie.reviewed === true)
-          : result.filter(
-            (movie) => getMovieGenres(movie.genre).some((genre) => genre.toLowerCase() === selectedCategory.toLowerCase())
-          );
+          : selectedCategory === '__uncensored__'
+            ? result.filter((movie) => movie.uncensored === true)
+            : result.filter(
+              (movie) => getMovieGenres(movie.genre).some((genre) => genre.toLowerCase() === selectedCategory.toLowerCase())
+            );
     }
 
     // 2. Filter by Alphabet (supports multiple letters)
@@ -1084,6 +1104,8 @@ export default function App() {
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
                 selectionMode={selectedMovieCount > 0}
+                cols={movieCoverCols}
+                onColsChange={setMovieCoverCols}
               />
             )}
           </div>

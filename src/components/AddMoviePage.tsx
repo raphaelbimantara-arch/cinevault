@@ -61,7 +61,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
 
   // MOVIE FORM STATE
   const [title, setTitle] = useState('');
-  const [genre, setGenre] = useState('Sci-Fi');
+  const [genre, setGenre] = useState('');
   const [studio, setStudio] = useState('Warner Bros. Pictures');
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [minutes, setMinutes] = useState<number>(128);
@@ -105,7 +105,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
     const newMovie: Movie = {
       id: `movie-${Date.now()}`,
       title: title.trim(),
-      genre: genre.trim() || 'Drama',
+      genre: genre.trim(),
       studio: studio.trim() || 'Independent',
       year: Number(year) || new Date().getFullYear(),
       minutes: Number(minutes) || 120,
@@ -232,13 +232,14 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
-                  Genre <span className="text-amber-400">*</span>
+                  Genre <span className="text-zinc-500">(optional)</span>
                 </label>
                 <select
                   value={genre}
                   onChange={(e) => setGenre(e.target.value)}
                   className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/60"
                 >
+                  <option value="" className="bg-[#121520]">No genre</option>
                   {ALL_GENRES.filter((g) => g !== 'All').map((g) => (
                     <option key={g} value={g} className="bg-[#121520]">
                       {g}

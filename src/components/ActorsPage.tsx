@@ -25,13 +25,14 @@ interface ActorStat {
   dob: string;
   sizeBytes: number;
   totalMinutes: number;
+  uncensoredMovies: number;
   photoUrl: string;
   favorite: boolean;
   reviewed: boolean;
 }
 
 type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'dob-asc' | 'dob-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc';
-type ActorEditDraft = { name: string; alias: string; dob: string };
+type ActorEditDraft = { name: string; dob: string };
 
 const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = ({
   favorite,
@@ -184,6 +185,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           0,
         ),
         totalMinutes: actorMovies.reduce((total, movie) => total + (movie.minutes || 0), 0),
+        uncensoredMovies: actorMovies.filter((movie) => movie.uncensored === true).length,
         photoUrl: profile.photoUrl,
         favorite: profile.favorite === true,
         reviewed: profile.reviewed === true,
@@ -287,7 +289,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   const startListEditing = () => {
     setActorDrafts(Object.fromEntries(filteredActors.map((actor) => [
       actor.name,
-      { name: actor.name, alias: actor.alias, dob: actor.dob },
+      { name: actor.name, dob: actor.dob },
     ])));
     setSelectedActorNames(new Set());
     setIsEditingList(true);
@@ -330,15 +332,13 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       const draft = actorDrafts[actor.name];
       if (!draft) return;
       const name = draft.name.trim();
-      const alias = draft.alias.trim();
       const dob = draft.dob.trim();
-      if (name === actor.name && alias === actor.alias && dob === actor.dob) return;
+      if (name === actor.name && dob === actor.dob) return;
 
       const profile = getActorProfile(actor.name);
       onUpdateActor(actor.name, {
         ...profile,
         name,
-        alias: alias || undefined,
         dob: dob || profile.dob,
       });
     });
@@ -714,8 +714,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                 <th className="w-[23%] px-1 py-2 sm:px-3">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('name', 'name-desc')} className="w-full text-left disabled:cursor-default">Actor</button>
                 </th>
-                <th className="w-[14%] px-0.5 py-2 sm:px-2">
-                  <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('alias', 'alias-desc')} className="w-full text-left disabled:cursor-default">Alias</button>
+                <th className="w-[14%] px-0.5 py-2 text-center sm:px-2">
+                  <span className="block text-center">Uncensored</span>
                 </th>
                 <th className="w-[16%] px-0.5 py-2 text-center sm:px-2">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('dob-asc', 'dob-desc')} className="w-full text-center disabled:cursor-default">DOB</button>
@@ -782,15 +782,9 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                       </div>
                     </td>
                     <td className="overflow-hidden px-0.5 py-2 text-[8px] text-zinc-300 sm:px-2 sm:text-xs">
-                      {isEditingList && draft ? (
-                        <input
-                          aria-label={`Edit alias for ${actor.name}`}
-                          className="w-full min-w-0 rounded border border-zinc-700 bg-zinc-950 px-1 py-1 text-[8px] text-zinc-100 focus:border-amber-400 focus:outline-none sm:text-xs"
-                          value={draft.alias}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => updateActorDraft(actor.name, 'alias', event.target.value)}
-                        />
-                      ) : <span className="block truncate" title={actor.alias}>{actor.alias || '—'}</span>}
+                      <span className="block text-center font-mono" title={`${actor.uncensoredMovies} uncensored movies`}>
+                        {actor.uncensoredMovies}
+                      </span>
                     </td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs">
                       {isEditingList && draft ? (

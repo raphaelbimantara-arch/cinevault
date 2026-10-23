@@ -174,7 +174,7 @@ export const MovieList: React.FC<MovieListProps> = ({
         resolution: draft.resolution.trim() || undefined,
         actors: actors.length > 0 ? actors : ['Cast'],
         studio: draft.studio.trim() || movie.studio,
-        genre: genres.length > 0 ? genres.join(', ') : movie.genre,
+        genre: genres.join(', '),
       });
     }
 
@@ -208,7 +208,7 @@ export const MovieList: React.FC<MovieListProps> = ({
         <thead className="sticky top-0 z-10">
           <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[9px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
             <th
-              className="w-[19%] overflow-hidden px-0.5 py-2 sm:px-3"
+              className="w-[15%] overflow-hidden px-0.5 py-2 sm:w-[19%] sm:px-3"
               aria-sort={
                 sortBy === sortOptions.title.asc
                   ? 'ascending'
@@ -224,17 +224,17 @@ export const MovieList: React.FC<MovieListProps> = ({
                 Title
               </button>
             </th>
-            {renderSortHeader('year', 'Year', 'w-[8%] overflow-hidden px-0.5 py-2 text-center')}
-            {renderSortHeader('size', 'Size', 'w-[10%] overflow-hidden px-0.5 py-2 text-center')}
-            {renderSortHeader('minutes', 'Min', 'w-[7%] overflow-hidden px-0.5 py-2 text-center')}
+            {renderSortHeader('year', 'Year', 'w-[7%] overflow-hidden px-0.5 py-2 text-center sm:w-[8%]')}
+            {renderSortHeader('size', 'Size', 'w-[16%] overflow-hidden px-0.5 py-2 text-right sm:w-[10%]')}
+            {renderSortHeader('minutes', 'Min', 'w-[9%] overflow-hidden px-0.5 py-2 text-right sm:w-[7%]')}
             {renderSortHeader(
               'resolution',
               'Resolution',
-              'w-[12%] overflow-hidden px-0.5 py-2 text-center',
+              'w-[10%] overflow-hidden px-0.5 py-2 text-center sm:w-[12%]',
               'Res.',
             )}
-            {renderSortHeader('actors', 'Actor', 'w-[13%] overflow-hidden px-0.5 py-2 sm:px-3')}
-            {renderSortHeader('studio', 'Studio', 'w-[13%] overflow-hidden px-0.5 py-2 sm:px-3')}
+            {renderSortHeader('actors', 'Actor', 'w-[12%] overflow-hidden px-0.5 py-2 sm:w-[13%] sm:px-3')}
+            {renderSortHeader('studio', 'Studio', 'w-[12%] overflow-hidden px-0.5 py-2 sm:w-[13%] sm:px-3')}
             {renderSortHeader('genre', 'Genre', 'w-[12%] overflow-hidden px-0.5 py-2 sm:px-3')}
             <th className="w-[6%] overflow-hidden px-0.5 py-2 text-right sm:px-2">
               {isEditing ? (
@@ -336,9 +336,9 @@ export const MovieList: React.FC<MovieListProps> = ({
                     />
                   ) : movie.year}
                 </td>
-                <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:text-xs">
+                <td className="overflow-hidden whitespace-nowrap px-0.5 py-2 text-right font-mono text-[8px] text-zinc-300 sm:text-xs">
                   {isEditing && draft ? (
-                    <div className="flex items-center gap-0.5">
+                    <div className="flex items-center justify-end gap-0.5">
                       <input
                         aria-label={`Edit size in GB for ${movie.title}`}
                         type="text"
@@ -352,15 +352,15 @@ export const MovieList: React.FC<MovieListProps> = ({
                       />
                       <span className="shrink-0 text-[8px] text-zinc-400">GB</span>
                     </div>
-                  ) : movie.size}
+                  ) : <span className="inline-block whitespace-nowrap">{movie.size}</span>}
                 </td>
-                <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:text-xs">
+                <td className="overflow-hidden whitespace-nowrap px-0.5 py-2 text-right font-mono text-[8px] text-zinc-300 sm:text-xs">
                   {isEditing && draft ? (
                     <input
                       aria-label={`Edit duration for ${movie.title}`}
                       type="text"
                       inputMode="numeric"
-                      className={`${inputClassName} appearance-none`}
+                      className={`${inputClassName} appearance-none text-right`}
                       value={draft.minutes}
                       onFocus={() => updateDraft(movie.id, 'minutes', '')}
                       onClick={(event) => event.stopPropagation()}

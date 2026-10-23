@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Film } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -10,6 +10,8 @@ interface MovieCoverGridProps {
   selectedMovieIds: Set<string>;
   onToggleMovieSelection: (movieId: string) => void;
   selectionMode: boolean;
+  cols: number;
+  onColsChange: (cols: number) => void;
 }
 
 export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
@@ -18,8 +20,9 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
   selectedMovieIds,
   onToggleMovieSelection,
   selectionMode,
+  cols,
+  onColsChange,
 }) => {
-  const [cols, setCols] = useState(4);
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
 
   if (movies.length === 0) {
@@ -40,7 +43,7 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
           min="1"
           max="7"
           value={cols}
-          onChange={(e) => setCols(Number(e.target.value))}
+          onChange={(e) => onColsChange(Number(e.target.value))}
           aria-label="Movies per row"
           className="flex-1 min-w-[120px] max-w-xs h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
         />
@@ -86,10 +89,15 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
             <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 shadow-lg group-hover:border-amber-500/50 transition-all duration-300">
               <img
                 src={getImageSource(movie.posterUrl)}
-                alt={movie.title}
+                alt={movie.uncensored ? `${movie.title} Uncensored` : movie.title}
                 referrerPolicy="no-referrer"
                 className="h-full w-full object-cover"
               />
+              {movie.uncensored && (
+                <span className="absolute bottom-2 left-2 rounded-md border border-rose-300/40 bg-zinc-950/85 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-rose-300 shadow sm:text-[10px]">
+                  Uncensored
+                </span>
+              )}
             </div>
           </div>
         ))}
