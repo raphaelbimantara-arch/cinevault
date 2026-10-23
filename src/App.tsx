@@ -16,7 +16,7 @@ import { ActorsPage } from './components/ActorsPage';
 import { AddMoviePage } from './components/AddMoviePage';
 import { SettingsPage } from './components/SettingsPage';
 import { ALL_GENRES, INITIAL_MOVIES } from './data/initialMovies';
-import { ActorProfile, removeCustomActors, updateActorProfile } from './data/actorsData';
+import { ActorProfile, getActorProfile, removeCustomActors, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
 import { Check, RotateCcw, Star, Trash2, X } from 'lucide-react';
 import { loadSharedCatalog, saveSharedCatalog } from './utils/sharedCatalog';
@@ -727,6 +727,43 @@ export default function App() {
     }
   };
 
+  const handleMergeActors = (primaryName: string, mergedNames: string[]) => {
+    const primaryProfile = getActorProfile(primaryName);
+    const mergedProfiles = mergedNames.map((name) => getActorProfile(name));
+    const aliases = [
+      primaryProfile.alias,
+      ...mergedProfiles.flatMap((profile, index) => [profile.alias, mergedNames[index]]),
+    ].map((alias) => alias?.trim()).filter((alias): alias is string => Boolean(alias));
+    const uniqueAliases = [...new Set(aliases.filter(
+      (alias) => alias.toLowerCase() !== primaryName.trim().toLowerCase()
+    ))];
+
+    updateActorProfile(primaryName, {
+      ...primaryProfile,
+      alias: uniqueAliases.join(', ') || undefined,
+      favorite: primaryProfile.favorite === true || mergedProfiles.some((profile) => profile.favorite === true),
+      reviewed: primaryProfile.reviewed === true || mergedProfiles.some((profile) => profile.reviewed === true),
+    });
+    removeCustomActors(mergedNames);
+
+    const mergedNameSet = new Set([primaryName, ...mergedNames].map((name) => name.trim().toLowerCase()));
+    setMovies((previousMovies) => previousMovies.map((movie) => {
+      const nextActors = movie.actors.map((name) =>
+        mergedNameSet.has(name.trim().toLowerCase()) ? primaryName : name
+      );
+      const seenActors = new Set<string>();
+      const uniqueActors = nextActors.filter((name) => {
+        const key = name.trim().toLowerCase();
+        if (seenActors.has(key)) return false;
+        seenActors.add(key);
+        return true;
+      });
+      return uniqueActors.length === movie.actors.length && uniqueActors.every(
+        (name, index) => name === movie.actors[index]
+      ) ? movie : { ...movie, actors: uniqueActors };
+    }));
+  };
+
   const handleDeleteActors = (actorNames: string[]) => {
     const namesToDelete = new Set(actorNames.map((name) => name.trim().toLowerCase()));
     removeCustomActors(actorNames);
@@ -1160,6 +1197,7 @@ export default function App() {
             onImportMovies={handleImportMovies}
             onDeleteMovie={handleDeleteMovie}
             onBulkDeleteMovies={handleBulkDeleteMovies}
+            onMergeActors={handleMergeActors}
             onResetCatalog={handleResetCatalog}
             onSelectMovie={setSelectedMovie}
           />

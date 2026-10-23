@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
+import { getCustomActors, KNOWN_ACTORS } from '../data/actorsData';
 
 interface SettingsPageProps {
   movies: Movie[];
@@ -34,6 +35,7 @@ interface SettingsPageProps {
   onImportMovies: (newMovies: Movie[], mode: 'merge' | 'replace') => void;
   onDeleteMovie: (movieId: string) => void;
   onBulkDeleteMovies: (movieIds: string[]) => void;
+  onMergeActors: (primaryName: string, mergedNames: string[]) => void;
   onUpdateMovie?: (updatedMovie: Movie) => void;
   onResetCatalog: () => void;
   onSelectMovie: (movie: Movie) => void;
@@ -43,6 +45,97 @@ interface DuplicateGroup {
   key: string;
   reason: 'exact-title' | 'title-and-year' | 'similar-title';
   movies: Movie[];
+}
+
+interface ActorDuplicateCandidate {
+  name: string;
+  alias: string;
+  movieCount: number;
+}
+
+interface ActorDuplicateGroup {
+  key: string;
+  reason: 'name-or-alias' | 'similar-spelling' | 'matching-name-parts';
+  actors: ActorDuplicateCandidate[];
+}
+
+function normalizePersonName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function editDistance(left: string, right: string): number {
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex++) {
+    let diagonal = previous[0];
+    previous[0] = leftIndex;
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex++) {
+      const above = previous[rightIndex];
+      previous[rightIndex] = Math.min(
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + 1,
+        diagonal + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1),
+      );
+      diagonal = above;
+    }
+  }
+  return previous[right.length];
+}
+
+function getActorDuplicateReason(
+  first: ActorDuplicateCandidate,
+  second: ActorDuplicateCandidate,
+): ActorDuplicateGroup['reason'] | null {
+  const firstIdentities = [first.name, first.alias].map(normalizePersonName).filter(Boolean);
+  const secondIdentities = [second.name, second.alias].map(normalizePersonName).filter(Boolean);
+  if (firstIdentities.some((identity) => secondIdentities.includes(identity))) {
+    return 'name-or-alias';
+  }
+
+  for (const firstIdentity of firstIdentities) {
+    for (const secondIdentity of secondIdentities) {
+      const firstWords = firstIdentity.split(' ');
+      const secondWords = secondIdentity.split(' ');
+      if (
+        firstWords.length > 1 &&
+        secondWords.length > 1 &&
+        firstWords.length === secondWords.length &&
+        [...firstWords].sort().join(' ') === [...secondWords].sort().join(' ')
+      ) {
+        return 'matching-name-parts';
+      }
+
+      if (firstWords.length > 1 && secondWords.length > 1) {
+        const firstGiven = firstWords[0];
+        const secondGiven = secondWords[0];
+        const firstFamily = firstWords[firstWords.length - 1];
+        const secondFamily = secondWords[secondWords.length - 1];
+        const sameFamily = firstFamily === secondFamily
+          || (firstFamily.length >= 4 && secondFamily.length >= 4
+            && editDistance(firstFamily, secondFamily) <= 1);
+        if (
+          sameFamily &&
+          firstGiven.length >= 3 &&
+          secondGiven.length >= 3 &&
+          editDistance(firstGiven, secondGiven) <= 1
+        ) {
+          return 'matching-name-parts';
+        }
+      }
+
+      const maxLength = Math.max(firstIdentity.length, secondIdentity.length);
+      const allowedDistance = maxLength >= 8 ? 2 : maxLength >= 5 ? 1 : 0;
+      if (allowedDistance > 0 && editDistance(firstIdentity, secondIdentity) <= allowedDistance) {
+        return 'similar-spelling';
+      }
+    }
+  }
+  return null;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
@@ -58,10 +151,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onImportMovies,
   onDeleteMovie,
   onBulkDeleteMovies,
+  onMergeActors,
   onResetCatalog,
   onSelectMovie,
 }) => {
   const [activeTab, setActiveTab] = useState<'csv' | 'duplicates' | 'system' | 'shared'>('csv');
+  const [duplicateType, setDuplicateType] = useState<'movies' | 'actors'>('movies');
   const [sharedTokenInput, setSharedTokenInput] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
@@ -637,9 +732,109 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return groups;
   }, [movies]);
 
+  const actorDuplicateGroups: ActorDuplicateGroup[] = useMemo(() => {
+    const actorMap = new Map<string, ActorDuplicateCandidate>();
+    const customProfiles = getCustomActors();
+    const customProfileMap = new Map(
+      Object.entries(customProfiles).map(([name, profile]) => [name.trim().toLowerCase(), profile])
+    );
+    const addActor = (name: string, movieCount = 0) => {
+      const trimmedName = name.trim();
+      if (!trimmedName) return;
+      const key = trimmedName.toLowerCase();
+      const existing = actorMap.get(key);
+      actorMap.set(key, {
+        name: existing?.name || trimmedName,
+        alias: existing?.alias || customProfileMap.get(key)?.alias?.trim() || '',
+        movieCount: (existing?.movieCount || 0) + movieCount,
+      });
+    };
+
+    movies.forEach((movie) => {
+      const uniqueNames = new Set(movie.actors.map((name) => name.trim().toLowerCase()).filter(Boolean));
+      uniqueNames.forEach((name) => {
+        const originalName = movie.actors.find((actorName) => actorName.trim().toLowerCase() === name);
+        if (originalName) addActor(originalName, 1);
+      });
+    });
+    [...Object.keys(KNOWN_ACTORS), ...Object.keys(customProfiles)].forEach((name) => addActor(name));
+
+    const actors = [...actorMap.values()];
+    const parents = actors.map((_, index) => index);
+    const reasons = new Map<number, Set<ActorDuplicateGroup['reason']>>();
+    const findRoot = (index: number): number => {
+      if (parents[index] !== index) parents[index] = findRoot(parents[index]);
+      return parents[index];
+    };
+
+    for (let firstIndex = 0; firstIndex < actors.length; firstIndex++) {
+      for (let secondIndex = firstIndex + 1; secondIndex < actors.length; secondIndex++) {
+        const reason = getActorDuplicateReason(actors[firstIndex], actors[secondIndex]);
+        if (!reason) continue;
+        const firstRoot = findRoot(firstIndex);
+        const secondRoot = findRoot(secondIndex);
+        if (firstRoot !== secondRoot) {
+          parents[secondRoot] = firstRoot;
+          const combinedReasons = new Set([
+            ...(reasons.get(firstRoot) || []),
+            ...(reasons.get(secondRoot) || []),
+            reason,
+          ]);
+          reasons.set(firstRoot, combinedReasons);
+          reasons.delete(secondRoot);
+        } else {
+          const combinedReasons = reasons.get(firstRoot) || new Set<ActorDuplicateGroup['reason']>();
+          combinedReasons.add(reason);
+          reasons.set(firstRoot, combinedReasons);
+        }
+      }
+    }
+
+    const groupedActors = new Map<number, ActorDuplicateCandidate[]>();
+    actors.forEach((actor, index) => {
+      const root = findRoot(index);
+      const group = groupedActors.get(root) || [];
+      group.push(actor);
+      groupedActors.set(root, group);
+    });
+
+    return [...groupedActors.entries()]
+      .filter(([, group]) => group.length > 1)
+      .map(([root, group]) => {
+        const groupReasons = reasons.get(root) || new Set<ActorDuplicateGroup['reason']>();
+        const reason = groupReasons.has('name-or-alias')
+          ? 'name-or-alias'
+          : groupReasons.has('matching-name-parts')
+            ? 'matching-name-parts'
+            : 'similar-spelling';
+        const sortedActors = group.sort((a, b) => a.name.localeCompare(b.name));
+        return {
+          key: sortedActors.map((actor) => normalizePersonName(actor.name)).join('|'),
+          reason,
+          actors: sortedActors,
+        };
+      })
+      .sort((a, b) => a.actors[0].name.localeCompare(b.actors[0].name));
+  }, [movies]);
+
   const totalDuplicateRedundantCount = useMemo(() => {
     return duplicateGroups.reduce((acc, grp) => acc + (grp.movies.length - 1), 0);
   }, [duplicateGroups]);
+
+  const totalActorDuplicateCount = useMemo(
+    () => actorDuplicateGroups.reduce((count, group) => count + group.actors.length - 1, 0),
+    [actorDuplicateGroups],
+  );
+
+  const handleMergeActorGroup = (group: ActorDuplicateGroup, primaryName: string) => {
+    const mergedNames = group.actors
+      .map((actor) => actor.name)
+      .filter((name) => name !== primaryName);
+    if (mergedNames.length === 0) return;
+    if (!window.confirm(`Merge ${mergedNames.join(', ')} into "${primaryName}"? Movie credits and actor profile statuses will be combined.`)) return;
+    onMergeActors(primaryName, mergedNames);
+    showToast('success', `Merged ${mergedNames.length} similar actor name(s) into ${primaryName}.`);
+  };
 
   const handleKeepSingle = (group: DuplicateGroup, keepId: string) => {
     const idsToDelete = group.movies.filter((m) => m.id !== keepId).map((m) => m.id);
@@ -747,11 +942,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           >
             <Copy className="w-3.5 h-3.5 shrink-0" />
             <span>Duplicates</span>
-            {duplicateGroups.length > 0 && (
+            {duplicateGroups.length + actorDuplicateGroups.length > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
                 activeTab === 'duplicates' ? 'bg-zinc-950 text-amber-400' : 'bg-rose-500 text-white'
               }`}>
-                {duplicateGroups.length}
+                {duplicateGroups.length + actorDuplicateGroups.length}
               </span>
             )}
           </button>
@@ -1192,6 +1387,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       {/* ------------------------------------------------------------------ */}
       {activeTab === 'duplicates' && (
         <div className="space-y-5 w-full">
+          <div className="flex w-full rounded-xl border border-zinc-800 bg-[#121520] p-1 sm:w-fit">
+            <button
+              type="button"
+              onClick={() => setDuplicateType('movies')}
+              className={`flex-1 rounded-lg px-4 py-2 text-xs font-semibold transition-colors sm:flex-none ${
+                duplicateType === 'movies' ? 'bg-amber-400 text-zinc-950' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Movies ({duplicateGroups.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setDuplicateType('actors')}
+              className={`flex-1 rounded-lg px-4 py-2 text-xs font-semibold transition-colors sm:flex-none ${
+                duplicateType === 'actors' ? 'bg-amber-400 text-zinc-950' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Actors ({actorDuplicateGroups.length})
+            </button>
+          </div>
+          {duplicateType === 'movies' ? (
+            <>
           {/* Duplicate Finder Header & Control */}
           <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
             <div>
@@ -1363,6 +1580,68 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     ))}
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-zinc-800 bg-[#121520] p-4 sm:p-5">
+                <h3 className="font-bold text-base text-white">Duplicate Actor Finder</h3>
+                <p className="mt-1 text-xs text-zinc-400">
+                  Checks actor names and aliases for exact matches, spelling variations, and similar first/last names.
+                  Review each group before merging; similar names are suggestions, not guaranteed duplicates.
+                </p>
+                <div className="mt-3 text-xs font-mono text-zinc-300">
+                  {actorDuplicateGroups.length} groups · {totalActorDuplicateCount} possible duplicate entries
+                </div>
+              </div>
+
+              {actorDuplicateGroups.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-zinc-800 bg-[#0d0f16]/60 p-8 text-center">
+                  <Check className="mx-auto mb-3 h-8 w-8 text-emerald-400" />
+                  <h3 className="font-bold text-zinc-200">No duplicate actors found</h3>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Actor names and aliases currently appear unique.
+                  </p>
+                </div>
+              ) : actorDuplicateGroups.map((group, groupIndex) => (
+                <section key={group.key} className="space-y-3 rounded-2xl border border-zinc-800 bg-[#121520] p-4 sm:p-5">
+                  <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800 pb-3">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-400/20 font-mono text-xs font-bold text-amber-300">
+                      {groupIndex + 1}
+                    </span>
+                    <span className="text-sm font-bold text-white">
+                      {group.reason === 'name-or-alias'
+                        ? 'Name or alias match'
+                        : group.reason === 'matching-name-parts'
+                          ? 'Matching first/last name'
+                          : 'Possible spelling variation'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {group.actors.map((actor) => (
+                      <article key={actor.name} className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-3">
+                        <h4 className="truncate text-sm font-semibold text-zinc-100">{actor.name}</h4>
+                        <p className="mt-1 truncate text-xs text-zinc-400">
+                          Alias: {actor.alias || '—'}
+                        </p>
+                        <p className="mt-1 text-[11px] text-zinc-500">
+                          {actor.movieCount} movie credits
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleMergeActorGroup(group, actor.name)}
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700"
+                          title={`Merge other candidates into ${actor.name}`}
+                        >
+                          <Layers className="h-3.5 w-3.5 text-amber-400" />
+                          Keep this actor and merge others
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           )}

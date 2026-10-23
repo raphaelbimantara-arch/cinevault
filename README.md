@@ -30,6 +30,8 @@ In the library, press and hold a movie to select it. Once selection mode is acti
 
 In the Actors page, Grid cards show each actor's movie count. List view includes actor name, date of birth, age, total film size, total duration in minutes, movie count, and a rightmost Uncensored movie count; click column headings to sort ascending or descending. Edit actor name and date of birth with the List Edit action. Actor aliases remain in actor details, where they appear below the name. Actor details also show age beside date of birth and the total movie count in the Movies Title heading. Click an actor in a movie's Starring Cast to open that actor's details, or click a movie in an actor's filmography to open the movie details; the Back button returns to the previous detail. Film size, duration, and count are calculated from the movies in the catalog. Sort and search controls are shown in Grid view; List and Cover views use a compact toolbar without those controls.
 
+In **Settings → Duplicates**, switch between movie and actor candidates. Actor matching checks names and registered aliases for exact matches, likely typos, reordered name parts, and similar first/last names. These are suggestions; review the candidate profiles before choosing which actor name to keep and merge into. Merging updates movie credits, combines Favorite/Review status, and preserves alternate names as aliases.
+
 ## Shared Catalog with Google Sheets
 
 The web app and Android APK can share a movie catalog through a Google Sheet. The Vercel API proxies requests to Apps Script so the Apps Script URL and shared key are not embedded in the app bundle.
