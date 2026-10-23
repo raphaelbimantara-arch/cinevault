@@ -29,7 +29,7 @@ interface ActorStat {
   reviewed: boolean;
 }
 
-type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc';
+type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'dob-asc' | 'dob-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc';
 type ActorEditDraft = { name: string; alias: string; dob: string };
 
 const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = ({
@@ -97,6 +97,9 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   const [actorStatusRevision, setActorStatusRevision] = useState(0);
   const [isEditingList, setIsEditingList] = useState(false);
   const [actorDrafts, setActorDrafts] = useState<Record<string, ActorEditDraft>>({});
+  const toggleActorSort = (ascending: ActorSortOption, descending: ActorSortOption) => {
+    setActorSort((current) => current === ascending ? descending : ascending);
+  };
   const selectionMode = selectedActorNames.size > 0;
   const longPressHandlers = useLongPress((name) => {
     setSelectedActorNames((prev) => new Set(prev).add(name));
@@ -214,6 +217,16 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           ? dobA - dobB
           : dobB - dobA;
         return ageOrder || a.name.localeCompare(b.name);
+      }
+      if (actorSort === 'dob-asc' || actorSort === 'dob-desc') {
+        const dobA = Date.parse(a.dob);
+        const dobB = Date.parse(b.dob);
+        const hasInvalidDateA = Number.isNaN(dobA);
+        const hasInvalidDateB = Number.isNaN(dobB);
+        if (hasInvalidDateA !== hasInvalidDateB) return hasInvalidDateA ? 1 : -1;
+        if (hasInvalidDateA) return a.name.localeCompare(b.name);
+        const dobOrder = actorSort === 'dob-asc' ? dobA - dobB : dobB - dobA;
+        return dobOrder || a.name.localeCompare(b.name);
       }
       if (actorSort === 'size-desc' || actorSort === 'size-asc') {
         const sizeOrder = actorSort === 'size-desc' ? b.sizeBytes - a.sizeBytes : a.sizeBytes - b.sizeBytes;
@@ -664,13 +677,27 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           <table className="w-full table-fixed border-collapse text-left">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[8px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
-                <th className="w-[23%] px-1 py-2 sm:px-3">Actor</th>
-                <th className="w-[14%] px-0.5 py-2 sm:px-2">Alias</th>
-                <th className="w-[16%] px-0.5 py-2 text-center sm:px-2">DOB</th>
-                <th className="w-[8%] px-0.5 py-2 text-center sm:px-1">Age</th>
-                <th className="w-[12%] px-0.5 py-2 text-center sm:px-2">Size</th>
-                <th className="w-[15%] px-0.5 py-2 text-center sm:px-2">Min</th>
-                <th className="w-[12%] px-0.5 py-2 text-center sm:px-2">Movies</th>
+                <th className="w-[23%] px-1 py-2 sm:px-3">
+                  <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('name', 'name-desc')} className="w-full text-left disabled:cursor-default">Actor</button>
+                </th>
+                <th className="w-[14%] px-0.5 py-2 sm:px-2">
+                  <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('alias', 'alias-desc')} className="w-full text-left disabled:cursor-default">Alias</button>
+                </th>
+                <th className="w-[16%] px-0.5 py-2 text-center sm:px-2">
+                  <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('dob-asc', 'dob-desc')} className="w-full text-center disabled:cursor-default">DOB</button>
+                </th>
+                <th className="w-[8%] px-0.5 py-2 text-center sm:px-1">
+                  <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('age-asc', 'age-desc')} className="w-full text-center disabled:cursor-default">Age</button>
+                </th>
+                <th className="w-[12%] px-0.5 py-2 text-center sm:px-2">
+                  <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('size-asc', 'size-desc')} className="w-full text-center disabled:cursor-default">Size</button>
+                </th>
+                <th className="w-[15%] px-0.5 py-2 text-center sm:px-2">
+                  <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('duration-asc', 'duration-desc')} className="w-full text-center disabled:cursor-default">Min</button>
+                </th>
+                <th className="w-[12%] px-0.5 py-2 text-center sm:px-2">
+                  <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('movies-asc', 'movies-desc')} className="w-full text-center disabled:cursor-default">Movies</button>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/70">

@@ -839,7 +839,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   });
               }}
               disabled={sharedCatalogStatus === 'loading'}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-50 sm:hidden"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${sharedCatalogStatus === 'loading' ? 'animate-spin' : ''}`} />
               {sharedCatalogStatus === 'loading' ? 'Memperbarui database...' : 'Update Database'}
