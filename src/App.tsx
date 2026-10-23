@@ -16,10 +16,10 @@ import { ActorsPage } from './components/ActorsPage';
 import { AddMoviePage } from './components/AddMoviePage';
 import { SettingsPage } from './components/SettingsPage';
 import { ALL_GENRES, INITIAL_MOVIES } from './data/initialMovies';
-import { ActorProfile, formatActorAliases, getActorAliases, getActorProfile, removeCustomActors, updateActorProfile } from './data/actorsData';
+import { ActorProfile, applySharedActorProfiles, formatActorAliases, getActorAliases, getActorProfile, getCustomActors, removeCustomActors, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
 import { Check, RotateCcw, Star, Trash2, X } from 'lucide-react';
-import { loadSharedCatalog, saveSharedCatalog } from './utils/sharedCatalog';
+import { deleteSharedActors, loadSharedActors, loadSharedCatalog, saveSharedActor, saveSharedActors, saveSharedCatalog } from './utils/sharedCatalog';
 import { getMovieGenres } from './utils/movieGenres';
 
 const STORAGE_KEY = 'cinevault_movies_library_v2';
@@ -93,6 +93,8 @@ export default function App() {
   const [sharedCatalogError, setSharedCatalogError] = useState('');
   const [sharedCatalogReload, setSharedCatalogReload] = useState(0);
   const sharedCatalogSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const sharedActorSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const [actorProfileRevision, setActorProfileRevision] = useState(0);
 
   // Save to localStorage on change
   useEffect(() => {
@@ -120,6 +122,21 @@ export default function App() {
           setMovies(sharedMovies);
           setSelectedMovieIds(new Set());
           setSharedCatalogStatus('connected');
+          void loadSharedActors(sharedToken)
+            .then((sharedActors) => {
+              if (cancelled) return;
+              applySharedActorProfiles(sharedActors);
+              setActorProfileRevision((revision) => revision + 1);
+            })
+            .catch((error: unknown) => {
+              if (cancelled) return;
+              console.error('Failed to load shared actor profiles:', error);
+              showActionNotification(
+                error instanceof Error
+                  ? `Could not load shared actor profiles: ${error.message}`
+                  : 'Could not load shared actor profiles.'
+              );
+            });
         } else {
           setSharedCatalogStatus('empty');
         }
@@ -197,6 +214,9 @@ export default function App() {
     setSharedCatalogError('');
     try {
       await saveSharedCatalog(sharedToken, movies);
+      const actorSnapshot = Object.entries(getCustomActors()).map(([name, profile]) => ({ name, ...profile }));
+      enqueueSharedActorUpdate(() => saveSharedActors(sharedToken, actorSnapshot));
+      await sharedActorSaveQueue.current;
       setSharedCatalogStatus('connected');
     } catch (error) {
       console.error('Failed to initialize shared catalog:', error);
@@ -216,6 +236,7 @@ export default function App() {
     }
 
     const saveSnapshot = preparedSharedCatalogSave;
+    const actorSnapshot = Object.entries(getCustomActors()).map(([name, profile]) => ({ name, ...profile }));
     startTransition(() => {
       setSharedCatalogStatus('loading');
       setSharedCatalogError('');
@@ -223,6 +244,8 @@ export default function App() {
     try {
       await sharedCatalogSaveQueue.current;
       await saveSharedCatalog(sharedToken, saveSnapshot.movies, saveSnapshot.body);
+      enqueueSharedActorUpdate(() => saveSharedActors(sharedToken, actorSnapshot));
+      await sharedActorSaveQueue.current;
       setSharedCatalogStatus('connected');
       return saveSnapshot.movies.length;
     } catch (error) {
@@ -245,12 +268,16 @@ export default function App() {
     setSharedCatalogError('');
     try {
       await sharedCatalogSaveQueue.current;
+      await sharedActorSaveQueue.current;
       const sharedMovies = await loadSharedCatalog(sharedToken);
       if (sharedMovies.length === 0) {
         throw new Error('The main catalog is empty. The database on this device was not changed.');
       }
+      const sharedActors = await loadSharedActors(sharedToken);
 
       setMovies(sharedMovies);
+      applySharedActorProfiles(sharedActors);
+      setActorProfileRevision((revision) => revision + 1);
       setSelectedMovieIds(new Set());
       setSharedCatalogStatus('connected');
       return sharedMovies.length;
@@ -370,6 +397,19 @@ export default function App() {
       setActionNotification(null);
       actionNotificationTimer.current = null;
     }, 5000);
+  };
+
+  const enqueueSharedActorUpdate = (operation: () => Promise<void>) => {
+    sharedActorSaveQueue.current = sharedActorSaveQueue.current
+      .then(operation)
+      .catch((error: unknown) => {
+        console.error('Failed to sync actor profile with shared catalog:', error);
+        showActionNotification(
+          error instanceof Error
+            ? `Actor profile was saved on this device but could not sync: ${error.message}`
+            : 'Actor profile was saved on this device but could not sync.'
+        );
+      });
   };
 
   useEffect(() => () => {
@@ -716,6 +756,10 @@ export default function App() {
   // Update actor profile handler
   const handleUpdateActor = (oldName: string, updatedProfile: ActorProfile) => {
     updateActorProfile(oldName, updatedProfile);
+    setActorProfileRevision((revision) => revision + 1);
+    if (sharedToken && sharedCatalogStatus === 'connected') {
+      enqueueSharedActorUpdate(() => saveSharedActor(sharedToken, updatedProfile, oldName));
+    }
     const oldTrimmed = oldName.trim();
     const newTrimmed = updatedProfile.name.trim();
 
@@ -755,6 +799,14 @@ export default function App() {
       reviewed: primaryProfile.reviewed === true || mergedProfiles.some((profile) => profile.reviewed === true),
     });
     removeCustomActors(mergedNames);
+    setActorProfileRevision((revision) => revision + 1);
+    if (sharedToken && sharedCatalogStatus === 'connected') {
+      const updatedPrimary = getActorProfile(primaryName);
+      enqueueSharedActorUpdate(async () => {
+        await saveSharedActor(sharedToken, updatedPrimary, primaryName);
+        await deleteSharedActors(sharedToken, mergedNames);
+      });
+    }
 
     const mergedNameSet = new Set([primaryName, ...mergedNames].map((name) => name.trim().toLowerCase()));
     setMovies((previousMovies) => previousMovies.map((movie) => {
@@ -777,6 +829,10 @@ export default function App() {
   const handleDeleteActors = (actorNames: string[]) => {
     const namesToDelete = new Set(actorNames.map((name) => name.trim().toLowerCase()));
     removeCustomActors(actorNames);
+    setActorProfileRevision((revision) => revision + 1);
+    if (sharedToken && sharedCatalogStatus === 'connected') {
+      enqueueSharedActorUpdate(() => deleteSharedActors(sharedToken, actorNames));
+    }
     setMovies((prev) =>
       prev.map((movie) => ({
         ...movie,
@@ -1163,6 +1219,7 @@ export default function App() {
           <ActorsPage
             movies={movies}
             viewMode={viewMode}
+            actorProfileRevision={actorProfileRevision}
             keyboardAlphabetEnabled={!selectedActorName && !selectedMovie}
             onOpenActorDetail={(name) => setSelectedActorName(name)}
             onDeleteActors={handleDeleteActors}
@@ -1171,6 +1228,14 @@ export default function App() {
             onUpdateActor={(oldName, updatedProfile) => {
               handleUpdateActor(oldName, updatedProfile);
               setSelectedActorName(null);
+            }}
+            onActorProfilesChanged={(actorNames) => {
+              if (!sharedToken || sharedCatalogStatus !== 'connected') return;
+              enqueueSharedActorUpdate(async () => {
+                for (const actorName of actorNames) {
+                  await saveSharedActor(sharedToken, getActorProfile(actorName));
+                }
+              });
             }}
           />
         )}
@@ -1182,6 +1247,10 @@ export default function App() {
             existingMovies={movies}
             onAddMovie={handleAddMovie}
             onAddActorSuccess={(actorName) => {
+              if (sharedToken && sharedCatalogStatus === 'connected') {
+                const actorProfile = getActorProfile(actorName);
+                enqueueSharedActorUpdate(() => saveSharedActor(sharedToken, actorProfile));
+              }
               setSelectedActorName(actorName);
               setActivePage('actors');
             }}

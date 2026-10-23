@@ -1,4 +1,5 @@
 const SHEET_NAME = 'Movies';
+const ACTORS_SHEET_NAME = 'Actors';
 const HEADERS = [
   'id',
   'title',
@@ -17,6 +18,7 @@ const HEADERS = [
   'reviewed',
   'uncensored',
 ];
+const ACTOR_HEADERS = ['name', 'alias', 'dob', 'photoUrl', 'favorite', 'reviewed'];
 
 function doPost(event) {
   try {
@@ -33,10 +35,38 @@ function doPost(event) {
     }
 
     const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-    const sheet = getOrCreateSheet(spreadsheet);
 
     if (payload.action === 'load') {
-      return jsonResponse({ movies: readMovies(sheet) });
+      return jsonResponse({ movies: readMovies(getOrCreateSheet(spreadsheet, SHEET_NAME, HEADERS)) });
+    }
+    if (payload.action === 'loadActors') {
+      return jsonResponse({ actors: readActors(getOrCreateSheet(spreadsheet, ACTORS_SHEET_NAME, ACTOR_HEADERS)) });
+    }
+    if (payload.action === 'saveActor') {
+      validateActor(payload.actor);
+      withScriptLock(function () {
+        saveActor(getOrCreateSheet(spreadsheet, ACTORS_SHEET_NAME, ACTOR_HEADERS), payload.actor, payload.oldName);
+      });
+      return jsonResponse({ ok: true });
+    }
+    if (payload.action === 'deleteActors') {
+      if (!Array.isArray(payload.names) || payload.names.some((name) => typeof name !== 'string')) {
+        return jsonResponse({ error: 'Actor names must be an array of strings.' });
+      }
+      withScriptLock(function () {
+        deleteActors(getOrCreateSheet(spreadsheet, ACTORS_SHEET_NAME, ACTOR_HEADERS), payload.names);
+      });
+      return jsonResponse({ ok: true });
+    }
+    if (payload.action === 'saveActors') {
+      if (!Array.isArray(payload.actors) || payload.actors.length > 5000) {
+        return jsonResponse({ error: 'Actors must be an array with no more than 5000 entries.' });
+      }
+      payload.actors.forEach(validateActor);
+      withScriptLock(function () {
+        writeActors(getOrCreateSheet(spreadsheet, ACTORS_SHEET_NAME, ACTOR_HEADERS), payload.actors);
+      });
+      return jsonResponse({ ok: true, count: payload.actors.length });
     }
     if (payload.action !== 'save' || !Array.isArray(payload.movies)) {
       return jsonResponse({ error: 'Unsupported catalog action or invalid movies.' });
@@ -45,9 +75,8 @@ function doPost(event) {
       return jsonResponse({ error: 'The catalog exceeds the 5000 movie limit.' });
     }
 
-    const lock = LockService.getScriptLock();
-    lock.waitLock(30000);
-    try {
+    withScriptLock(function () {
+      const sheet = getOrCreateSheet(spreadsheet, SHEET_NAME, HEADERS);
       const rows = payload.movies.map(toRow);
       sheet.clearContents();
       sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
@@ -56,9 +85,7 @@ function doPost(event) {
         range.setNumberFormat('@');
         range.setValues(rows);
       }
-    } finally {
-      lock.releaseLock();
-    }
+    });
 
     return jsonResponse({ ok: true, count: payload.movies.length });
   } catch (error) {
@@ -67,23 +94,102 @@ function doPost(event) {
   }
 }
 
-function getOrCreateSheet(spreadsheet) {
-  let sheet = spreadsheet.getSheetByName(SHEET_NAME);
-  if (!sheet) sheet = spreadsheet.insertSheet(SHEET_NAME);
+function withScriptLock(callback) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    callback();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getOrCreateSheet(spreadsheet, sheetName, headers) {
+  let sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) sheet = spreadsheet.insertSheet(sheetName);
   if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   } else {
     const lastColumn = sheet.getLastColumn();
     const existingHeaders = new Set(
       sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0]
         .map((header) => String(header).trim().toLowerCase())
     );
-    const missingHeaders = HEADERS.filter((header) => !existingHeaders.has(header.toLowerCase()));
+    const missingHeaders = headers.filter((header) => !existingHeaders.has(header.toLowerCase()));
     if (missingHeaders.length > 0) {
       sheet.getRange(1, lastColumn + 1, 1, missingHeaders.length).setValues([missingHeaders]);
     }
   }
   return sheet;
+}
+
+function readActors(sheet) {
+  if (sheet.getLastRow() < 2) return [];
+  const values = sheet.getRange(1, 1, sheet.getLastRow(), ACTOR_HEADERS.length).getDisplayValues();
+  const headers = values[0];
+  return values.slice(1).filter((row) => row[0]).map((row) => {
+    const actor = {};
+    headers.forEach((header, index) => {
+      actor[header] = row[index] || '';
+    });
+    return {
+      name: actor.name,
+      alias: actor.alias || undefined,
+      dob: actor.dob || '',
+      photoUrl: actor.photoUrl || '',
+      favorite: String(actor.favorite || '').toLowerCase() === 'true',
+      reviewed: String(actor.reviewed || '').toLowerCase() === 'true',
+    };
+  });
+}
+
+function validateActor(actor) {
+  if (!actor || typeof actor.name !== 'string' || !actor.name.trim()) {
+    throw new Error('Every actor must have a name.');
+  }
+  if (actor.name.length > 200 || String(actor.alias || '').length > 2000 ||
+      String(actor.dob || '').length > 100 || String(actor.photoUrl || '').length > 2000) {
+    throw new Error('Actor profile fields exceed the allowed length.');
+  }
+}
+
+function actorToRow(actor) {
+  return [
+    actor.name.trim(),
+    String(actor.alias || ''),
+    String(actor.dob || ''),
+    String(actor.photoUrl || ''),
+    String(actor.favorite === true),
+    String(actor.reviewed === true),
+  ];
+}
+
+function writeActors(sheet, actors) {
+  const rows = actors.map(actorToRow);
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, ACTOR_HEADERS.length).setValues([ACTOR_HEADERS]);
+  if (rows.length > 0) {
+    const range = sheet.getRange(2, 1, rows.length, ACTOR_HEADERS.length);
+    range.setNumberFormat('@');
+    range.setValues(rows);
+  }
+}
+
+function saveActor(sheet, actor, oldName) {
+  const existing = readActors(sheet);
+  const oldKey = String(oldName || actor.name).trim().toLowerCase();
+  const newKey = actor.name.trim().toLowerCase();
+  const remaining = existing.filter((item) => {
+    const key = item.name.trim().toLowerCase();
+    return key !== oldKey && key !== newKey;
+  });
+  remaining.push(actor);
+  writeActors(sheet, remaining);
+}
+
+function deleteActors(sheet, names) {
+  const deleted = new Set(names.map((name) => name.trim().toLowerCase()));
+  writeActors(sheet, readActors(sheet).filter((actor) => !deleted.has(actor.name.trim().toLowerCase())));
 }
 
 function readMovies(sheet) {

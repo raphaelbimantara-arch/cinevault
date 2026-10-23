@@ -61,11 +61,21 @@ export default {
     if (typeof body.token !== 'string' || body.token !== sharedSecret) {
       return jsonResponse({ error: 'Access key is incorrect.' }, 401, headers);
     }
-    if (body.action !== 'load' && body.action !== 'save') {
+    const supportedActions = ['load', 'save', 'loadActors', 'saveActor', 'deleteActors', 'saveActors'];
+    if (!supportedActions.includes(body.action)) {
       return jsonResponse({ error: 'Unsupported catalog action.' }, 400, headers);
     }
     if (body.action === 'save' && !Array.isArray(body.movies)) {
       return jsonResponse({ error: 'Movies must be an array.' }, 400, headers);
+    }
+    if (body.action === 'saveActor' && (!body.actor || typeof body.actor !== 'object')) {
+      return jsonResponse({ error: 'Actor profile is required.' }, 400, headers);
+    }
+    if (body.action === 'saveActors' && !Array.isArray(body.actors)) {
+      return jsonResponse({ error: 'Actors must be an array.' }, 400, headers);
+    }
+    if (body.action === 'deleteActors' && !Array.isArray(body.names)) {
+      return jsonResponse({ error: 'Actor names must be an array.' }, 400, headers);
     }
 
     try {
@@ -76,6 +86,10 @@ export default {
           action: body.action,
           token: sharedSecret,
           movies: body.action === 'save' ? body.movies : undefined,
+          actor: body.action === 'saveActor' ? body.actor : undefined,
+          oldName: body.action === 'saveActor' ? body.oldName : undefined,
+          actors: body.action === 'saveActors' ? body.actors : undefined,
+          names: body.action === 'deleteActors' ? body.names : undefined,
         }),
         redirect: 'follow',
       });

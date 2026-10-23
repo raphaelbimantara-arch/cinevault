@@ -10,12 +10,14 @@ import { useLongPress } from '../utils/useLongPress';
 interface ActorsPageProps {
   movies: Movie[];
   viewMode: ViewMode;
+  actorProfileRevision?: number;
   keyboardAlphabetEnabled?: boolean;
   onOpenActorDetail: (actorName: string) => void;
   onDeleteActors: (actorNames: string[]) => void;
   onNotify: (message: string, action?: { label: string; onClick: () => void }) => void;
   onTriggerAddActor?: () => void;
   onUpdateActor: (oldName: string, updatedProfile: ActorProfile) => void;
+  onActorProfilesChanged?: (actorNames: string[]) => void;
 }
 
 interface ActorStat {
@@ -69,12 +71,14 @@ const ALPHABET_LIST = [
 export const ActorsPage: React.FC<ActorsPageProps> = ({
   movies,
   viewMode,
+  actorProfileRevision = 0,
   keyboardAlphabetEnabled = true,
   onOpenActorDetail,
   onDeleteActors,
   onNotify,
   onTriggerAddActor,
   onUpdateActor,
+  onActorProfilesChanged,
 }) => {
   const [actorViewMode, setActorViewMode] = useState<ViewMode>(viewMode);
   const [search, setSearch] = useState('');
@@ -192,7 +196,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
 
     // Default alphabetical sort
     return result.sort((a, b) => a.name.localeCompare(b.name));
-  }, [movies, actorStatusRevision]);
+  }, [movies, actorStatusRevision, actorProfileRevision]);
 
   // Filter actors by search query and multi-alphabet selection
   const filteredActors = useMemo(() => {
@@ -409,6 +413,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         selectedNames,
         field === 'favorite' ? { favorite: true } : { reviewed: true }
       );
+      onActorProfilesChanged?.(selectedNames);
       setActorStatusRevision((revision) => revision + 1);
       const message = alreadyMarked.length > 0
           ? `${newlyMarkedCount} aktor ditandai ${label}; ${alreadyMarked.length} sudah ${label}.`
@@ -435,6 +440,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         actorNames,
         field === 'favorite' ? { favorite: false } : { reviewed: false }
       );
+      onActorProfilesChanged?.(actorNames);
       setActorStatusRevision((revision) => revision + 1);
       onNotify(`${actorNames.length} aktor dikeluarkan dari ${field === 'favorite' ? 'favorite' : 'review'}.`);
       setSelectedActorNames(new Set());

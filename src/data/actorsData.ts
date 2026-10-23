@@ -183,6 +183,33 @@ export function getCustomActors(): Record<
   return {};
 }
 
+export function applySharedActorProfiles(profiles: ActorProfile[]): void {
+  try {
+    const current = getCustomActors();
+    const currentNames = new Map(
+      Object.keys(current).map((name) => [name.trim().toLowerCase(), name])
+    );
+    profiles.forEach((profile) => {
+      const name = profile.name.trim();
+      if (!name) return;
+      const existingName = currentNames.get(name.toLowerCase());
+      if (existingName && existingName !== name) delete current[existingName];
+      current[name] = {
+        alias: profile.alias?.trim() || undefined,
+        dob: profile.dob || '',
+        photoUrl: profile.photoUrl || '',
+        favorite: profile.favorite,
+        reviewed: profile.reviewed,
+      };
+      currentNames.set(name.toLowerCase(), name);
+    });
+    localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(current));
+  } catch (error) {
+    console.error('Failed to apply shared actor profiles:', error);
+    throw error;
+  }
+}
+
 export function registerCustomActor(profile: ActorProfile): void {
   try {
     const current = getCustomActors();
