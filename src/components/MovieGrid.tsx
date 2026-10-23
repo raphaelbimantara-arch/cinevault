@@ -3,7 +3,6 @@ import { Building2, Calendar, Check, Clock, Film, HardDrive, Star } from 'lucide
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
-import { getMovieGenres } from '../utils/movieGenres';
 
 interface MovieGridProps {
   movies: Movie[];
@@ -143,18 +142,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                     <span>{movie.size}</span>
                   </span>
                 </div>
-              </div>
-
-              <div className="mt-2 flex min-w-0 items-center gap-1 overflow-hidden border-t border-zinc-800/80 pt-2">
-                {getMovieGenres(movie.genre).map((genre) => (
-                  <span
-                    key={genre}
-                    className="max-w-[75px] truncate rounded border border-zinc-700/60 bg-zinc-800/70 px-1.5 py-0.5 text-[9px] text-zinc-300 sm:text-[10px]"
-                    title={genre}
-                  >
-                    {genre}
-                  </span>
-                ))}
               </div>
             </div>
           </div>

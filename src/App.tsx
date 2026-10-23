@@ -29,6 +29,26 @@ type ActionNotification = {
   message: string;
   action?: { label: string; onClick: () => void };
 };
+type AppNavigationSnapshot = {
+  page: ActivePage;
+  movieId: string | null;
+  actorName: string | null;
+};
+
+function readAppNavigationSnapshot(state: unknown): AppNavigationSnapshot | null {
+  if (!state || typeof state !== 'object' || !('cinevaultSnapshot' in state)) return null;
+  const snapshot = (state as { cinevaultSnapshot?: unknown }).cinevaultSnapshot;
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  const candidate = snapshot as Partial<AppNavigationSnapshot>;
+  if (!['library', 'actors', 'add', 'settings'].includes(candidate.page || '')) return null;
+  if (candidate.movieId !== null && typeof candidate.movieId !== 'string') return null;
+  if (candidate.actorName !== null && typeof candidate.actorName !== 'string') return null;
+  return {
+    page: candidate.page as ActivePage,
+    movieId: candidate.movieId ?? null,
+    actorName: candidate.actorName ?? null,
+  };
+}
 
 function readSharedToken(): string {
   try {
@@ -55,6 +75,8 @@ export default function App() {
     }
     return INITIAL_MOVIES;
   });
+  const moviesRef = useRef(movies);
+  moviesRef.current = movies;
   const [sharedToken, setSharedToken] = useState(readSharedToken);
   const [sharedCatalogStatus, setSharedCatalogStatus] = useState<SharedCatalogStatus>(
     () => (readSharedToken() ? 'loading' : 'disconnected')
@@ -191,6 +213,83 @@ export default function App() {
 
   // Selected actor for actor detail modal
   const [selectedActorName, setSelectedActorName] = useState<string | null>(null);
+  const navigationSnapshotRef = useRef<AppNavigationSnapshot | null>(null);
+  const skipNavigationPushRef = useRef(false);
+  const closingOverlayWithHistoryRef = useRef(false);
+
+  useEffect(() => {
+    const initialSnapshot: AppNavigationSnapshot = {
+      page: 'library',
+      movieId: null,
+      actorName: null,
+    };
+    const existingState = window.history.state;
+    const state = existingState && typeof existingState === 'object' ? existingState : {};
+    window.history.replaceState({ ...state, cinevaultSnapshot: initialSnapshot }, '');
+    navigationSnapshotRef.current = initialSnapshot;
+
+    const handlePopState = (event: PopStateEvent) => {
+      closingOverlayWithHistoryRef.current = false;
+      const snapshot = readAppNavigationSnapshot(event.state);
+      if (!snapshot) {
+        const fallback = navigationSnapshotRef.current || initialSnapshot;
+        window.history.pushState({ cinevaultSnapshot: fallback }, '');
+        return;
+      }
+      skipNavigationPushRef.current = true;
+      setActivePage(snapshot.page);
+      setSelectedMovie(
+        snapshot.movieId ? moviesRef.current.find((movie) => movie.id === snapshot.movieId) || null : null
+      );
+      setSelectedActorName(snapshot.actorName);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const snapshot: AppNavigationSnapshot = {
+      page: activePage,
+      movieId: selectedMovie?.id || null,
+      actorName: selectedActorName,
+    };
+    const previous = navigationSnapshotRef.current;
+    if (skipNavigationPushRef.current) {
+      skipNavigationPushRef.current = false;
+      navigationSnapshotRef.current = snapshot;
+      return;
+    }
+    if (
+      previous &&
+      previous.page === snapshot.page &&
+      previous.movieId === snapshot.movieId &&
+      previous.actorName === snapshot.actorName
+    ) return;
+
+    window.history.pushState({ cinevaultSnapshot: snapshot }, '');
+    navigationSnapshotRef.current = snapshot;
+  }, [activePage, selectedMovie?.id, selectedActorName]);
+
+  const handleCloseMovieDetail = () => {
+    const snapshot = readAppNavigationSnapshot(window.history.state);
+    if (selectedMovie && snapshot?.movieId === selectedMovie.id && !closingOverlayWithHistoryRef.current) {
+      closingOverlayWithHistoryRef.current = true;
+      window.history.back();
+    } else if (!closingOverlayWithHistoryRef.current) {
+      setSelectedMovie(null);
+    }
+  };
+
+  const handleCloseActorDetail = () => {
+    const snapshot = readAppNavigationSnapshot(window.history.state);
+    if (selectedActorName && snapshot?.actorName === selectedActorName && !closingOverlayWithHistoryRef.current) {
+      closingOverlayWithHistoryRef.current = true;
+      window.history.back();
+    } else if (!closingOverlayWithHistoryRef.current) {
+      setSelectedActorName(null);
+    }
+  };
 
   const showActionNotification = (
     message: string,
@@ -486,7 +585,7 @@ export default function App() {
     );
   };
 
-  const handleToggleListSort = (field: 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio') => {
+  const handleToggleListSort = (field: 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio' | 'genre') => {
     const options = {
       title: ['alphabet-asc', 'alphabet-desc'],
       year: ['year-asc', 'year-desc'],
@@ -495,6 +594,7 @@ export default function App() {
       resolution: ['quality-asc', 'quality-desc'],
       actors: ['actor-asc', 'actor-desc'],
       studio: ['studio-asc', 'studio-desc'],
+      genre: ['genre-asc', 'genre-desc'],
     } as const;
     const [ascending, descending] = options[field];
     setSortBy((current) => current === ascending ? descending : ascending);
@@ -700,6 +800,10 @@ export default function App() {
           return b.studio.localeCompare(a.studio, undefined, { numeric: true });
         case 'studio-asc':
           return a.studio.localeCompare(b.studio, undefined, { numeric: true });
+        case 'genre-desc':
+          return b.genre.localeCompare(a.genre, undefined, { numeric: true });
+        case 'genre-asc':
+          return a.genre.localeCompare(b.genre, undefined, { numeric: true });
         default:
           return a.title.localeCompare(b.title);
       }
@@ -936,7 +1040,7 @@ export default function App() {
       <MovieDetailModal
         movie={selectedMovie}
         movies={movieDetailNavigationMovies}
-        onClose={() => setSelectedMovie(null)}
+        onClose={handleCloseMovieDetail}
         onNavigateMovie={setSelectedMovie}
         onFilterByAttribute={handleFilterByAttribute}
         onSelectActor={(actorName) => setSelectedActorName(actorName)}
@@ -948,7 +1052,7 @@ export default function App() {
         actorName={selectedActorName}
         actorNames={actorNames}
         movies={movies}
-        onClose={() => setSelectedActorName(null)}
+        onClose={handleCloseActorDetail}
         onNavigateActor={setSelectedActorName}
         onSelectMovie={(movie) => {
           setSelectedActorName(null);

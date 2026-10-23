@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Check, Film, Pencil, Save, Star, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { Movie, SortOption } from '../types';
 import { useLongPress } from '../utils/useLongPress';
 
-type ListSortField = 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio';
+type ListSortField = 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio' | 'genre';
 
 interface MovieListProps {
   movies: Movie[];
@@ -25,6 +26,7 @@ interface MovieEditDraft {
   resolution: string;
   actors: string;
   studio: string;
+  genre: string;
 }
 
 const toDraft = (movie: Movie): MovieEditDraft => ({
@@ -35,6 +37,7 @@ const toDraft = (movie: Movie): MovieEditDraft => ({
   resolution: movie.resolution || '',
   actors: movie.actors.join(', '),
   studio: movie.studio,
+  genre: movie.genre,
 });
 
 export const MovieList: React.FC<MovieListProps> = ({
@@ -57,6 +60,9 @@ export const MovieList: React.FC<MovieListProps> = ({
   )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   const actorOptions = [...new Set(
     catalogMovies.flatMap((movie) => movie.actors.map((actor) => actor.trim())).filter(Boolean),
+  )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const studioOptions = [...new Set(
+    catalogMovies.map((movie) => movie.studio.trim()).filter(Boolean),
   )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   const startEditing = () => {
@@ -84,6 +90,7 @@ export const MovieList: React.FC<MovieListProps> = ({
     resolution: { asc: 'quality-asc', desc: 'quality-desc' },
     actors: { asc: 'actor-asc', desc: 'actor-desc' },
     studio: { asc: 'studio-asc', desc: 'studio-desc' },
+    genre: { asc: 'genre-asc', desc: 'genre-desc' },
   };
 
   const renderSortHeader = (
@@ -150,6 +157,7 @@ export const MovieList: React.FC<MovieListProps> = ({
         resolution: draft.resolution.trim() || undefined,
         actors: actors.length > 0 ? actors : ['Cast'],
         studio: draft.studio.trim() || movie.studio,
+        genre: draft.genre.trim() || movie.genre,
       });
     }
 
@@ -183,7 +191,7 @@ export const MovieList: React.FC<MovieListProps> = ({
         <thead className="sticky top-0 z-10">
           <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[9px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
             <th
-              className="w-[23%] overflow-hidden px-0.5 py-2 sm:px-3"
+              className="w-[21%] overflow-hidden px-0.5 py-2 sm:px-3"
               aria-sort={
                 sortBy === sortOptions.title.asc
                   ? 'ascending'
@@ -234,17 +242,18 @@ export const MovieList: React.FC<MovieListProps> = ({
                 )}
               </div>
             </th>
-            {renderSortHeader('year', 'Year', 'w-[10%] overflow-hidden px-0.5 py-2 text-center')}
-            {renderSortHeader('size', 'Size', 'w-[12%] overflow-hidden px-0.5 py-2 text-center')}
-            {renderSortHeader('minutes', 'Min', 'w-[8%] overflow-hidden px-0.5 py-2 text-center')}
+            {renderSortHeader('year', 'Year', 'w-[8%] overflow-hidden px-0.5 py-2 text-center')}
+            {renderSortHeader('size', 'Size', 'w-[10%] overflow-hidden px-0.5 py-2 text-center')}
+            {renderSortHeader('minutes', 'Min', 'w-[7%] overflow-hidden px-0.5 py-2 text-center')}
             {renderSortHeader(
               'resolution',
               'Resolution',
-              'w-[13%] overflow-hidden px-0.5 py-2 text-center',
+              'w-[12%] overflow-hidden px-0.5 py-2 text-center',
               'Res.',
             )}
-            {renderSortHeader('actors', 'Actor', 'w-[17%] overflow-hidden px-0.5 py-2 sm:px-3')}
-            {renderSortHeader('studio', 'Studio', 'w-[17%] overflow-hidden px-0.5 py-2 sm:px-3')}
+            {renderSortHeader('actors', 'Actor', 'w-[14%] overflow-hidden px-0.5 py-2 sm:px-3')}
+            {renderSortHeader('studio', 'Studio', 'w-[14%] overflow-hidden px-0.5 py-2 sm:px-3')}
+            {renderSortHeader('genre', 'Genre', 'w-[14%] overflow-hidden px-0.5 py-2 sm:px-3')}
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-800/60">
@@ -363,18 +372,33 @@ export const MovieList: React.FC<MovieListProps> = ({
                     </span>
                   )}
                 </td>
-                <td className="overflow-hidden px-0.5 py-2 text-[8px] text-zinc-300 sm:px-3 sm:text-xs">
+                <td className={`px-0.5 py-2 text-[8px] text-zinc-300 sm:px-3 sm:text-xs ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
                   {isEditing && draft ? (
-                    <input
-                      aria-label={`Edit studio for ${movie.title}`}
+                    <AutocompleteInput
+                      ariaLabel={`Edit studio for ${movie.title}`}
                       className={inputClassName}
                       value={draft.studio}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={(event) => updateDraft(movie.id, 'studio', event.target.value)}
+                      options={studioOptions}
+                      onChange={(value) => updateDraft(movie.id, 'studio', value)}
                     />
                   ) : (
                     <span className="block truncate" title={movie.studio}>
                       {movie.studio}
+                    </span>
+                  )}
+                </td>
+                <td className="overflow-hidden px-0.5 py-2 text-[8px] text-zinc-300 sm:px-3 sm:text-xs">
+                  {isEditing && draft ? (
+                    <input
+                      aria-label={`Edit genre for ${movie.title}`}
+                      className={inputClassName}
+                      value={draft.genre}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => updateDraft(movie.id, 'genre', event.target.value)}
+                    />
+                  ) : (
+                    <span className="block truncate" title={movie.genre}>
+                      {movie.genre}
                     </span>
                   )}
                 </td>
@@ -405,10 +429,45 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   onChange,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [menuPosition, setMenuPosition] = useState<{ left: number; top: number; width: number; maxHeight: number } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const menuId = useId();
   const query = tokenMode ? value.split(/[,;|]/).pop()?.trim() || '' : value.trim();
   const suggestions = query
     ? options.filter((option) => option.toLocaleLowerCase().startsWith(query.toLocaleLowerCase())).slice(0, 8)
     : options.slice(0, 8);
+
+  const updateMenuPosition = () => {
+    const input = inputRef.current;
+    if (!input) return;
+    const rect = input.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    const openBelow = spaceBelow >= spaceAbove;
+    const maxHeight = Math.max(48, Math.min(192, (openBelow ? spaceBelow : spaceAbove) - 4));
+    const top = openBelow ? rect.bottom + 4 : rect.top - maxHeight - 4;
+    const width = Math.min(Math.max(rect.width, 160), window.innerWidth - 16);
+    const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
+    setMenuPosition({ left, top, width, maxHeight });
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [isOpen, value]);
+
+  useEffect(() => {
+    if (activeIndex >= 0) {
+      document.getElementById(`${menuId}-option-${activeIndex}`)?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [activeIndex, menuId]);
 
   const selectOption = (option: string) => {
     if (!tokenMode) {
@@ -429,23 +488,60 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   return (
     <div className="relative" onClick={(event) => event.stopPropagation()}>
       <input
+        ref={inputRef}
         aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        aria-autocomplete="list"
+        aria-controls={menuId}
+        aria-activedescendant={activeIndex >= 0 ? `${menuId}-option-${activeIndex}` : undefined}
         autoComplete="off"
         className={className}
         value={value}
-        onFocus={() => setIsOpen(true)}
+        onFocus={() => { setActiveIndex(-1); setIsOpen(true); }}
         onBlur={() => setIsOpen(false)}
-        onChange={(event) => { onChange(event.target.value); setIsOpen(true); }}
+        onChange={(event) => { onChange(event.target.value); setActiveIndex(-1); setIsOpen(true); }}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' && suggestions.length > 0) {
+            event.preventDefault();
+            setIsOpen(true);
+            setActiveIndex((index) => index < 0 ? 0 : (index + 1) % suggestions.length);
+          } else if (event.key === 'ArrowUp' && suggestions.length > 0) {
+            event.preventDefault();
+            setIsOpen(true);
+            setActiveIndex((index) => index < 0 ? suggestions.length - 1 : (index - 1 + suggestions.length) % suggestions.length);
+          } else if (event.key === 'Enter' && isOpen && activeIndex >= 0 && suggestions.length > 0) {
+            event.preventDefault();
+            selectOption(suggestions[activeIndex]);
+          } else if (event.key === 'Escape') {
+            setIsOpen(false);
+          }
+        }}
       />
-      {isOpen && (
-        <div className="absolute left-0 top-full z-50 mt-1 max-h-36 min-w-full max-w-[min(14rem,80vw)] overflow-y-auto rounded border border-zinc-700 bg-zinc-950 py-1 text-left shadow-xl">
-          {suggestions.length > 0 ? suggestions.map((option) => (
+      {isOpen && menuPosition && createPortal(
+        <div
+          id={menuId}
+          role="listbox"
+          className="overflow-y-auto rounded border border-zinc-700 bg-zinc-950 py-1 text-left shadow-xl"
+          style={{
+            position: 'fixed',
+            zIndex: 1000,
+            left: menuPosition.left,
+            top: menuPosition.top,
+            width: menuPosition.width,
+            maxHeight: menuPosition.maxHeight,
+          }}
+        >
+          {suggestions.length > 0 ? suggestions.map((option, index) => (
             <button
               key={option}
+              id={`${menuId}-option-${index}`}
               type="button"
+              role="option"
+              aria-selected={activeIndex === index}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectOption(option)}
-              className="block w-full truncate px-2 py-1 text-left text-[10px] text-zinc-200 hover:bg-zinc-800 sm:text-xs"
+              onMouseEnter={() => setActiveIndex(index)}
+              className={`block w-full truncate px-2 py-1 text-left text-[10px] sm:text-xs ${activeIndex === index ? 'bg-zinc-800 text-white' : 'text-zinc-200 hover:bg-zinc-800'}`}
               title={option}
             >
               {option}
@@ -455,7 +551,8 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
               No match; this value will be added when saved.
             </div>
           ) : null}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

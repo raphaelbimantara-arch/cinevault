@@ -103,6 +103,8 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
               <option value="actor-desc" className="bg-[#121520]">Actor (Z-A)</option>
               <option value="studio-asc" className="bg-[#121520]">Studio (A-Z)</option>
               <option value="studio-desc" className="bg-[#121520]">Studio (Z-A)</option>
+              <option value="genre-asc" className="bg-[#121520]">Genre (A-Z)</option>
+              <option value="genre-desc" className="bg-[#121520]">Genre (Z-A)</option>
             </select>
           </div>
 

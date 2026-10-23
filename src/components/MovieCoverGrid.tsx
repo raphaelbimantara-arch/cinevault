@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Film, Star } from 'lucide-react';
+import { Film } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
@@ -87,24 +87,8 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
                 src={getImageSource(movie.posterUrl)}
                 alt={movie.title}
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                className="h-full w-full object-cover"
               />
-              <div className="absolute inset-0 bg-transparent group-hover:bg-black/20 transition-colors" />
-            </div>
-            <div className="flex min-w-0 items-center justify-between gap-1 pt-1">
-              <span className="min-w-0 truncate text-[10px] font-semibold text-zinc-200" title={movie.title}>
-                {movie.title}
-              </span>
-              {(movie.favorite || movie.reviewed) && (
-                <div className="flex shrink-0 items-center gap-1">
-                  {movie.favorite && (
-                    <Star aria-label="Favorite" title="Favorite" className="h-3 w-3 fill-amber-400 text-amber-400" />
-                  )}
-                  {movie.reviewed && (
-                    <Check aria-label="Review" title="Review" className="h-3 w-3 text-rose-400" />
-                  )}
-                </div>
-              )}
             </div>
           </div>
         ))}
