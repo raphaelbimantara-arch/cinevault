@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { startTransition, useEffect, useState, useMemo } from 'react';
 import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, ArrowUpDown, Star, Check, ChevronDown, ChevronUp, Pencil, Save, Undo2 } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
 import { ActorProfile, getActorProfiles, getActorProfile, updateActorStatuses } from '../data/actorsData';
@@ -88,7 +88,9 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   const [isEditingList, setIsEditingList] = useState(false);
   const [actorDrafts, setActorDrafts] = useState<Record<string, ActorEditDraft>>({});
   const toggleActorSort = (ascending: ActorSortOption, descending: ActorSortOption) => {
-    setActorSort((current) => current === ascending ? descending : ascending);
+    startTransition(() => {
+      setActorSort((current) => current === ascending ? descending : ascending);
+    });
   };
   const selectionMode = selectedActorNames.size > 0;
   useEffect(() => {
