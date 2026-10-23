@@ -269,7 +269,28 @@ export function getActorProfile(name: string): ActorProfile {
   const customName = Object.keys(custom).find(
     (actorName) => actorName.toLowerCase() === trimmed.toLowerCase()
   );
-  const customProfile = customName ? custom[customName] : undefined;
+  return createActorProfile(trimmed, customName ? custom[customName] : undefined);
+}
+
+export function getActorProfiles(names: string[]): Map<string, ActorProfile> {
+  const customProfiles = new Map(
+    Object.entries(getCustomActors()).map(([name, profile]) => [name.trim().toLowerCase(), profile])
+  );
+  const profiles = new Map<string, ActorProfile>();
+  names.forEach((name) => {
+    const trimmed = name.trim();
+    const key = trimmed.toLowerCase();
+    if (trimmed && !profiles.has(key)) {
+      profiles.set(key, createActorProfile(trimmed, customProfiles.get(key)));
+    }
+  });
+  return profiles;
+}
+
+function createActorProfile(
+  trimmed: string,
+  customProfile?: ReturnType<typeof getCustomActors>[string],
+): ActorProfile {
   if (customProfile) {
     return {
       name: trimmed,

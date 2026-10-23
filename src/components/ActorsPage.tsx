@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, ArrowUpDown, Star, Check, ChevronDown, ChevronUp, Pencil, Save, Undo2 } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
-import { ActorProfile, getActorProfile, updateActorStatuses } from '../data/actorsData';
+import { ActorProfile, getActorProfiles, getActorProfile, updateActorStatuses } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
 
@@ -167,11 +167,12 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       });
     });
 
+    const profiles = getActorProfiles([...map.keys()]);
     const result: ActorStat[] = [];
     map.forEach((actorMovies, name) => {
       const genres = Array.from(new Set(actorMovies.map((m) => m.genre)));
       const studios = Array.from(new Set(actorMovies.map((m) => m.studio)));
-      const profile = getActorProfile(name);
+      const profile = profiles.get(name.toLowerCase()) || getActorProfile(name);
 
       result.push({
         name,

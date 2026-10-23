@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { startTransition, useState, useEffect, useMemo, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { FilterToolbar } from './components/FilterToolbar';
@@ -386,14 +386,14 @@ export default function App() {
   const handleNavigatePage = (page: ActivePage) => {
     setSelectedMovie(null);
     setSelectedActorName(null);
-    setActivePage(page);
+    startTransition(() => setActivePage(page));
   };
 
   const handleTriggerAdd = (tab: 'movie' | 'actor' | 'studio' = 'movie') => {
     setSelectedMovie(null);
     setSelectedActorName(null);
     setAddTab(tab);
-    setActivePage('add');
+    startTransition(() => setActivePage('add'));
   };
 
   // View mode: 'grid' or 'list'
