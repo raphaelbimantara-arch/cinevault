@@ -120,6 +120,11 @@ export function getActorAge(value: string): number | null {
   return age;
 }
 
+export function getActorBirthYear(value: string): number | null {
+  const parsed = parseActorDob(value);
+  return parsed?.year ?? null;
+}
+
 export function getActorDobSortValue(value: string): number | null {
   const parsed = parseActorDob(value);
   if (!parsed || parsed.year === null) return null;

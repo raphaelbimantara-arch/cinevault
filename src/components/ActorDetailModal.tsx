@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X, Calendar, Film, Clock, User, Edit3, Save, Undo2, Star, Check, Plus, Trash2 } from 'lucide-react';
 import { Movie } from '../types';
 import { formatActorAliases, getActorAliases, getActorProfile, ActorProfile } from '../data/actorsData';
-import { formatActorDob, getActorAge, normalizeActorDob } from '../utils/actorDob';
+import { formatActorDob, getActorAge, getActorBirthYear, normalizeActorDob } from '../utils/actorDob';
 import { ActorDobFields } from './ActorDobFields';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useHorizontalSwipe } from '../utils/useHorizontalSwipe';
@@ -90,6 +90,10 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   const durationFormatted = totalHours > 0
     ? `${totalMinutes} min (${totalHours}h ${remainingMinutes}m)`
     : `${totalMinutes} min`;
+  const debutMovie = actorMovies.reduce<Movie | null>((earliest, current) => {
+    if (!Number.isFinite(current.year)) return earliest;
+    return !earliest || current.year < earliest.year ? current : earliest;
+  }, null);
   const actorIndex = actorNames.findIndex((name) => name.toLowerCase() === actorName?.toLowerCase());
   useEffect(() => {
     if (!actorName || isEditing || zoomedPhotoUrl) return;
@@ -130,6 +134,10 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
 
   const profile = getActorProfile(actorName);
   const actorAge = getActorAge(profile.dob);
+  const birthYear = getActorBirthYear(profile.dob);
+  const debutAge = debutMovie && birthYear !== null && debutMovie.year >= birthYear
+    ? debutMovie.year - birthYear
+    : null;
 
   // Enter edit mode: populate fields from current profile
   const handleStartEdit = () => {
@@ -433,6 +441,19 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                         <span className="font-semibold text-zinc-100 font-mono">
                           {actorAge === null ? '—' : actorAge}
                         </span>
+                      </div>
+                      <div
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs"
+                        title={debutMovie ? `Based on first released film: ${debutMovie.title} (${debutMovie.year})` : 'No released film or birth year available'}
+                      >
+                        <Film className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                        <span className="text-zinc-400">Debut age:</span>
+                        <span className="font-mono font-semibold text-zinc-100">
+                          {debutAge === null ? '—' : `${debutAge} years`}
+                        </span>
+                        {debutMovie && (
+                          <span className="font-mono text-zinc-500">({debutMovie.year})</span>
+                        )}
                       </div>
 
                       {/* TOTAL DURATION */}
