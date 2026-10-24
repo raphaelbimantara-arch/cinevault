@@ -200,7 +200,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     const finalSizeString = `${numericSize} GB`;
     
     // Format akhir pakai titik
-    const finalSizeString = `${numericSize} GB`;
 
     const updated: Movie = {
       ...movie,
