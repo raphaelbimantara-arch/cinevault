@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
-import { getActorAliases, getCustomActors, KNOWN_ACTORS } from '../data/actorsData';
+import { getActorAliases, getCustomActors, KNOWN_ACTORS } from './data/actorsData';
 
 const formatStorageSize = (sizeInMB: number) => {
   if (isNaN(sizeInMB) || sizeInMB <= 0) return '0.00 GB';
