@@ -1,5 +1,5 @@
-import React from 'react';
-import { Film, Star, Check, Building2, Clock, HardDrive } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Film, Star, Check, Building2 } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
@@ -9,6 +9,7 @@ interface MovieGridProps {
   onSelectMovie: (movie: Movie) => void;
   selectedMovieIds: Set<string>;
   onToggleMovieSelection: (movieId: string) => void;
+  onSelectMultipleMovies?: (movieIds: string[]) => void;
   selectionMode: boolean;
   cols?: number;
 }
@@ -27,10 +28,12 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   onSelectMovie,
   selectedMovieIds,
   onToggleMovieSelection,
+  onSelectMultipleMovies,
   selectionMode,
   cols = 7,
 }) => {
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
+  const lastSelectedIdRef = useRef<string | null>(null);
 
   if (movies.length === 0) {
     return (
@@ -40,6 +43,32 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
       </div>
     );
   }
+
+  const handleMovieClick = (e: React.MouseEvent, movie: Movie) => {
+    if (selectionMode) {
+      if (e.shiftKey && lastSelectedIdRef.current) {
+        const lastIndex = movies.findIndex((m) => m.id === lastSelectedIdRef.current);
+        const currentIndex = movies.findIndex((m) => m.id === movie.id);
+
+        if (lastIndex !== -1 && currentIndex !== -1) {
+          const start = Math.min(lastIndex, currentIndex);
+          const end = Math.max(lastIndex, currentIndex);
+          const rangeIds = movies.slice(start, end + 1).map((m) => m.id);
+          
+          if (onSelectMultipleMovies) {
+            onSelectMultipleMovies(rangeIds);
+          } else {
+            rangeIds.forEach((id) => onToggleMovieSelection(id));
+          }
+        }
+      } else {
+        onToggleMovieSelection(movie.id);
+      }
+      lastSelectedIdRef.current = movie.id;
+    } else {
+      onSelectMovie(movie);
+    }
+  };
 
   return (
     <div
@@ -59,15 +88,11 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             key={movie.id}
             data-selection-id={movie.id}
             data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
-            onClick={() => {
-              if (selectionMode) onToggleMovieSelection(movie.id);
-              else onSelectMovie(movie);
-            }}
+            onClick={(e) => handleMovieClick(e, movie)}
             className={`group relative flex flex-col cursor-pointer rounded-xl overflow-hidden bg-[#121520] border transition-all duration-200 ${
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
-            {/* Poster Section */}
             <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0">
               <img
                 src={getImageSource(movie.posterUrl)}
@@ -76,11 +101,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
               />
-              
-              {/* Overlay Gradient for readability if text is inside */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-
-              {/* Status Icons */}
               <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
                 {movie.favorite && (
                   <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-amber-400 shadow-sm">
@@ -93,8 +114,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                   </div>
                 )}
               </div>
-
-              {/* Selection Checkbox */}
               {selectionMode && (
                 <div className="absolute top-2 left-2 z-10">
                   <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shadow-sm ${isSelected ? 'bg-amber-400 border-amber-400' : 'bg-black/50 border-white/50'}`}>
@@ -104,7 +123,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               )}
             </div>
 
-            {/* Info Section (Keterangan di bawah cover) */}
             <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520]">
               <h3 
                 className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors" 
@@ -112,7 +130,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               >
                 {movie.title}
               </h3>
-              
               <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[8px] sm:text-[10px] text-zinc-400 font-mono">
                 <span>{movie.year}</span>
                 <span aria-hidden="true">·</span>
@@ -120,7 +137,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                 <span aria-hidden="true">·</span>
                 <span className="text-zinc-300">{formatStorageSize(Number(movie.sizeBytes) || 0)}</span>
               </div>
-              
               <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-zinc-500 truncate mt-0.5">
                 <Building2 className="w-3 h-3 shrink-0" />
                 <span className="truncate">{movie.studio}</span>

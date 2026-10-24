@@ -376,7 +376,6 @@ export default function App() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   
-  // STATE UNTUK SLIDER GRID
   const [gridCols, setGridCols] = useState<number>(() => {
     try {
       const saved = Number(localStorage.getItem(GRID_COLS_STORAGE_KEY));
@@ -519,10 +518,6 @@ export default function App() {
     setActiveMetadataFilter({ type: 'actor', label: 'Starring Actor', value: actorName });
   };
 
-  const handleFilterByStudio = (studioName: string) => {
-    handleFilterByAttribute('studio', studioName);
-  };
-
   const handleClearMetadataFilter = () => {
     setActiveMetadataFilter(null);
   };
@@ -560,6 +555,15 @@ export default function App() {
       } else {
         next.add(movieId);
       }
+      return next;
+    });
+  };
+
+  // FUNGSI BARU UNTUK SHIFT + CLICK
+  const handleSelectMultipleMovies = (movieIds: string[]) => {
+    setSelectedMovieIds((prev) => {
+      const next = new Set(prev);
+      movieIds.forEach((id) => next.add(id));
       return next;
     });
   };
@@ -991,7 +995,6 @@ export default function App() {
           <div className="space-y-6">
             <div className="sticky top-[56px] z-20 -mx-3 space-y-3 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-2 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               
-              {/* FilterToolbar dengan tambahan Slider */}
               <FilterToolbar
                 viewMode={viewMode}
                 setViewMode={setViewMode}
@@ -1058,8 +1061,9 @@ export default function App() {
                 onSelectMovie={setSelectedMovie}
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
+                onSelectMultipleMovies={handleSelectMultipleMovies}
                 selectionMode={selectedMovieCount > 0}
-                cols={gridCols} // <--- Kirim nilai kolom ke Grid
+                cols={gridCols}
               />
             ) : viewMode === 'list' ? (
               <MovieList
