@@ -350,16 +350,38 @@ export default function App() {
     setMovies((prev) => [newMovie, ...prev]); setActivePage('library'); setSortBy('alphabet-asc'); setActiveMetadataFilter(null);
   };
 
-  const handleDeleteMovie = (id: string) => {
+  const handleDeleteMovie = async (id: string) => {
     setMovies((prev) => prev.filter((m) => m.id !== id)); showActionNotification('Movie successfully deleted.');
     setSelectedMovieIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+
+    try {
+      await fetch('https://cinevault-delta-lake.vercel.app/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', movieId: id })
+      });
+    } catch (error) {
+      console.error('Failed to delete from database:', error);
+    }
   };
 
-  const handleBulkDeleteMovies = (movieIds: string[]) => {
+  const handleBulkDeleteMovies = async (movieIds: string[]) => {
     if (movieIds.length === 0) return; const idSet = new Set(movieIds);
     setMovies((prev) => prev.filter((m) => !idSet.has(m.id)));
     setSelectedMovieIds((prev) => new Set([...prev].filter((id) => !idSet.has(id))));
     showActionNotification(`${movieIds.length} movies successfully deleted.`);
+
+    for (const id of movieIds) {
+      try {
+        await fetch('https://cinevault-delta-lake.vercel.app/api/movies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete', movieId: id })
+        });
+      } catch (error) {
+        console.error('Failed to delete movie from database:', error);
+      }
+    }
   };
 
   const handleToggleMovieSelection = (movieId: string) => {

@@ -23,7 +23,7 @@ export default {
     let body;
     try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid JSON.' }, 400, headers); }
 
-    const supportedActions = ['load', 'save', 'loadActors', 'saveActor', 'deleteActors', 'saveActors'];
+    const supportedActions = ['load', 'save', 'delete', 'loadActors', 'saveActor', 'deleteActors', 'saveActors'];
     if (!supportedActions.includes(body.action)) return jsonResponse({ error: 'Unsupported action.' }, 400, headers);
 
     try {
@@ -53,8 +53,6 @@ export default {
         if (!Array.isArray(body.movies)) return jsonResponse({ error: 'Movies must be array.' }, 400, headers);
         for (const m of body.movies) {
           const movieId = m.id ? String(m.id) : `csv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-          
-          // PENGAMAN TOTAL: Apapun yang terjadi, ini akan menjadi angka murni (0 jika ada huruf)
           const safeYear = parseInt(String(m.year).replace(/[^0-9]/g, ''), 10) || 0;
           const safeMinutes = parseInt(String(m.minutes).replace(/[^0-9]/g, ''), 10) || 0;
           const safeSizeBytes = Math.round(Number(String(m.sizeBytes).replace(/[^0-9]/g, ''))) || 0;
@@ -67,16 +65,17 @@ export default {
                minutes = EXCLUDED.minutes, size = EXCLUDED.size, size_bytes = EXCLUDED.size_bytes, resolution = EXCLUDED.resolution, 
                poster_url = EXCLUDED.poster_url, backdrop_url = EXCLUDED.backdrop_url, favorite = EXCLUDED.favorite, 
                reviewed = EXCLUDED.reviewed, uncensored = EXCLUDED.uncensored, added_date = EXCLUDED.added_date, actors = EXCLUDED.actors`,
-            [
-              movieId, m.title, safeYear, m.genre || null, m.studio || null, 
-              safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, 
-              m.posterUrl || null, m.backdropUrl || null, m.favorite || false, 
-              m.reviewed || false, m.uncensored || false, m.addedDate || null, 
-              JSON.stringify(m.actors || [])
-            ]
+            [movieId, m.title, safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, m.favorite || false, m.reviewed || false, m.uncensored || false, m.addedDate || null, JSON.stringify(m.actors || [])]
           );
         }
         return jsonResponse({ message: `Movies synchronized.` }, 200, headers);
+      }
+
+      // FITUR HAPUS FILM BARU
+      if (body.action === 'delete') {
+        if (!body.movieId) return jsonResponse({ error: 'Movie ID is required.' }, 400, headers);
+        await pool.query('DELETE FROM movies WHERE id = $1', [String(body.movieId)]);
+        return jsonResponse({ message: `Movie deleted.` }, 200, headers);
       }
 
       if (body.action === 'saveActor' || body.action === 'saveActors') {
@@ -85,8 +84,7 @@ export default {
         for (const a of actorsToSave) {
           await pool.query(
             `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count) VALUES ($1, $2, $3, $4, $5, $6, $7)
-             ON CONFLICT (name) DO UPDATE SET alias = EXCLUDED.alias, dob = EXCLUDED.dob, photo_url = EXCLUDED.photo_url, 
-                 favorite = EXCLUDED.favorite, reviewed = EXCLUDED.reviewed, movie_count = EXCLUDED.movie_count`,
+             ON CONFLICT (name) DO UPDATE SET alias = EXCLUDED.alias, dob = EXCLUDED.dob, photo_url = EXCLUDED.photo_url, favorite = EXCLUDED.favorite, reviewed = EXCLUDED.reviewed, movie_count = EXCLUDED.movie_count`,
             [a.name, a.alias || null, a.dob || null, a.photoUrl || null, a.favorite || false, a.reviewed || false, a.movieCount || 0]
           );
         }
