@@ -20,6 +20,7 @@ import { getImageSource } from '../utils/googleDriveImage';
 import { getMovieGenres } from '../utils/movieGenres';
 import { useHorizontalSwipe } from '../utils/useHorizontalSwipe';
 import { useLongPress } from '../utils/useLongPress';
+import { getCustomActors, getActorAliases, KNOWN_ACTORS } from '../data/actorsData';
 
 interface MovieDetailModalProps {
   movie: Movie | null;
@@ -52,9 +53,9 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [editGenres, setEditGenres] = useState<string[]>([]);
   const [editStudio, setEditStudio] = useState('');
-  const [editYear, setEditYear] = useState<number>(2024);
-  const [editMinutes, setEditMinutes] = useState<number>(110);
-  const [editSize, setEditSize] = useState('4.5 GB');
+  const [editYear, setEditYear] = useState<string>('2024');
+  const [editMinutes, setEditMinutes] = useState<string>('110');
+  const [editSize, setEditSize] = useState('4.5');
   const [editResolution, setEditResolution] = useState('1080p HD');
   const [editPosterUrl, setEditPosterUrl] = useState('');
   const [editBackdropUrl, setEditBackdropUrl] = useState('');
@@ -96,6 +97,25 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       }
     });
     return [...actors.values()].sort((a, b) => a.localeCompare(b));
+  }, [movies]);
+
+  // GET ACTOR SUGGESTIONS FOR AUTOCOMPLETE
+  const actorSuggestions = useMemo(() => {
+    const customProfiles = getCustomActors();
+    const names = new Set<string>();
+    
+    Object.keys(KNOWN_ACTORS).forEach(name => names.add(name));
+    
+    Object.entries(customProfiles).forEach(([name, profile]) => {
+      names.add(name);
+      if (profile.alias) {
+        getActorAliases(profile.alias).forEach(alias => names.add(alias));
+      }
+    });
+
+    movies.forEach(m => m.actors.forEach(a => names.add(a)));
+
+    return Array.from(names).sort();
   }, [movies]);
 
   const resolutionOptions = useMemo(() => {
@@ -141,9 +161,13 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditTitle(movie.title);
       setEditGenres(getMovieGenres(movie.genre));
       setEditStudio(movie.studio);
-      setEditYear(movie.year);
-      setEditMinutes(movie.minutes);
-      setEditSize(movie.size);
+      setEditYear(String(movie.year));
+      setEditMinutes(String(movie.minutes));
+      
+      // Ambil hanya angka dan koma dari size
+      const rawSize = movie.size.replace(/[^0-9,]/g, '');
+      setEditSize(rawSize || '4,5');
+
       setEditResolution(movie.resolution || '1080p HD');
       setEditPosterUrl(movie.posterUrl);
       setEditBackdropUrl(movie.backdropUrl || '');
@@ -165,9 +189,10 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       return;
     }
 
-    const sizeNum = parseFloat(editSize.replace(/[^\d.]/g, '')) || 4.5;
-    const isTB = /tb/i.test(editSize);
-    const sizeBytes = Math.round(sizeNum * (isTB ? 1000000 : 1000));
+    // Ubah koma jadi titik untuk perhitungan, lalu kembalikan ke format "X,X GB"
+    const numericSize = parseFloat(editSize.replace(',', '.')) || 4.5;
+    const sizeBytes = Math.round(numericSize * 1000);
+    const finalSizeString = `${editSize.replace('.', ',')} GB`;
 
     const updated: Movie = {
       ...movie,
@@ -176,7 +201,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       studio: editStudio.trim() || 'Independent Studio',
       year: Number(editYear) || 2024,
       minutes: Number(editMinutes) || 110,
-      size: editSize.trim() || '4.5 GB',
+      size: finalSizeString,
       sizeBytes,
       resolution: editResolution.trim() || '1080p HD',
       posterUrl: getImageSource(editPosterUrl.trim() || movie.posterUrl),
@@ -387,6 +412,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
                     placeholder="Movie title"
                     required
@@ -442,6 +468,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     list="movie-detail-studios"
                     value={editStudio}
                     onChange={(e) => setEditStudio(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
                     placeholder="e.g. Warner Bros. Pictures"
                   />
@@ -455,9 +482,15 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <div>
                     <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Year</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
                       value={editYear}
-                      onChange={(e) => setEditYear(Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setEditYear(val);
+                      }}
+                      onFocus={(e) => e.target.select()}
                       className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
                       placeholder="2024"
                     />
@@ -465,9 +498,14 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <div>
                     <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Minutes</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={editMinutes}
-                      onChange={(e) => setEditMinutes(Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setEditMinutes(val);
+                      }}
+                      onFocus={(e) => e.target.select()}
                       className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
                       placeholder="120"
                     />
@@ -477,13 +515,18 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 {/* Size and Resolution */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Size</label>
+                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Size (GB)</label>
                     <input
                       type="text"
+                      inputMode="decimal"
                       value={editSize}
-                      onChange={(e) => setEditSize(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9,]/g, '');
+                        setEditSize(val);
+                      }}
+                      onFocus={(e) => e.target.select()}
                       className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                      placeholder="e.g. 14.5 GB"
+                      placeholder="e.g. 14,5"
                     />
                   </div>
                   <div>
@@ -509,6 +552,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     type="text"
                     value={editPosterUrl}
                     onChange={(e) => setEditPosterUrl(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
                     placeholder="Front cover image URL or Google Drive link"
                   />
@@ -521,6 +565,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     type="text"
                     value={editBackdropUrl}
                     onChange={(e) => setEditBackdropUrl(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
                     placeholder="Back cover image URL or Google Drive link"
                   />
@@ -548,6 +593,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <div className="mt-2 flex gap-2">
                     <input
                       type="text"
+                      list="actor-suggestions-edit"
                       value={newActor}
                       onChange={(e) => setNewActor(e.target.value)}
                       onKeyDown={(e) => {
@@ -556,9 +602,15 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                           addActor();
                         }
                       }}
+                      onFocus={(e) => e.target.select()}
                       className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-amber-400/60 focus:outline-none transition-colors"
                       placeholder="Add an actor not in the list"
                     />
+                    <datalist id="actor-suggestions-edit">
+                      {actorSuggestions.map((name, index) => (
+                        <option key={index} value={name} />
+                      ))}
+                    </datalist>
                     <button
                       type="button"
                       onClick={addActor}
@@ -571,11 +623,16 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 <div>
                   <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Cast Count (optional override)</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     min="0"
                     step="1"
                     value={editCastCount}
-                    onChange={(e) => setEditCastCount(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      setEditCastCount(val);
+                    }}
+                    onFocus={(e) => e.target.select()}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
                     placeholder={`Automatic (${editActors.length} selected)`}
                   />
