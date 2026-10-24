@@ -280,7 +280,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onResetCatalog,
   onSelectMovie,
 }) => {
-  const [activeTab, setActiveTab] = useState<'csv' | 'duplicates' | 'system' | 'shared'>('csv');
+  const [activeTab, setActiveTab] = useState<'csv' | 'duplicates' | 'system'>('csv');
   const [duplicateType, setDuplicateType] = useState<'movies' | 'actors'>('movies');
   const [reviewedDuplicateGroups, setReviewedDuplicateGroups] = useState<Set<string>>(() => {
     try {
@@ -292,7 +292,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       return new Set();
     }
   });
-  const [sharedTokenInput, setSharedTokenInput] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   // CSV Import State
@@ -337,13 +336,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         'posterUrl', 'backdropUrl', 'actors', 'addedDate', 'castCount', 'favorite', 'reviewed', 'uncensored'
       ];
 
+      // Fungsi baru: Hanya pakai tanda kutip jika ada koma, enter, atau kutip di dalam teks
       const escapeCsvCell = (val: unknown): string => {
-        if (val === null || val === undefined) return '""';
+        if (val === null || val === undefined) return '';
         const str = String(val);
-        if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
+        // Jika ada koma, enter, atau kutip, bungkus dengan kutip dan gandakan kutipnya
+        if (str.includes(',') || str.includes('\n') || str.includes('\r') || str.includes('"')) {
           return `"${str.replace(/"/g, '""')}"`;
         }
-        return `"${str}"`;
+        return str; // Kalau teks biasa, biarkan tanpa tanda kutip
       };
 
       const rows = movies.map((m) => [
@@ -1178,6 +1179,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {activeTab === 'system' && (
         <div className="space-y-6 w-full">
+          {/* Tombol Save to Database - DIKEMBALIKAN DI SINI */}
+          <div className="bg-[#121520] border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-base text-zinc-100 flex items-center gap-2">
+                <Upload className="w-4 h-4 text-emerald-400" />
+                <span>Simpan Perubahan ke Database</span>
+              </h3>
+              <p className="text-xs text-zinc-400 mt-1">
+                Kirim semua data film dari perangkat ini ke database Neon agar bisa diakses dari HP atau laptop lain.
+              </p>
+            </div>
+            <div className="w-full sm:w-auto">
+              <SaveSharedCatalogButton
+                movieCount={movies.length}
+                isLoading={sharedCatalogStatus === 'loading'}
+                onSave={onSaveSharedCatalog}
+                onNotify={showToast}
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-3.5 sm:p-4">
               <span className="text-[11px] text-zinc-400 uppercase font-semibold tracking-wider">Total Movies</span>
