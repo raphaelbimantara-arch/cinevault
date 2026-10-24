@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Film, Star, Check, Building2 } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
+import { useLongPress } from '../utils/useLongPress';
 
 interface MovieGridProps {
   movies: Movie[];
@@ -31,6 +32,8 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   selectionMode,
   cols = 7,
 }) => {
+  // 1. FITUR KLIK LAMA (LONG PRESS) DIKEMBALIKAN
+  const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
   const lastSelectedIdRef = useRef<string | null>(null);
 
   if (movies.length === 0) {
@@ -44,6 +47,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
 
   const handleMovieClick = (e: React.MouseEvent, movie: Movie) => {
     if (selectionMode) {
+      // 2. FITUR SHIFT + KLIK
       if (e.shiftKey && lastSelectedIdRef.current) {
         const lastIndex = movies.findIndex((m) => m.id === lastSelectedIdRef.current);
         const currentIndex = movies.findIndex((m) => m.id === movie.id);
@@ -72,6 +76,13 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     <div
       className="grid gap-3 sm:gap-4 select-none"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      // 3. EVENT HANDLER UNTUK KLIK LAMA
+      onPointerDown={longPressHandlers.onPointerDown}
+      onPointerMove={longPressHandlers.onPointerMove}
+      onPointerUp={longPressHandlers.onPointerUp}
+      onPointerCancel={longPressHandlers.onPointerCancel}
+      onContextMenu={longPressHandlers.onContextMenu}
+      onClickCapture={longPressHandlers.onClickCapture}
     >
       {movies.map((movie) => {
         const isSelected = selectedMovieIds.has(movie.id);
