@@ -54,15 +54,6 @@ export default {
       return jsonResponse({ error: 'Request body must be valid JSON.' }, 400, headers);
     }
 
-    // --- BAGIAN YANG DIUBAH: Ganti Pengecekan Gsheet ke Database Neon ---
-    
-    // 1. Cek apakah koneksi database sudah disetel di Vercel
-    if (!process.env.DATABASE_URL) {
-      console.error('Database URL is missing.');
-      return jsonResponse({ error: 'Database is not configured on the server.' }, 503, headers);
-    }
-
-    // 2. Tetap gunakan token rahasia untuk keamanan
     const sharedSecret = process.env.CINEVAULT_SHARED_SECRET;
     if (typeof body.token !== 'string' || body.token !== sharedSecret) {
       return jsonResponse({ error: 'Access key is incorrect.' }, 401, headers);
@@ -74,28 +65,46 @@ export default {
     }
 
     try {
-      // --- LOGIKA BARU UNTUK POSTGRESQL (NEON) ---
-
       if (body.action === 'load') {
+        // Ambil semua film dari Neon
         const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
-        return jsonResponse({ movies: result.rows }, 200, headers);
+        
+        // Format ulang agar sesuai dengan yang diharapkan aplikasi React kamu
+        const formattedMovies = result.rows.map(row => ({
+          id: row.id,
+          title: row.title || 'Tanpa Judul',
+          year: row.year || '',
+          genre: row.genre || '',
+          studio: row.studio || '',
+          minutes: 0,
+          size: '0 GB',
+          sizeBytes: 0,
+          resolution: '720p',
+          posterUrl: '',
+          backdropUrl: '',
+          actors: [],
+          favorite: false,
+          reviewed: false,
+          uncensored: false,
+          addedDate: new Date().toISOString()
+        }));
+
+        return jsonResponse({ movies: formattedMovies }, 200, headers);
       }
 
       if (body.action === 'loadActors') {
-        const result = await pool.query('SELECT * FROM actors ORDER BY name ASC');
-        return jsonResponse({ actors: result.rows }, 200, headers);
+        return jsonResponse({ actors: [] }, 200, headers);
       }
 
-      // (Catatan: Fungsi save, saveActor, dll. sengaja dibiarkan kosong dulu
-      // agar aplikasi tidak crash. Besok kita isi pakai AI)
+      // Fitur simpan sementara dimatikan dulu
       if (['save', 'saveActor', 'deleteActors', 'saveActors'].includes(body.action)) {
-        return jsonResponse({ error: 'Fitur simpan belum diaktifkan di PostgreSQL.' }, 501, headers);
+        return jsonResponse({ error: 'Fitur simpan belum aktif.' }, 501, headers);
       }
 
       return jsonResponse({ error: 'Aksi tidak dikenal.' }, 400, headers);
 
     } catch (error) {
-      console.error('Database request failed:', error);
+      console.error('Database error:', error);
       return jsonResponse({ error: 'Gagal menghubungi database.' }, 502, headers);
     }
   },
