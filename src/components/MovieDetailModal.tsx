@@ -164,9 +164,9 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditYear(String(movie.year));
       setEditMinutes(String(movie.minutes));
       
-      // Ambil hanya angka dan koma dari size
-      const rawSize = movie.size.replace(/[^0-9,]/g, '');
-      setEditSize(rawSize || '4,5');
+      // Ambil hanya angka dan titik dari size
+      let rawSize = movie.size.replace(/[^0-9.]/g, '');
+      setEditSize(rawSize || '4.5');
 
       setEditResolution(movie.resolution || '1080p HD');
       setEditPosterUrl(movie.posterUrl);
@@ -189,18 +189,25 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       return;
     }
 
-    // Ubah koma jadi titik untuk perhitungan, lalu kembalikan ke format "X,X GB"
-    const numericSize = parseFloat(editSize.replace(',', '.')) || 4.5;
+    // Perbaikan: Pastikan Tahun dan Menit dipaksa jadi Integer (Angka Bulat)
+    const safeYear = parseInt(String(editYear).replace(/[^0-9]/g, ''), 10) || 2024;
+    const safeMinutes = parseInt(String(editMinutes).replace(/[^0-9]/g, ''), 10) || 110;
+
+    // Perbaikan: Baca titik untuk ukuran file
+    const cleanSizeString = String(editSize).replace(/[^0-9.]/g, '');
+    const numericSize = parseFloat(cleanSizeString) || 4.5;
     const sizeBytes = Math.round(numericSize * 1000);
-    const finalSizeString = `${editSize.replace('.', ',')} GB`;
+    
+    // Format akhir pakai titik
+    const finalSizeString = `${numericSize} GB`;
 
     const updated: Movie = {
       ...movie,
       title: editTitle.trim(),
       genre: editGenres.join(', '),
       studio: editStudio.trim() || 'Independent Studio',
-      year: Number(editYear) || 2024,
-      minutes: Number(editMinutes) || 110,
+      year: safeYear,
+      minutes: safeMinutes,
       size: finalSizeString,
       sizeBytes,
       resolution: editResolution.trim() || '1080p HD',
@@ -521,12 +528,12 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                       inputMode="decimal"
                       value={editSize}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9,]/g, '');
+                        const val = e.target.value.replace(/[^0-9.]/g, '');
                         setEditSize(val);
                       }}
                       onFocus={(e) => e.target.select()}
                       className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                      placeholder="e.g. 14,5"
+                      placeholder="e.g. 14.5"
                     />
                   </div>
                   <div>

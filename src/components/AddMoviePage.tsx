@@ -65,7 +65,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
   const [studio, setStudio] = useState('Warner Bros. Pictures');
   const [year, setYear] = useState<string>(new Date().getFullYear().toString());
   const [minutes, setMinutes] = useState<string>('128');
-  const [sizeStr, setSizeStr] = useState('12.4 GB');
+  const [sizeStr, setSizeStr] = useState('12.4');
   const [resolution, setResolution] = useState<(typeof ALLOWED_RESOLUTIONS)[number]>('1080p HD');
   const [actorsInput, setActorsInput] = useState('');
   const [posterUrl, setPosterUrl] = useState(PRESET_POSTERS[0].url);
@@ -89,10 +89,8 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
     const customProfiles = getCustomActors();
     const names = new Set<string>();
     
-    // Ambil dari known actors
     Object.keys(KNOWN_ACTORS).forEach(name => names.add(name));
     
-    // Ambil dari custom actors
     Object.entries(customProfiles).forEach(([name, profile]) => {
       names.add(name);
       if (profile.alias) {
@@ -100,15 +98,14 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
       }
     });
 
-    // Ambil dari existing movies (jika ada aktor yang belum masuk daftar)
     existingMovies.forEach(m => m.actors.forEach(a => names.add(a)));
 
     return Array.from(names).sort();
   }, [existingMovies]);
 
-  // Parse numerical size for sorting
+  // Parse numerical size for sorting (Menggunakan titik)
   const parseSizeToMB = (str: string): number => {
-    const num = parseFloat(str.replace(',', '.')) || 0;
+    const num = parseFloat(str.replace(/[^0-9.]/g, '')) || 0;
     if (str.toUpperCase().includes('GB')) return num * 1000;
     if (str.toUpperCase().includes('TB')) return num * 1000000;
     return num;
@@ -124,15 +121,25 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
       .map((a) => a.trim())
       .filter(Boolean);
 
+    // Pastikan tahun dan menit bulat
+    const safeYear = parseInt(String(year).replace(/[^0-9]/g, ''), 10) || new Date().getFullYear();
+    const safeMinutes = parseInt(String(minutes).replace(/[^0-9]/g, ''), 10) || 120;
+
+    // Perhitungan size dengan titik
+    const cleanSizeString = String(sizeStr).replace(/[^0-9.]/g, '');
+    const numericSize = parseFloat(cleanSizeString) || 4.5;
+    const sizeBytes = Math.round(numericSize * 1000);
+    const finalSizeString = `${numericSize} GB`;
+
     const newMovie: Movie = {
       id: `movie-${Date.now()}`,
       title: title.trim(),
       genre: genre.trim(),
       studio: studio.trim() || 'Independent',
-      year: Number(year) || new Date().getFullYear(),
-      minutes: Number(minutes) || 120,
-      size: sizeStr.trim() || '8.0 GB',
-      sizeBytes: parseSizeToMB(sizeStr),
+      year: safeYear,
+      minutes: safeMinutes,
+      size: finalSizeString,
+      sizeBytes: parseSizeToMB(finalSizeString),
       resolution,
       posterUrl: finalPoster,
       actors: actorsList.length > 0 ? actorsList : ['Lead Actor'],
@@ -301,7 +308,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                   maxLength={4}
                   value={year}
                   onChange={(e) => {
-                    // Hanya izinkan angka
                     const val = e.target.value.replace(/[^0-9]/g, '');
                     setYear(val);
                   }}
@@ -321,7 +327,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                   inputMode="numeric"
                   value={minutes}
                   onChange={(e) => {
-                    // Hanya izinkan angka
                     const val = e.target.value.replace(/[^0-9]/g, '');
                     setMinutes(val);
                   }}
@@ -333,7 +338,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
-                  File Size <span className="text-amber-400">*</span>
+                  File Size (GB) <span className="text-amber-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -341,12 +346,11 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                   inputMode="decimal"
                   value={sizeStr}
                   onChange={(e) => {
-                    // Hanya izinkan angka dan koma
-                    const val = e.target.value.replace(/[^0-9,]/g, '');
+                    const val = e.target.value.replace(/[^0-9.]/g, '');
                     setSizeStr(val);
                   }}
                   onFocus={(e) => e.target.select()}
-                  placeholder="e.g. 1,5"
+                  placeholder="e.g. 2.19"
                   className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-amber-500/60"
                 />
               </div>
@@ -386,14 +390,14 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
               </label>
               <input
                 type="text"
-                list="actor-suggestions"
+                list="actor-suggestions-add"
                 value={actorsInput}
                 onChange={(e) => setActorsInput(e.target.value)}
                 onFocus={(e) => e.target.select()}
                 placeholder="e.g. Victor Lynch, Elena Rostova, Robert Stone"
                 className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
               />
-              <datalist id="actor-suggestions">
+              <datalist id="actor-suggestions-add">
                 {actorSuggestions.map((name, index) => (
                   <option key={index} value={name} />
                 ))}

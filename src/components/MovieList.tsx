@@ -34,7 +34,8 @@ interface MovieEditDraft {
 const toDraft = (movie: Movie): MovieEditDraft => ({
   title: movie.title,
   year: String(movie.year),
-  size: movie.size.match(/\d+(?:[.,]\d+)?/)?.[0].replace('.', ',') || '',
+  // Menggunakan titik (.) untuk size
+  size: movie.size.match(/\d+(?:[.,]\d+)?/)?.[0].replace(',', '.') || '',
   minutes: String(movie.minutes),
   resolution: movie.resolution || '',
   actors: movie.actors.join(', '),
@@ -43,10 +44,11 @@ const toDraft = (movie: Movie): MovieEditDraft => ({
 });
 
 const sanitizeSizeInput = (value: string) => {
-  const numericValue = value.replace(/[^\d,]/g, '');
-  const firstCommaIndex = numericValue.indexOf(',');
-  if (firstCommaIndex < 0) return numericValue;
-  return `${numericValue.slice(0, firstCommaIndex + 1)}${numericValue.slice(firstCommaIndex + 1).replace(/,/g, '')}`;
+  // Hanya izinkan angka dan titik
+  const numericValue = value.replace(/[^\d.]/g, '');
+  const firstDotIndex = numericValue.indexOf('.');
+  if (firstDotIndex < 0) return numericValue;
+  return `${numericValue.slice(0, firstDotIndex + 1)}${numericValue.slice(firstDotIndex + 1).replace(/\./g, '')}`;
 };
 
 export const MovieList: React.FC<MovieListProps> = ({
@@ -146,24 +148,31 @@ export const MovieList: React.FC<MovieListProps> = ({
       const draft = drafts[movie.id];
       if (!draft) continue;
 
-      const year = Number(draft.year);
-      const minutes = Number(draft.minutes);
-      const sizeNumber = Number(draft.size.replace(',', '.'));
+      // Paksa konversi ke integer
+      const year = parseInt(String(draft.year).replace(/[^0-9]/g, ''), 10);
+      const minutes = parseInt(String(draft.minutes).replace(/[^0-9]/g, ''), 10);
+      const sizeNumber = parseFloat(draft.size.replace(/[^0-9.]/g, ''));
+
       if (!draft.title.trim()) {
         window.alert(`Movie title cannot be empty (${movie.title}).`);
         return;
       }
-      if (!Number.isInteger(year) || year < 1 || !Number.isInteger(minutes) || minutes < 1) {
+      
+      // Validasi tahun dan menit
+      if (isNaN(year) || year < 1 || isNaN(minutes) || minutes < 1) {
         window.alert(`Year and duration must be positive whole numbers (${movie.title}).`);
         return;
       }
-      if (!draft.size || !Number.isFinite(sizeNumber) || sizeNumber <= 0) {
+      
+      // Validasi size
+      if (isNaN(sizeNumber) || sizeNumber <= 0) {
         window.alert(`Enter a valid movie size (${movie.title}).`);
         return;
       }
 
       const actors = draft.actors.split(/[|,;]/).map((actor) => actor.trim()).filter(Boolean);
       const genres = draft.genre.split(/[|,;]/).map((genre) => genre.trim()).filter(Boolean);
+      
       updatedMovies.push({
         ...movie,
         title: draft.title.trim(),
@@ -306,7 +315,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                         aria-label={`Edit title for ${movie.title}`}
                         className={inputClassName}
                         value={draft.title}
-                        onFocus={() => updateDraft(movie.id, 'title', '')}
+                        onFocus={(e) => { updateDraft(movie.id, 'title', ''); e.target.select(); }}
                         onClick={(event) => event.stopPropagation()}
                         onChange={(event) => updateDraft(movie.id, 'title', event.target.value)}
                       />
@@ -328,11 +337,15 @@ export const MovieList: React.FC<MovieListProps> = ({
                       aria-label={`Edit year for ${movie.title}`}
                       type="text"
                       inputMode="numeric"
+                      maxLength={4}
                       className={`${inputClassName} appearance-none`}
                       value={draft.year}
-                      onFocus={() => updateDraft(movie.id, 'year', '')}
+                      onFocus={(e) => { updateDraft(movie.id, 'year', ''); e.target.select(); }}
                       onClick={(event) => event.stopPropagation()}
-                      onChange={(event) => updateDraft(movie.id, 'year', event.target.value)}
+                      onChange={(event) => {
+                        const val = event.target.value.replace(/[^0-9]/g, '');
+                        updateDraft(movie.id, 'year', val);
+                      }}
                     />
                   ) : movie.year}
                 </td>
@@ -342,11 +355,10 @@ export const MovieList: React.FC<MovieListProps> = ({
                       <input
                         aria-label={`Edit size in GB for ${movie.title}`}
                         type="text"
-                        inputMode="text"
-                        pattern="[0-9,]*"
+                        inputMode="decimal"
                         className={`${inputClassName} text-right`}
                         value={draft.size}
-                        onFocus={() => updateDraft(movie.id, 'size', '')}
+                        onFocus={(e) => { updateDraft(movie.id, 'size', ''); e.target.select(); }}
                         onClick={(event) => event.stopPropagation()}
                         onChange={(event) => updateDraft(movie.id, 'size', sanitizeSizeInput(event.target.value))}
                       />
@@ -362,9 +374,12 @@ export const MovieList: React.FC<MovieListProps> = ({
                       inputMode="numeric"
                       className={`${inputClassName} appearance-none text-right`}
                       value={draft.minutes}
-                      onFocus={() => updateDraft(movie.id, 'minutes', '')}
+                      onFocus={(e) => { updateDraft(movie.id, 'minutes', ''); e.target.select(); }}
                       onClick={(event) => event.stopPropagation()}
-                      onChange={(event) => updateDraft(movie.id, 'minutes', event.target.value)}
+                      onChange={(event) => {
+                        const val = event.target.value.replace(/[^0-9]/g, '');
+                        updateDraft(movie.id, 'minutes', val);
+                      }}
                     />
                   ) : `${movie.minutes}m`}
                 </td>
@@ -549,9 +564,10 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
         autoComplete="off"
         className={className}
         value={value}
-        onFocus={() => {
+        onFocus={(e) => {
           setActiveIndex(-1);
           if (clearOnFocus) onChange('');
+          e.target.select();
           setIsOpen(true);
         }}
         onBlur={() => setIsOpen(false)}
