@@ -54,10 +54,10 @@ export default {
         for (const m of body.movies) {
           const movieId = m.id ? String(m.id) : `csv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
           
-          // PENGAMAN GANDA: Memastikan yang masuk ke database benar-benar Integer murni
+          // PENGAMAN TOTAL: Apapun yang terjadi, ini akan menjadi angka murni (0 jika ada huruf)
           const safeYear = parseInt(String(m.year).replace(/[^0-9]/g, ''), 10) || 0;
           const safeMinutes = parseInt(String(m.minutes).replace(/[^0-9]/g, ''), 10) || 0;
-          const safeSizeBytes = Math.round(Number(m.sizeBytes)) || 0;
+          const safeSizeBytes = Math.round(Number(String(m.sizeBytes).replace(/[^0-9]/g, ''))) || 0;
 
           await pool.query(
             `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) 
