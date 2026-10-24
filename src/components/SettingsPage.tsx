@@ -131,7 +131,6 @@ function getMovieDuplicateReviewKey(group: DuplicateGroup): string {
 }
 
 function normalizePersonName(value: string): string {
-  // Hilangkan teks dalam kurung sebelum normalisasi
   const clean = value.replace(/\s*\(.*?\)\s*/g, '');
   return clean.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
 }
@@ -151,8 +150,9 @@ function editDistance(left: string, right: string): number {
 }
 
 function getActorDuplicateReason(first: ActorDuplicateCandidate, second: ActorDuplicateCandidate): ActorDuplicateGroup['reason'] | null {
-  const firstIdentities = [first.name, ...getActorAliases(first.alias)].map(normalizePersonName).filter(Boolean);
-  const secondIdentities = [second.name, ...getActorAliases(second.alias)].map(normalizePersonName).filter(Boolean);
+  const clean = (str: string) => str.replace(/\s*\(.*?\)\s*/g, '').trim();
+  const firstIdentities = [clean(first.name), ...getActorAliases(first.alias)].map(normalizePersonName).filter(Boolean);
+  const secondIdentities = [clean(second.name), ...getActorAliases(second.alias)].map(normalizePersonName).filter(Boolean);
   if (firstIdentities.some((identity) => secondIdentities.includes(identity))) return 'name-or-alias';
   for (const firstIdentity of firstIdentities) {
     for (const secondIdentity of secondIdentities) {
@@ -555,30 +555,48 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <h3 className="font-bold text-zinc-200">{actorDuplicateGroups.length > 0 ? 'All Actor Groups Reviewed' : 'No duplicate actors found'}</h3>
                   <p className="mt-1 text-xs text-zinc-400">{actorDuplicateGroups.length > 0 ? 'Reviewed actor entries remain saved and can be detected again if the names or aliases change.' : 'Actor names and aliases currently appear unique.'}</p>
                 </div>
-              ) : visibleActorGroups.map((group, groupIndex) => (
-                <section key={group.key} className="space-y-3 rounded-2xl border border-zinc-800 bg-[#121520] p-4 sm:p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-400/20 font-mono text-xs font-bold text-amber-300">{groupIndex + 1}</span>
-                      <span className="text-sm font-bold text-white">{group.reason === 'name-or-alias' ? 'Name or alias match' : group.reason === 'matching-name-parts' ? 'Matching first/last name' : 'Possible spelling variation'}</span>
-                    </div>
-                    <KeepDuplicateButton onConfirm={() => handleKeepDuplicateGroup('actor', group.key)} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20" title="Keep all actor entries in this reviewed group" />
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {group.actors.map((actor) => (
-                      <article key={actor.name} className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-3">
-                        <h4 className="truncate text-sm font-semibold text-zinc-100">{actor.name}</h4>
-                        <p className="mt-1 truncate text-xs text-zinc-400">Alias: {getActorAliases(actor.alias).join(', ') || '—'}</p>
-                        <p className="mt-1 text-[11px] text-zinc-500">{actor.movieCount} movie credits</p>
-                        <button type="button" onClick={() => handleMergeActorGroup(group, actor.name)} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700" title={`Merge other candidates into ${actor.name}`}>
-                          <Layers className="h-3.5 w-3.5 text-amber-400" />
-                          Keep this actor and merge others
-                        </button>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              ))}
+              ) : (
+                <div className="space-y-4">
+                  {visibleActorGroups.map((group, groupIndex) => (
+                    <section key={group.key} className="rounded-2xl border border-zinc-800 bg-[#121520] shadow-lg overflow-hidden">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 bg-[#151926] px-4 py-2.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-400/20 font-mono text-[10px] font-bold text-amber-300">{groupIndex + 1}</span>
+                          <span className="text-xs font-bold text-white">
+                            {group.reason === 'name-or-alias' ? 'Name or alias match' : group.reason === 'matching-name-parts' ? 'Matching first/last name' : 'Possible spelling variation'}
+                          </span>
+                        </div>
+                        <KeepDuplicateButton onConfirm={() => handleKeepDuplicateGroup('actor', group.key)} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20" title="Keep all actor entries in this reviewed group" />
+                      </div>
+                      <div className="divide-y divide-zinc-800/50">
+                        {group.actors.map((actor) => (
+                          <div key={actor.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2 hover:bg-zinc-800/20 transition-colors">
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-semibold text-zinc-100 truncate">{actor.name}</span>
+                              <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-mono mt-0.5">
+                                <span>DOB: {actor.dob || '—'}</span>
+                                <span>·</span>
+                                <span>Alias: {getActorAliases(actor.alias).join(', ') || '—'}</span>
+                                <span>·</span>
+                                <span>{actor.movieCount} movies</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleMergeActorGroup(group, actor.name)}
+                              className="shrink-0 self-start sm:self-auto inline-flex items-center gap-1 rounded bg-zinc-800 px-2.5 py-1 text-[10px] font-semibold text-zinc-300 transition-colors hover:bg-amber-400 hover:text-zinc-950"
+                              title={`Merge other candidates into ${actor.name}`}
+                            >
+                              <Layers className="h-3 w-3" />
+                              Merge
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
