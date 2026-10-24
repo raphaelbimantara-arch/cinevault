@@ -46,6 +46,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
 
   const handleMovieClick = (e: React.MouseEvent, movie: Movie) => {
     if (selectionMode) {
+      // Logika Shift + Klik untuk memilih banyak film
       if (e.shiftKey && lastSelectedIdRef.current) {
         const lastIndex = movies.findIndex((m) => m.id === lastSelectedIdRef.current);
         const currentIndex = movies.findIndex((m) => m.id === movie.id);
@@ -62,10 +63,12 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
           }
         }
       } else {
+        // Klik biasa
         onToggleMovieSelection(movie.id);
       }
       lastSelectedIdRef.current = movie.id;
     } else {
+      // Jika tidak dalam mode seleksi, buka detail film
       onSelectMovie(movie);
     }
   };
@@ -74,12 +77,13 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     <div
       className="grid gap-3 sm:gap-4"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      // Handler long press hanya dipasang di container utama
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
       onPointerUp={longPressHandlers.onPointerUp}
       onPointerCancel={longPressHandlers.onPointerCancel}
       onContextMenu={longPressHandlers.onContextMenu}
-      onClickCapture={longPressHandlers.onClickCapture}
+      // onClickCapture DIHAPUS agar tidak membajak event klik dari mouse/laptop
     >
       {movies.map((movie) => {
         const isSelected = selectedMovieIds.has(movie.id);
@@ -93,6 +97,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
+            {/* Poster Section */}
             <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0">
               <img
                 src={getImageSource(movie.posterUrl)}
@@ -101,7 +106,10 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
               />
+              
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+
+              {/* Status Icons */}
               <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
                 {movie.favorite && (
                   <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-amber-400 shadow-sm">
@@ -114,6 +122,8 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Selection Checkbox */}
               {selectionMode && (
                 <div className="absolute top-2 left-2 z-10">
                   <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shadow-sm ${isSelected ? 'bg-amber-400 border-amber-400' : 'bg-black/50 border-white/50'}`}>
@@ -123,6 +133,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               )}
             </div>
 
+            {/* Info Section */}
             <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520]">
               <h3 
                 className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors" 
@@ -130,6 +141,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               >
                 {movie.title}
               </h3>
+              
               <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[8px] sm:text-[10px] text-zinc-400 font-mono">
                 <span>{movie.year}</span>
                 <span aria-hidden="true">·</span>
@@ -137,6 +149,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                 <span aria-hidden="true">·</span>
                 <span className="text-zinc-300">{formatStorageSize(Number(movie.sizeBytes) || 0)}</span>
               </div>
+              
               <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-zinc-500 truncate mt-0.5">
                 <Building2 className="w-3 h-3 shrink-0" />
                 <span className="truncate">{movie.studio}</span>
