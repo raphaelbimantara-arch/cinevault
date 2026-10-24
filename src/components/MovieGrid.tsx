@@ -32,6 +32,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   selectionMode,
   cols = 7,
 }) => {
+  // useLongPress digunakan untuk HP
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
   const lastSelectedIdRef = useRef<string | null>(null);
   const longPressTriggeredRef = useRef(false);
@@ -46,14 +47,15 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   }
 
   const handleMovieClick = (e: React.MouseEvent, movie: Movie) => {
-    // Jika long press baru saja terpicu, abaikan click event
+    // 1. Jika baru saja long press (di HP), abaikan klik ini
     if (longPressTriggeredRef.current) {
       longPressTriggeredRef.current = false;
       return;
     }
 
+    // 2. Cek apakah sedang dalam mode seleksi
     if (selectionMode) {
-      // Logika Shift + Klik untuk memilih rentang film
+      // Jika menahan Shift dan ada film yang terpilih sebelumnya
       if (e.shiftKey && lastSelectedIdRef.current) {
         const lastIndex = movies.findIndex((m) => m.id === lastSelectedIdRef.current);
         const currentIndex = movies.findIndex((m) => m.id === movie.id);
@@ -63,6 +65,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
           const end = Math.max(lastIndex, currentIndex);
           const rangeIds = movies.slice(start, end + 1).map((m) => m.id);
           
+          // Panggil fungsi select multiple
           if (onSelectMultipleMovies) {
             onSelectMultipleMovies(rangeIds);
           } else {
@@ -70,33 +73,32 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
           }
         }
       } else {
-        // Klik biasa: pilih/batalkan pilih satu film
+        // Klik biasa (tanpa shift): Pilih/Batalkan satu film
         onToggleMovieSelection(movie.id);
       }
+      
+      // Simpan film terakhir yang diklik untuk patokan Shift berikutnya
       lastSelectedIdRef.current = movie.id;
     } else {
-      // Jika tidak dalam mode seleksi, buka detail film
+      // Jika tidak sedang memilih, buka detail film
       onSelectMovie(movie);
     }
   };
 
   return (
     <div
-      className="grid gap-3 sm:gap-4"
+      className="grid gap-3 sm:gap-4 select-none" // <--- TAMBAHKAN select-none DI SINI
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-      // Event handler long press dipasang di container utama
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
       onPointerUp={(e) => {
         longPressHandlers.onPointerUp();
-        // Reset status long press setelah delay sedikit agar tidak menembak click
         setTimeout(() => { longPressTriggeredRef.current = false; }, 50);
       }}
       onPointerCancel={longPressHandlers.onPointerCancel}
       onContextMenu={longPressHandlers.onContextMenu}
       onClickCapture={(e) => {
         longPressHandlers.onClickCapture(e);
-        // Deteksi jika event ini dipicu oleh long press
         if (e.defaultPrevented) {
           longPressTriggeredRef.current = true;
         }
@@ -110,7 +112,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             data-selection-id={movie.id}
             data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
             onClick={(e) => handleMovieClick(e, movie)}
-            className={`group relative flex flex-col cursor-pointer rounded-xl overflow-hidden bg-[#121520] border transition-all duration-200 ${
+            className={`group relative flex flex-col cursor-pointer rounded-xl overflow-hidden bg-[#121520] border transition-all duration-200 select-none ${
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
@@ -119,7 +121,8 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                 src={getImageSource(movie.posterUrl)}
                 alt={movie.title}
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                draggable={false} // Mencegah gambar di-drag
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none"
                 loading="lazy"
               />
               
