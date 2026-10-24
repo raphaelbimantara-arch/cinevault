@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, Calendar, Check, Clock, Film, HardDrive, Star } from 'lucide-react';
+import { Film, Star, Check } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
@@ -10,6 +10,7 @@ interface MovieGridProps {
   selectedMovieIds: Set<string>;
   onToggleMovieSelection: (movieId: string) => void;
   selectionMode: boolean;
+  cols?: number; // <-- Properti baru untuk slider
 }
 
 export const MovieGrid: React.FC<MovieGridProps> = ({
@@ -18,6 +19,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   selectedMovieIds,
   onToggleMovieSelection,
   selectionMode,
+  cols = 7, // <-- Standar awal 7 kolom
 }) => {
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
 
@@ -25,17 +27,15 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     return (
       <div className="py-20 text-center rounded-2xl border border-dashed border-zinc-800 bg-[#0d0f16]/60">
         <Film className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-        <h3 className="text-base font-semibold text-zinc-300">No movies match your criteria</h3>
-        <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
-          Try clearing your search query, changing the category, or selecting another letter in the alphabet bar.
-        </p>
+        <h3 className="text-base font-semibold text-zinc-300">No movies found</h3>
       </div>
     );
   }
 
   return (
     <div
-      className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+      className="grid gap-3 sm:gap-4"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }} // <-- Grid dinamis
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
       onPointerUp={longPressHandlers.onPointerUp}
@@ -44,105 +44,61 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
       onClickCapture={longPressHandlers.onClickCapture}
     >
       {movies.map((movie) => {
+        const isSelected = selectedMovieIds.has(movie.id);
         return (
           <div
             key={movie.id}
             data-selection-id={movie.id}
             data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
-            onClick={() => selectionMode
-              ? onToggleMovieSelection(movie.id)
-              : onSelectMovie(movie)}
-            className="group relative flex flex-col bg-[#121520] rounded-xl border border-zinc-800/80 overflow-hidden hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-200"
+            onClick={() => {
+              if (selectionMode) onToggleMovieSelection(movie.id);
+              else onSelectMovie(movie);
+            }}
+            className={`group relative flex flex-col cursor-pointer rounded-xl overflow-hidden bg-[#121520] border transition-all duration-200 ${
+              isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
+            }`}
           >
-            {selectionMode && (
-              <label
-                onClick={(event) => event.stopPropagation()}
-                className="absolute right-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-zinc-600 bg-zinc-950/85 shadow backdrop-blur-sm"
-                title={`Select ${movie.title}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedMovieIds.has(movie.id)}
-                  onChange={() => onToggleMovieSelection(movie.id)}
-                  onClick={(event) => event.stopPropagation()}
-                  aria-label={`Select ${movie.title}`}
-                  className="h-4 w-4 cursor-pointer accent-amber-400"
-                />
-              </label>
-            )}
-            {/* Poster container with aspect 3:4 */}
-            <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-900 cursor-pointer">
+            {/* Poster */}
+            <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900">
               <img
                 src={getImageSource(movie.posterUrl)}
                 alt={movie.title}
                 referrerPolicy="no-referrer"
-                onError={(e) => {
-                  // Fallback if image fails
-                  const target = e.currentTarget;
-                  target.style.display = 'none';
-                  const fallback = target.nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'flex';
-                }}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                loading="lazy"
               />
-              {/* Fallback box */}
-              <div 
-                className="hidden absolute inset-0 bg-gradient-to-br from-zinc-800 via-zinc-900 to-black items-center justify-center"
-              >
-                <Film className="w-8 h-8 text-amber-400" />
+              
+              {/* Overlay Gradient */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
+
+              {/* Status Icons */}
+              <div className="absolute top-2 right-2 flex flex-col gap-1">
+                {movie.favorite && (
+                  <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-amber-400">
+                    <Star className="w-3 h-3 fill-amber-400" />
+                  </div>
+                )}
+                {movie.reviewed && (
+                  <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-rose-400">
+                    <Check className="w-3 h-3" />
+                  </div>
+                )}
               </div>
 
-            </div>
-
-            {/* Card Content & Interactive Metadata Links */}
-            <div className="flex flex-1 flex-col justify-between p-2 sm:p-3">
-              <div className="min-w-0">
-                <div className="flex min-w-0 items-center justify-between gap-1">
-                  <h4
-                    className="min-w-0 truncate text-xs font-bold text-zinc-100 transition-colors group-hover:text-amber-400 cursor-pointer sm:text-sm"
-                    title={movie.title}
-                  >
-                    {movie.title}
-                  </h4>
-                  {(movie.favorite || movie.reviewed) && (
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {movie.favorite && (
-                        <Star aria-label="Favorite" title="Favorite" className="h-3 w-3 fill-amber-400 text-amber-400 sm:h-3.5 sm:w-3.5" />
-                      )}
-                      {movie.reviewed && (
-                        <Check aria-label="Review" title="Review" className="h-3 w-3 text-rose-400 sm:h-3.5 sm:w-3.5" />
-                      )}
-                    </div>
-                  )}
+              {/* Selection Checkbox */}
+              {selectionMode && (
+                <div className="absolute top-2 left-2">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-amber-400 border-amber-400' : 'bg-black/50 border-white/50'}`}>
+                    {isSelected && <Check className="w-3.5 h-3.5 text-black" />}
+                  </div>
                 </div>
+              )}
 
-                <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-zinc-300 sm:text-xs">
-                  <span
-                    className="inline-flex shrink-0 items-center gap-1 font-mono"
-                    title={`Year: ${movie.year}`}
-                  >
-                    <Calendar className="h-3 w-3 shrink-0 text-zinc-500" />
-                    <span>{movie.year}</span>
-                  </span>
-                  <span
-                    className="inline-flex shrink-0 items-center gap-1 font-mono"
-                    title={`Duration: ${movie.minutes} min`}
-                  >
-                    <Clock className="h-3 w-3 shrink-0 text-zinc-500" />
-                    <span>{movie.minutes}m</span>
-                  </span>
-                </div>
-
-                <div className="mt-1.5 flex min-w-0 items-center justify-between gap-2 text-[10px] text-zinc-300 sm:text-xs">
-                  <span className="inline-flex min-w-0 items-center gap-1" title={movie.studio}>
-                    <Building2 className="h-3 w-3 shrink-0 text-zinc-500" />
-                    <span className="truncate">{movie.studio}</span>
-                  </span>
-                  <span className="inline-flex shrink-0 items-center gap-1 font-mono" title={`File size: ${movie.size}`}>
-                    <HardDrive className="h-3 w-3 shrink-0 text-zinc-500" />
-                    <span>{movie.size}</span>
-                  </span>
-                </div>
+              {/* Text Info Overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                <h3 className="text-[10px] sm:text-xs font-bold text-white leading-tight line-clamp-2 drop-shadow-md">
+                  {movie.title}
+                </h3>
               </div>
             </div>
           </div>

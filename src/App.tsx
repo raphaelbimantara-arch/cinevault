@@ -24,6 +24,7 @@ import { getMovieGenres } from './utils/movieGenres';
 
 const STORAGE_KEY = 'cinevault_movies_library_v2';
 const MOVIE_COVER_COLS_STORAGE_KEY = 'cinevault_movie_cover_cols_v1';
+const GRID_COLS_STORAGE_KEY = 'cinevault_grid_cols_v1';
 type SharedCatalogStatus = 'disconnected' | 'loading' | 'connected' | 'empty' | 'error';
 type ActionNotification = {
   message: string;
@@ -51,7 +52,6 @@ function rahJ91ZuNL8Y2px8iYciYeHN8sfSh5eXH8(state: unknown): AppNavigationSnapsh
 }
 
 export default function App() {
-  // Load movies from localStorage or initial sample
   const [movies, setMovies] = useState<Movie[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -76,7 +76,6 @@ export default function App() {
   const sharedActorSaveQueue = useRef<Promise<void>>(Promise.resolve());
   const [actorProfileRevision, setActorProfileRevision] = useState(0);
 
-  // Save to localStorage on change
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(movies));
@@ -230,20 +229,14 @@ export default function App() {
     }
   };
 
-  // Active page for bottom navigation
   const [activePage, setActivePage] = useState<ActivePage>('library');
-
-  // Contextual Add tab: 'movie' | 'actor' | 'studio'
   const [addTab, setAddTab] = useState<'movie' | 'actor' | 'studio'>('movie');
-
-  // Selected movie for detail modal
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [selectedMovieIds, setSelectedMovieIds] = useState<Set<string>>(() => new Set());
   const [actionNotification, setActionNotification] = useState<ActionNotification | null>(null);
   const actionNotificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionNotificationRef = useRef<HTMLDivElement | null>(null);
 
-  // Selected actor for actor detail modal
   const [selectedActorName, setSelectedActorName] = useState<string | null>(null);
   const navigationSnapshotRef = useRef<AppNavigationSnapshot | null>(null);
   const skipNavigationPushRef = useRef(false);
@@ -368,7 +361,6 @@ export default function App() {
     return () => document.removeEventListener('pointerdown', dismissOnOutsidePointer);
   }, [actionNotification]);
 
-  // Navigation handler that keeps bottom menu responsive and closes modals when switching tabs
   const handleNavigatePage = (page: ActivePage) => {
     setSelectedMovie(null);
     setSelectedActorName(null);
@@ -382,8 +374,26 @@ export default function App() {
     startTransition(() => setActivePage('add'));
   };
 
-  // View mode: 'grid' or 'list'
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  
+  // STATE UNTUK SLIDER GRID
+  const [gridCols, setGridCols] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem(GRID_COLS_STORAGE_KEY));
+      return Number.isInteger(saved) && saved >= 2 && saved <= 15 ? saved : 7; // Standar 7
+    } catch {
+      return 7;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(GRID_COLS_STORAGE_KEY, String(gridCols));
+    } catch (e) {
+      console.error('Failed to save grid cols:', e);
+    }
+  }, [gridCols]);
+
   const [movieCoverCols, setMovieCoverCols] = useState(() => {
     try {
       const savedCols = Number(localStorage.getItem(MOVIE_COVER_COLS_STORAGE_KEY));
@@ -402,7 +412,6 @@ export default function App() {
     }
   }, [movieCoverCols]);
 
-  // Short menu: category
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const availableGenres = useMemo(() => {
     const genres = new Map<string, string>();
@@ -415,7 +424,6 @@ export default function App() {
     return [...genres.values()].sort((a, b) => a.localeCompare(b));
   }, [movies]);
 
-  // Alphabet multi-select filter
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
   const [pendingMovieJumpLetter, setPendingMovieJumpLetter] = useState<string | null>(null);
 
@@ -437,13 +445,8 @@ export default function App() {
     });
   };
 
-  // Search query
   const [searchQuery, setSearchQuery] = useState<string>('');
-
-  // Sort option: Alphabetical A-Z by default as requested!
   const [sortBy, setSortBy] = useState<SortOption>('alphabet-asc');
-
-  // Active detail filter (when user clicks a movie attribute)
   const [activeMetadataFilter, setActiveMetadataFilter] = useState<ActiveFilter | null>(null);
 
   useEffect(() => {
@@ -468,122 +471,72 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleLibraryLetterShortcut);
   }, [activePage, selectedMovie, selectedActorName]);
 
-
-  // Compute unique actors count
   const actorsCount = useMemo(() => {
     const set = new Set<string>();
     movies.forEach((m) => m.actors.forEach((a) => set.add(a.trim())));
     return set.size;
   }, [movies]);
 
-  /**
-   * CORE INTERACTION HANDLER:
-   * "and if i clik genre, studio, year, minutes, size, it show the library with list or grid view,
-   *  and short menu with all categories with aplphabet as default."
-   */
   const handleFilterByAttribute = (
     type: 'genre' | 'studio' | 'year' | 'minutes' | 'size' | 'resolution',
     value: string | number
   ) => {
-    // 1. Close detail modal so library is immediately shown
     setSelectedMovie(null);
-
-    // 2. Navigate directly to the library view
     setActivePage('library');
-
-    // 3. Set sorting to Alphabetical (A-Z) by default!
     setSortBy('alphabet-asc');
-
-    // 4. Reset alphabet & search query to clear conflicting narrow constraints
     setSelectedAlphabets(['All']);
     setSearchQuery('');
 
-    // 5. Apply the specific filter
     if (type === 'genre') {
       const genreVal = String(value);
       setSelectedCategory(genreVal);
-      setActiveMetadataFilter({
-        type: 'genre',
-        label: 'Genre',
-        value: genreVal,
-      });
+      setActiveMetadataFilter({ type: 'genre', label: 'Genre', value: genreVal });
     } else if (type === 'studio') {
       setSelectedCategory('All');
-      setActiveMetadataFilter({
-        type: 'studio',
-        label: 'Studio',
-        value: String(value),
-      });
+      setActiveMetadataFilter({ type: 'studio', label: 'Studio', value: String(value) });
     } else if (type === 'year') {
       setSelectedCategory('All');
-      setActiveMetadataFilter({
-        type: 'year',
-        label: 'Release Year',
-        value: Number(value),
-      });
+      setActiveMetadataFilter({ type: 'year', label: 'Release Year', value: Number(value) });
     } else if (type === 'minutes') {
       setSelectedCategory('All');
       const targetMins = Number(value);
-      setActiveMetadataFilter({
-        type: 'minutes',
-        label: 'Duration Bracket',
-        value: `${targetMins} min (±20m)`,
-      });
+      setActiveMetadataFilter({ type: 'minutes', label: 'Duration Bracket', value: `${targetMins} min (±20m)` });
     } else if (type === 'size') {
       setSelectedCategory('All');
-      const sizeStr = String(value);
-      setActiveMetadataFilter({
-        type: 'size',
-        label: 'File Size',
-        value: sizeStr,
-      });
+      setActiveMetadataFilter({ type: 'size', label: 'File Size', value: String(value) });
     } else if (type === 'resolution') {
       setSelectedCategory('All');
-      setActiveMetadataFilter({
-        type: 'resolution',
-        label: 'Resolution',
-        value: String(value),
-      });
+      setActiveMetadataFilter({ type: 'resolution', label: 'Resolution', value: String(value) });
     }
   };
 
-  // Quick handler to filter catalog by actor from Actors Page or Modal
   const handleFilterByActor = (actorName: string) => {
     setSelectedMovie(null);
     setActivePage('library');
     setSortBy('alphabet-asc');
     setSelectedAlphabets(['All']);
     setSelectedCategory('All');
-    setActiveMetadataFilter({
-      type: 'actor',
-      label: 'Starring Actor',
-      value: actorName,
-    });
+    setActiveMetadataFilter({ type: 'actor', label: 'Starring Actor', value: actorName });
   };
 
-  // Quick handler to filter catalog by studio
   const handleFilterByStudio = (studioName: string) => {
     handleFilterByAttribute('studio', studioName);
   };
 
-  // Clear metadata filter
   const handleClearMetadataFilter = () => {
     setActiveMetadataFilter(null);
   };
 
-  // Add new movie handler
   const handleAddMovie = (newMovie: Movie) => {
     setMovies((prev) => [newMovie, ...prev]);
-    // Navigate to library view with default alphabetical sort
     setActivePage('library');
     setSortBy('alphabet-asc');
     setActiveMetadataFilter(null);
   };
 
-  // Delete movie handler
   const handleDeleteMovie = (id: string) => {
     setMovies((prev) => prev.filter((m) => m.id !== id));
-    showActionNotification('Film berhasil dihapus.');
+    showActionNotification('Movie successfully deleted.');
     setSelectedMovieIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
@@ -591,13 +544,12 @@ export default function App() {
     });
   };
 
-  // Bulk delete movies (for duplicate finder cleanup)
   const handleBulkDeleteMovies = (movieIds: string[]) => {
     if (movieIds.length === 0) return;
     const idSet = new Set(movieIds);
     setMovies((prev) => prev.filter((m) => !idSet.has(m.id)));
     setSelectedMovieIds((prev) => new Set([...prev].filter((id) => !idSet.has(id))));
-    showActionNotification(`${movieIds.length} film berhasil dihapus.`);
+    showActionNotification(`${movieIds.length} movies successfully deleted.`);
   };
 
   const handleToggleMovieSelection = (movieId: string) => {
@@ -634,13 +586,13 @@ export default function App() {
       prev.map((movie) => selectedMovieIds.has(movie.id) ? { ...movie, ...updates } : movie)
     );
     const message = alreadyMarked.length > 0
-        ? `${newlyMarkedCount} film ditandai ${label}; ${alreadyMarked.length} sudah ${label}.`
-        : `${newlyMarkedCount} film ditandai ${label}.`;
+        ? `${newlyMarkedCount} movies marked as ${label}; ${alreadyMarked.length} were already ${label}.`
+        : `${newlyMarkedCount} movies marked as ${label}.`;
     showActionNotification(
       message,
       alreadyMarked.length > 0
         ? {
-            label: field === 'favorite' ? 'Keluarkan dari favorite' : 'Hapus tanda review',
+            label: field === 'favorite' ? 'Remove from favorites' : 'Remove review mark',
             onClick: () => handleRemoveSelectedMovieStatus(field, alreadyMarked),
           }
         : undefined
@@ -656,11 +608,10 @@ export default function App() {
         : { ...movie, reviewed: false };
     }));
     showActionNotification(
-      `${movieIds.length} film dikeluarkan dari ${field === 'favorite' ? 'favorite' : 'review'}.`
+      `${movieIds.length} movies removed from ${field === 'favorite' ? 'favorites' : 'review'}.`
     );
   };
 
-  // Update complete movie handler
   const handleUpdateMovie = (updatedMovie: Movie) => {
     setMovies((prev) =>
       prev.map((m) => (m.id === updatedMovie.id ? updatedMovie : m))
@@ -689,7 +640,6 @@ export default function App() {
     setSortBy((current) => current === ascending ? descending : ascending);
   };
 
-  // Update actor profile handler
   const handleUpdateActor = (oldName: string, updatedProfile: ActorProfile) => {
     updateActorProfile(oldName, updatedProfile);
     setActorProfileRevision((revision) => revision + 1);
@@ -780,7 +730,6 @@ export default function App() {
     );
   };
 
-  // Import movies from CSV handler
   const handleImportMovies = (imported: Movie[], mode: 'merge' | 'replace') => {
     if (mode === 'replace') {
       setMovies(imported);
@@ -795,15 +744,12 @@ export default function App() {
         imported.forEach((m) => {
           const lowerTitle = m.title.toLowerCase().trim();
           if (m.id && existingMap.has(m.id)) {
-            // Update existing movie matching by ID
             const existing = existingMap.get(m.id)!;
             existingMap.set(m.id, { ...existing, ...m, id: m.id });
           } else if (titleMap.has(lowerTitle)) {
-            // Update existing movie matching by Title
             const existing = titleMap.get(lowerTitle)!;
             existingMap.set(existing.id, { ...existing, ...m, id: existing.id });
           } else {
-            // Append as new movie
             existingMap.set(m.id, m);
           }
         });
@@ -813,7 +759,6 @@ export default function App() {
     }
   };
 
-  // Reset to default initial catalog
   const handleResetCatalog = () => {
     if (window.confirm('Reset movie catalog to original default library?')) {
       setMovies(INITIAL_MOVIES);
@@ -827,11 +772,9 @@ export default function App() {
     }
   };
 
-  // Filter and sort movies pipeline
   const filteredAndSortedMovies = useMemo(() => {
     let result = [...movies];
 
-    // 1. Filter by category
     if (selectedCategory !== 'All') {
       result = selectedCategory === '__favorites__'
         ? result.filter((movie) => movie.favorite === true)
@@ -844,7 +787,6 @@ export default function App() {
             );
     }
 
-    // 2. Filter by Alphabet (supports multiple letters)
     if (!selectedAlphabets.includes('All') && selectedAlphabets.length > 0) {
       result = result.filter((m) => {
         return selectedAlphabets.some((char) => {
@@ -856,7 +798,6 @@ export default function App() {
       });
     }
 
-    // 3. Filter by search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(
@@ -869,7 +810,6 @@ export default function App() {
       );
     }
 
-    // 4. Filter by active metadata filter
     if (activeMetadataFilter) {
       const { type, value } = activeMetadataFilter;
       if (type === 'genre') {
@@ -883,7 +823,6 @@ export default function App() {
       } else if (type === 'year') {
         result = result.filter((m) => m.year === Number(value));
       } else if (type === 'minutes') {
-        // e.g. "128 min (±20m)" -> extract target number
         const target = parseInt(String(value), 10);
         if (!isNaN(target)) {
           result = result.filter(
@@ -893,7 +832,6 @@ export default function App() {
       } else if (type === 'size') {
         const valStr = String(value);
         const parsedValMB = parseFloat(valStr) * (valStr.includes('TB') ? 1000000 : 1000);
-        // Match movies with similar size range (+- 40%) or matching string tier
         result = result.filter((m) => {
           if (m.size === valStr) return true;
           if (m.sizeBytes && parsedValMB) {
@@ -917,7 +855,6 @@ export default function App() {
       }
     }
 
-    // 5. Sort movies (Alphabetical A-Z by default)
     result.sort((a, b) => {
       switch (sortBy) {
         case 'alphabet-asc':
@@ -997,7 +934,6 @@ export default function App() {
     return [...names.values()].sort((a, b) => a.localeCompare(b));
   }, [movies]);
 
-  // Check if any filter is active
   const isFiltered =
     selectedCategory !== 'All' ||
     (!selectedAlphabets.includes('All') && selectedAlphabets.length > 0) ||
@@ -1008,7 +944,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#08090d] text-zinc-100 flex flex-col font-sans pb-24 selection:bg-amber-400 selection:text-black w-full max-w-full overflow-x-clip">
-      {/* Top Bar Header */}
       <Navbar
         activePage={activePage}
         setActivePage={handleNavigatePage}
@@ -1051,15 +986,17 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-clip">
         {activePage === 'library' && (
           <div className="space-y-6">
             <div className="sticky top-[56px] z-20 -mx-3 space-y-3 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-2 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-              {/* Short menu with all categories, Alphabet bar, Search, Sort, View Toggle */}
+              
+              {/* FilterToolbar dengan tambahan Slider */}
               <FilterToolbar
                 viewMode={viewMode}
                 setViewMode={setViewMode}
+                gridCols={gridCols}
+                setGridCols={setGridCols}
                 selectedCategory={selectedCategory}
                 genreOptions={availableGenres}
                 setSelectedCategory={setSelectedCategory}
@@ -1115,7 +1052,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Movies Display: Grid or List or Cover View */}
             {viewMode === 'grid' ? (
               <MovieGrid
                 movies={filteredAndSortedMovies}
@@ -1123,6 +1059,7 @@ export default function App() {
                 selectedMovieIds={selectedMovieIds}
                 onToggleMovieSelection={handleToggleMovieSelection}
                 selectionMode={selectedMovieCount > 0}
+                cols={gridCols} // <--- Kirim nilai kolom ke Grid
               />
             ) : viewMode === 'list' ? (
               <MovieList
@@ -1150,7 +1087,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Page 2: Actors */}
         {activePage === 'actors' && (
           <ActorsPage
             movies={movies}
@@ -1176,7 +1112,6 @@ export default function App() {
           />
         )}
 
-        {/* Page 3: Add Movies / Actors / Studios Data */}
         {activePage === 'add' && (
           <AddMoviePage
             initialTab={addTab}
@@ -1197,7 +1132,6 @@ export default function App() {
           />
         )}
 
-        {/* Page 5: Settings (CSV Export/Import & Duplicate Finder) */}
         {activePage === 'settings' && (
           <SettingsPage
             movies={movies}
@@ -1219,7 +1153,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Movie Detail Modal (Shows Genre, Studio, Year, Minutes, Size with interactive filtering) */}
       <MovieDetailModal
         movie={selectedMovie}
         movies={movieDetailNavigationMovies}
@@ -1235,7 +1168,6 @@ export default function App() {
         onNotify={showActionNotification}
       />
 
-      {/* Actor Detail Modal (Shows Picture, Date of Birth, and Movies Title) */}
       <ActorDetailModal
         actorName={selectedActorName}
         actorNames={actorNames}
@@ -1249,7 +1181,6 @@ export default function App() {
         onUpdateActor={handleUpdateActor}
       />
 
-      {/* Footer info & Reset option */}
       <footer className="mt-auto py-6 border-t border-zinc-800/60 text-center text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -1268,7 +1199,6 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Bottom Navigation for Movie Library, Actors, Add Movies Data */}
       <BottomNav
         activePage={activePage}
         setActivePage={handleNavigatePage}

@@ -15,6 +15,8 @@ import { ViewMode, SortOption, ActiveFilter } from '../types';
 interface FilterToolbarProps {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
+  gridCols: number;
+  setGridCols: (cols: number) => void;
   selectedCategory: string;
   genreOptions: string[];
   setSelectedCategory: (cat: string) => void;
@@ -40,6 +42,8 @@ const ALPHABET_LIST = [
 export const FilterToolbar: React.FC<FilterToolbarProps> = ({
   viewMode,
   setViewMode,
+  gridCols,
+  setGridCols,
   selectedCategory,
   genreOptions,
   setSelectedCategory,
@@ -129,41 +133,59 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
             </select>
           </div>
 
-          {/* View Toggle */}
-          <div className="flex items-center bg-[#121520] border border-zinc-800 rounded-xl p-1 shrink-0 ml-auto sm:ml-0">
-            <button
-              onClick={() => setViewMode('grid')}
-              title="Grid View"
-              className={`p-1.5 rounded-lg transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-amber-400 text-zinc-950 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              title="List View"
-              className={`p-1.5 rounded-lg transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-amber-400 text-zinc-950 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <List className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setViewMode('cover')}
-              title="Cover View"
-              className={`p-1.5 rounded-lg transition-colors ${
-                viewMode === 'cover'
-                  ? 'bg-amber-400 text-zinc-950 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <GalleryHorizontal className="w-3.5 h-3.5" />
-            </button>
+          {/* View Toggle & Slider */}
+          <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
+            {/* SLIDER PENGATUR UKURAN */}
+            {viewMode === 'grid' && (
+              <div className="flex items-center gap-2 bg-[#121520] px-2.5 py-1.5 rounded-xl border border-zinc-800">
+                <span className="text-[10px] text-zinc-400 font-mono">Size</span>
+                <input 
+                  type="range" 
+                  min="2" 
+                  max="15" 
+                  value={gridCols} 
+                  onChange={(e) => setGridCols(Number(e.target.value))} 
+                  className="w-16 sm:w-24 accent-amber-400 cursor-pointer"
+                  title={`${gridCols} columns`}
+                />
+              </div>
+            )}
+
+            <div className="flex items-center bg-[#121520] border border-zinc-800 rounded-xl p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                title="Grid View"
+                className={`p-1.5 rounded-lg transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-amber-400 text-zinc-950 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                title="List View"
+                className={`p-1.5 rounded-lg transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-amber-400 text-zinc-950 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode('cover')}
+                title="Cover View"
+                className={`p-1.5 rounded-lg transition-colors ${
+                  viewMode === 'cover'
+                    ? 'bg-amber-400 text-zinc-950 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <GalleryHorizontal className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
