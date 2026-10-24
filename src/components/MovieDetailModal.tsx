@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { 
   X, 
-  Users,
   Film,
   Building2,
   Calendar,
@@ -12,7 +11,9 @@ import {
   Edit3,
   Save,
   Trash2,
-  Undo2
+  Undo2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Movie } from '../types';
 import { ALL_GENRES, ALL_STUDIOS } from '../data/initialMovies';
@@ -89,32 +90,39 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   }, [movies]);
 
   const actorOptions = useMemo(() => {
-    const actors = new Map<string, string>();
-    movies.flatMap((item) => item.actors).forEach((actor) => {
-      const trimmed = actor.trim();
-      if (trimmed && !actors.has(trimmed.toLowerCase())) {
-        actors.set(trimmed.toLowerCase(), trimmed);
-      }
+    const actorStats = new Map<string, { name: string; count: number; lastUsed: number }>();
+    movies.forEach((m) => {
+      const dateVal = new Date(m.addedDate || 0).getTime();
+      m.actors.forEach((actor) => {
+        const trimmed = actor.trim();
+        if (!trimmed) return;
+        const key = trimmed.toLowerCase();
+        const existing = actorStats.get(key) || { name: trimmed, count: 0, lastUsed: 0 };
+        actorStats.set(key, {
+          name: trimmed,
+          count: existing.count + 1,
+          lastUsed: Math.max(existing.lastUsed, dateVal),
+        });
+      });
     });
-    return [...actors.values()].sort((a, b) => a.localeCompare(b));
+    return [...actorStats.values()]
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        if (b.lastUsed !== a.lastUsed) return b.lastUsed - a.lastUsed;
+        return a.name.localeCompare(b.name);
+      })
+      .map((stat) => stat.name);
   }, [movies]);
 
-  // GET ACTOR SUGGESTIONS FOR AUTOCOMPLETE
   const actorSuggestions = useMemo(() => {
     const customProfiles = getCustomActors();
     const names = new Set<string>();
-    
     Object.keys(KNOWN_ACTORS).forEach(name => names.add(name));
-    
     Object.entries(customProfiles).forEach(([name, profile]) => {
       names.add(name);
-      if (profile.alias) {
-        getActorAliases(profile.alias).forEach(alias => names.add(alias));
-      }
+      if (profile.alias) getActorAliases(profile.alias).forEach(alias => names.add(alias));
     });
-
     movies.forEach(m => m.actors.forEach(a => names.add(a)));
-
     return Array.from(names).sort();
   }, [movies]);
 
@@ -122,39 +130,26 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     const resolutions = new Map<string, string>();
     ['720p HD', '960p HD', '1080p HD', ...movies.map((item) => item.resolution || '')].forEach((resolution) => {
       const trimmed = resolution.trim();
-      if (trimmed && !resolutions.has(trimmed.toLowerCase())) {
-        resolutions.set(trimmed.toLowerCase(), trimmed);
-      }
+      if (trimmed && !resolutions.has(trimmed.toLowerCase())) resolutions.set(trimmed.toLowerCase(), trimmed);
     });
     return [...resolutions.values()].sort((a, b) => a.localeCompare(b));
   }, [movies]);
 
   const toggleGenre = (genre: string) => {
-    setEditGenres((current) =>
-      current.some((item) => item.toLowerCase() === genre.toLowerCase())
-        ? current.filter((item) => item.toLowerCase() !== genre.toLowerCase())
-        : [...current, genre]
-    );
+    setEditGenres((current) => current.some((item) => item.toLowerCase() === genre.toLowerCase()) ? current.filter((item) => item.toLowerCase() !== genre.toLowerCase()) : [...current, genre]);
   };
 
   const toggleActor = (actor: string) => {
-    setEditActors((current) =>
-      current.some((item) => item.toLowerCase() === actor.toLowerCase())
-        ? current.filter((item) => item.toLowerCase() !== actor.toLowerCase())
-        : [...current, actor]
-    );
+    setEditActors((current) => current.some((item) => item.toLowerCase() === actor.toLowerCase()) ? current.filter((item) => item.toLowerCase() !== actor.toLowerCase()) : [...current, actor]);
   };
 
   const addActor = () => {
     const actor = newActor.trim();
     if (!actor) return;
-    setEditActors((current) =>
-      current.some((item) => item.toLowerCase() === actor.toLowerCase()) ? current : [...current, actor]
-    );
+    setEditActors((current) => current.some((item) => item.toLowerCase() === actor.toLowerCase()) ? current : [...current, actor]);
     setNewActor('');
   };
 
-  // Reset & sync states when movie changes
   useEffect(() => {
     if (movie) {
       setShowLongPressActions(false);
@@ -163,11 +158,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditStudio(movie.studio);
       setEditYear(String(movie.year));
       setEditMinutes(String(movie.minutes));
-      
-      // Ambil hanya angka dan titik dari size
       let rawSize = movie.size.replace(/[^0-9.]/g, '');
       setEditSize(rawSize || '4.5');
-
       setEditResolution(movie.resolution || '1080p HD');
       setEditPosterUrl(movie.posterUrl);
       setEditBackdropUrl(movie.backdropUrl || '');
@@ -184,22 +176,14 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!movie || !onUpdateMovie) return;
-    if (!editTitle.trim()) {
-      alert('Movie title cannot be empty.');
-      return;
-    }
+    if (!editTitle.trim()) { alert('Movie title cannot be empty.'); return; }
 
-    // Perbaikan: Pastikan Tahun dan Menit dipaksa jadi Integer (Angka Bulat)
     const safeYear = parseInt(String(editYear).replace(/[^0-9]/g, ''), 10) || 2024;
     const safeMinutes = parseInt(String(editMinutes).replace(/[^0-9]/g, ''), 10) || 110;
-
-    // Perbaikan: Baca titik untuk ukuran file
     const cleanSizeString = String(editSize).replace(',', '.').replace(/[^0-9.]/g, '');
-    const numericSize = parseFloat(cleanSizeString) || 0;
+    const numericSize = parseFloat(cleanSizeString) || 4.5;
     const sizeBytes = Math.round(numericSize * 1000);
     const finalSizeString = `${numericSize} GB`;
-    
-    // Format akhir pakai titik
 
     const updated: Movie = {
       ...movie,
@@ -225,15 +209,11 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     setTimeout(() => setEditSavedToast(null), 3500);
   };
 
-  // ESC key listener to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (zoomedImageUrl) {
-          setZoomedImageUrl(null);
-        } else {
-          onClose();
-        }
+        if (zoomedImageUrl) setZoomedImageUrl(null);
+        else onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -241,54 +221,31 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   }, [onClose, zoomedImageUrl]);
 
   const movieIndex = movies.findIndex((item) => item.id === movie?.id);
+  
+  const handlePrev = () => { if (movieIndex > 0) onNavigateMovie(movies[movieIndex - 1]); };
+  const handleNext = () => { if (movieIndex >= 0 && movieIndex < movies.length - 1) onNavigateMovie(movies[movieIndex + 1]); };
+
   useEffect(() => {
     if (!movie || isEditing || zoomedImageUrl) return;
-
     const handleNavigationKeyDown = (event: KeyboardEvent) => {
       const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-      ) {
-        return;
-      }
-
-      if (event.key === 'ArrowRight' && movieIndex >= 0 && movieIndex < movies.length - 1) {
-        event.preventDefault();
-        onNavigateMovie(movies[movieIndex + 1]);
-      } else if (event.key === 'ArrowLeft' && movieIndex > 0) {
-        event.preventDefault();
-        onNavigateMovie(movies[movieIndex - 1]);
-      }
+      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+      if (event.key === 'ArrowRight') { event.preventDefault(); handleNext(); }
+      else if (event.key === 'ArrowLeft') { event.preventDefault(); handlePrev(); }
     };
-
     window.addEventListener('keydown', handleNavigationKeyDown);
     return () => window.removeEventListener('keydown', handleNavigationKeyDown);
   }, [isEditing, movie, movieIndex, movies, onNavigateMovie, zoomedImageUrl]);
 
-  const swipeHandlers = useHorizontalSwipe(
-    () => {
-      if (movieIndex >= 0 && movieIndex < movies.length - 1) onNavigateMovie(movies[movieIndex + 1]);
-    },
-    () => {
-      if (movieIndex > 0) onNavigateMovie(movies[movieIndex - 1]);
-    },
-    !isEditing && !zoomedImageUrl
-  );
-  const longPressHandlers = useLongPress(
-    () => setShowLongPressActions(true),
-    !isEditing && !zoomedImageUrl
-  );
+  const swipeHandlers = useHorizontalSwipe(handleNext, handlePrev, !isEditing && !zoomedImageUrl);
+  const longPressHandlers = useLongPress(() => setShowLongPressActions(true), !isEditing && !zoomedImageUrl);
 
   if (!movie) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto" onClick={onClose}>
       <div 
-        className="relative w-full max-w-4xl bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150"
+        className={`relative w-full ${isEditing ? 'max-w-5xl' : 'max-w-4xl'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
         data-selection-id={movie.id}
         onClick={(e) => e.stopPropagation()}
         onClickCapture={(event) => {
@@ -312,549 +269,187 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         style={{ touchAction: 'pan-y' }}
       >
           {showLongPressActions && (
-            <div
-              data-long-press-actions
-              className="flex flex-wrap items-center gap-2 border-b border-zinc-800 bg-[#151926] px-3 py-2 sm:px-5"
-              onPointerDown={(event) => event.stopPropagation()}
-            >
+            <div data-long-press-actions className="flex flex-wrap items-center gap-2 border-b border-zinc-800 bg-[#151926] px-3 py-2 sm:px-5" onPointerDown={(event) => event.stopPropagation()}>
               <span className="mr-auto text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Movie actions</span>
-              <button
-                type="button"
-                onClick={() => {
-                  onUpdateMovie?.({ ...movie, favorite: !movie.favorite });
-                  onNotify?.(movie.favorite ? 'Film dikeluarkan dari favorite.' : 'Film ditandai favorite.');
-                  setShowLongPressActions(false);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"
-              >
-                <Star className="h-3.5 w-3.5" />
-                {movie.favorite ? 'Remove favorite' : 'Favorite'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onUpdateMovie?.({ ...movie, reviewed: !movie.reviewed });
-                  onNotify?.(movie.reviewed ? 'Tanda review dihapus dari film.' : 'Film ditandai untuk review.');
-                  setShowLongPressActions(false);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20"
-              >
-                <Check className="h-3.5 w-3.5" />
-                {movie.reviewed ? 'Remove review' : 'Review'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!window.confirm(`Delete "${movie.title}"? This cannot be undone.`)) return;
-                  onDeleteMovie?.(movie.id);
-                  setShowLongPressActions(false);
-                  onClose();
-                }}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-500"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLongPressActions(false)}
-                className="rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-white"
-              >
-                Close
-              </button>
+              <button type="button" onClick={() => { onUpdateMovie?.({ ...movie, favorite: !movie.favorite }); onNotify?.(movie.favorite ? 'Removed from favorite.' : 'Marked as favorite.'); setShowLongPressActions(false); }} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"><Star className="h-3.5 w-3.5" />{movie.favorite ? 'Remove favorite' : 'Favorite'}</button>
+              <button type="button" onClick={() => { onUpdateMovie?.({ ...movie, reviewed: !movie.reviewed }); onNotify?.(movie.reviewed ? 'Review mark removed.' : 'Marked for review.'); setShowLongPressActions(false); }} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20"><Check className="h-3.5 w-3.5" />{movie.reviewed ? 'Remove review' : 'Review'}</button>
+              <button type="button" onClick={() => { if (!window.confirm(`Delete "${movie.title}"? This cannot be undone.`)) return; onDeleteMovie?.(movie.id); setShowLongPressActions(false); onClose(); }} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-500"><Trash2 className="h-3.5 w-3.5" />Delete</button>
+              <button type="button" onClick={() => setShowLongPressActions(false)} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-white">Close</button>
             </div>
           )}
-          {/* Modal Body Container */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-0">
-            {/* Left Column: Front & Back Posters */}
-            <div className="md:col-span-5 bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80">
-              <div 
-                onClick={() => setZoomedImageUrl(movie.posterUrl)}
-                className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group"
-                title="Click to enlarge cover (phone width)"
-              >
-                <img
-                  src={getImageSource(movie.posterUrl)}
-                  alt={`${movie.title} - Front`}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                />
-              </div>
-              <div 
-                onClick={() => setZoomedImageUrl(movie.backdropUrl || movie.posterUrl)}
-                className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group"
-                title="Click to enlarge cover (phone width)"
-              >
-                <img
-                  src={getImageSource(movie.backdropUrl || movie.posterUrl)}
-                  alt={`${movie.title} - Back`}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                />
-              </div>
-            </div>
 
-          {/* Right Column: Title and Details */}
-          <div className="md:col-span-7 p-4 flex flex-col justify-between">
-            {/* Success Toast */}
-            {editSavedToast && (
-              <div className="mb-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in duration-150">
-                <Save className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>{editSavedToast}</span>
-              </div>
-            )}
-
-            {isEditing ? (
-              /* ===== EDIT MODE ===== */
-              <form onSubmit={handleSaveEdit} className="space-y-3 w-full">
-                <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Edit3 className="w-3 h-3" />
-                  Edit Movie Details
+          {isEditing ? (
+            /* ===== EDIT MODE (WEB LAYOUT - 3 COLUMNS) ===== */
+            <div className="p-6">
+              {editSavedToast && (
+                <div className="mb-4 p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-sm flex items-center gap-2">
+                  <Save className="w-4 h-4 text-emerald-400 shrink-0" /><span>{editSavedToast}</span>
+                </div>
+              )}
+              
+              <form onSubmit={handleSaveEdit} className="w-full space-y-5">
+                <div className="text-sm font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-zinc-800">
+                  <Edit3 className="w-4 h-4" /> Edit Movie Details
                 </div>
 
-                {/* Title */}
-                <div>
-                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Title</label>
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    onFocus={(e) => e.target.select()}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                    placeholder="Movie title"
-                    required
-                  />
-                </div>
-
-                <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={editFavorite}
-                    onChange={(e) => setEditFavorite(e.target.checked)}
-                    className="h-4 w-4 accent-amber-400"
-                  />
-                  <Star className={`h-4 w-4 ${editFavorite ? 'fill-amber-400 text-amber-400' : 'text-zinc-500'}`} />
-                  Favorite
-                </label>
-                <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={editUncensored}
-                    onChange={(e) => setEditUncensored(e.target.checked)}
-                    className="h-4 w-4 accent-amber-400"
-                  />
-                  Uncensored
-                </label>
-
-                {/* Genres */}
-                <div>
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold">Genres</label>
-                    <span className="text-[10px] text-zinc-500">{editGenres.length} selected</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  
+                  {/* KOLOM 1: INFO UTAMA */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-zinc-500 uppercase font-bold mb-1.5">Title</label>
+                      <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onFocus={(e) => e.target.select()} className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white focus:border-amber-400 outline-none" placeholder="Movie title" required />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-zinc-500 uppercase font-bold mb-1.5">Year</label>
+                        <input type="text" inputMode="numeric" maxLength={4} value={editYear} onChange={(e) => setEditYear(e.target.value.replace(/[^0-9]/g, ''))} onFocus={(e) => e.target.select()} className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white font-mono outline-none" placeholder="2024" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-500 uppercase font-bold mb-1.5">Minutes</label>
+                        <input type="text" inputMode="numeric" value={editMinutes} onChange={(e) => setEditMinutes(e.target.value.replace(/[^0-9]/g, ''))} onFocus={(e) => e.target.select()} className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white font-mono outline-none" placeholder="120" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-zinc-500 uppercase font-bold mb-1.5">Size (GB)</label>
+                        <input type="text" inputMode="decimal" value={editSize} onChange={(e) => setEditSize(e.target.value.replace(/[^0-9.]/g, ''))} onFocus={(e) => e.target.select()} className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white font-mono outline-none" placeholder="14.5" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-500 uppercase font-bold mb-1.5">Resolution</label>
+                        <select value={editResolution} onChange={(e) => setEditResolution(e.target.value)} className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white outline-none">
+                          {resolutionOptions.map((resolution) => <option key={resolution} value={resolution} className="bg-[#121520]">{resolution}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-500 uppercase font-bold mb-1.5">Studio</label>
+                      <input type="text" list="movie-detail-studios" value={editStudio} onChange={(e) => setEditStudio(e.target.value)} onFocus={(e) => e.target.select()} className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white outline-none" placeholder="e.g. Warner Bros." />
+                      <datalist id="movie-detail-studios">{studioOptions.map((studio) => <option key={studio} value={studio} />)}</datalist>
+                    </div>
                   </div>
-                  <div className="grid max-h-36 grid-cols-2 gap-1 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 p-2 sm:grid-cols-3">
-                    {genreOptions.map((genre) => (
-                      <label key={genre} className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
-                        <input
-                          type="checkbox"
-                          checked={editGenres.some((item) => item.toLowerCase() === genre.toLowerCase())}
-                          onChange={() => toggleGenre(genre)}
-                          className="h-3.5 w-3.5 shrink-0 accent-amber-400"
-                        />
-                        <span className="truncate">{genre}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Studio */}
-                <div>
-                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Studio</label>
-                  <input
-                    type="text"
-                    list="movie-detail-studios"
-                    value={editStudio}
-                    onChange={(e) => setEditStudio(e.target.value)}
-                    onFocus={(e) => e.target.select()}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                    placeholder="e.g. Warner Bros. Pictures"
-                  />
-                  <datalist id="movie-detail-studios">
-                    {studioOptions.map((studio) => <option key={studio} value={studio} />)}
-                  </datalist>
-                </div>
-
-                {/* Year and Minutes */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Year</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={editYear}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        setEditYear(val);
-                      }}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                      placeholder="2024"
-                    />
+                  {/* KOLOM 2: VISUAL & POSTER */}
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"><input type="checkbox" checked={editFavorite} onChange={(e) => setEditFavorite(e.target.checked)} className="h-4 w-4 accent-amber-400" /><Star className={`h-4 w-4 ${editFavorite ? 'fill-amber-400 text-amber-400' : 'text-zinc-500'}`} />Favorite</label>
+                      <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"><input type="checkbox" checked={editUncensored} onChange={(e) => setEditUncensored(e.target.checked)} className="h-4 w-4 accent-rose-400" />Uncensored</label>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-500 uppercase font-bold mb-1.5">Front Cover URL</label>
+                      <input type="text" value={editPosterUrl} onChange={(e) => setEditPosterUrl(e.target.value)} onFocus={(e) => e.target.select()} className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white outline-none" placeholder="https://..." />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-500 uppercase font-bold mb-1.5">Back Cover URL</label>
+                      <input type="text" value={editBackdropUrl} onChange={(e) => setEditBackdropUrl(e.target.value)} onFocus={(e) => e.target.select()} className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white outline-none" placeholder="https://..." />
+                    </div>
+                    <div className="pt-2">
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <label className="block text-xs text-zinc-500 uppercase font-bold">Genres</label>
+                        <span className="text-[10px] text-zinc-400">{editGenres.length} selected</span>
+                      </div>
+                      <div className="grid max-h-32 grid-cols-2 gap-1.5 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 p-2">
+                        {genreOptions.map((genre) => (
+                          <label key={genre} className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
+                            <input type="checkbox" checked={editGenres.some((item) => item.toLowerCase() === genre.toLowerCase())} onChange={() => toggleGenre(genre)} className="h-3.5 w-3.5 accent-amber-400" />
+                            <span className="truncate">{genre}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Minutes</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={editMinutes}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        setEditMinutes(val);
-                      }}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                      placeholder="120"
-                    />
+
+                  {/* KOLOM 3: ACTORS */}
+                  <div className="space-y-4">
+                    <div>
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <label className="block text-xs text-zinc-500 uppercase font-bold">Actors</label>
+                        <span className="text-[10px] text-zinc-400">{editActors.length} selected</span>
+                      </div>
+                      <div className="grid max-h-[12rem] grid-cols-1 gap-1.5 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 p-2">
+                        {actorOptions.map((actor) => (
+                          <label key={actor} className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
+                            <input type="checkbox" checked={editActors.some((item) => item.toLowerCase() === actor.toLowerCase())} onChange={() => toggleActor(actor)} className="h-3.5 w-3.5 accent-amber-400" />
+                            <span className="truncate">{actor}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <input type="text" list="actor-suggestions-edit" value={newActor} onChange={(e) => setNewActor(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addActor(); } }} onFocus={(e) => e.target.select()} className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none" placeholder="Add an actor..." />
+                        <datalist id="actor-suggestions-edit">{actorSuggestions.map((name, index) => <option key={index} value={name} />)}</datalist>
+                        <button type="button" onClick={addActor} className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700">Add</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-500 uppercase font-bold mb-1.5">Cast Count (Optional)</label>
+                      <input type="text" inputMode="numeric" value={editCastCount} onChange={(e) => setEditCastCount(e.target.value.replace(/[^0-9]/g, ''))} onFocus={(e) => e.target.select()} className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white outline-none" placeholder="Auto" />
+                    </div>
                   </div>
                 </div>
 
-                {/* Size and Resolution */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Size (GB)</label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={editSize}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9.]/g, '');
-                        setEditSize(val);
-                      }}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                      placeholder="e.g. 14.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Resolution</label>
-                    <select
-                      value={editResolution}
-                      onChange={(e) => setEditResolution(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white focus:outline-none focus:border-amber-400/60 transition-colors"
-                    >
-                      {resolutionOptions.map((resolution) => (
-                        <option key={resolution} value={resolution} className="bg-[#121520]">
-                          {resolution}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Front Cover URL */}
-                <div>
-                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Front Cover URL</label>
-                  <input
-                    type="text"
-                    value={editPosterUrl}
-                    onChange={(e) => setEditPosterUrl(e.target.value)}
-                    onFocus={(e) => e.target.select()}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                    placeholder="Front cover image URL or Google Drive link"
-                  />
-                </div>
-
-                {/* Back Cover URL */}
-                <div>
-                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Back Cover URL</label>
-                  <input
-                    type="text"
-                    value={editBackdropUrl}
-                    onChange={(e) => setEditBackdropUrl(e.target.value)}
-                    onFocus={(e) => e.target.select()}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                    placeholder="Back cover image URL or Google Drive link"
-                  />
-                </div>
-
-                {/* Actors */}
-                <div>
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <label className="block text-[10px] text-zinc-500 uppercase font-semibold">Actors</label>
-                    <span className="text-[10px] text-zinc-500">{editActors.length} selected</span>
-                  </div>
-                  <div className="grid max-h-36 grid-cols-2 gap-1 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 p-2 sm:grid-cols-3">
-                    {actorOptions.map((actor) => (
-                      <label key={actor} className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
-                        <input
-                          type="checkbox"
-                          checked={editActors.some((item) => item.toLowerCase() === actor.toLowerCase())}
-                          onChange={() => toggleActor(actor)}
-                          className="h-3.5 w-3.5 shrink-0 accent-amber-400"
-                        />
-                        <span className="truncate">{actor}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    <input
-                      type="text"
-                      list="actor-suggestions-edit"
-                      value={newActor}
-                      onChange={(e) => setNewActor(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          addActor();
-                        }
-                      }}
-                      onFocus={(e) => e.target.select()}
-                      className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-amber-400/60 focus:outline-none transition-colors"
-                      placeholder="Add an actor not in the list"
-                    />
-                    <datalist id="actor-suggestions-edit">
-                      {actorSuggestions.map((name, index) => (
-                        <option key={index} value={name} />
-                      ))}
-                    </datalist>
-                    <button
-                      type="button"
-                      onClick={addActor}
-                      className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Cast Count (optional override)</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    min="0"
-                    step="1"
-                    value={editCastCount}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setEditCastCount(val);
-                    }}
-                    onFocus={(e) => e.target.select()}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
-                    placeholder={`Automatic (${editActors.length} selected)`}
-                  />
-                </div>
-
-                {/* Save / Cancel buttons */}
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-zinc-950 font-semibold text-xs transition-colors shadow-sm"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    Save Changes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(false)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition-colors border border-zinc-700"
-                  >
-                    <Undo2 className="w-3.5 h-3.5" />
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
-                    title="Close movie details"
-                    aria-label="Close movie details"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                {/* ACTIONS */}
+                <div className="flex items-center gap-3 pt-4 border-t border-zinc-800">
+                  <button type="submit" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-sm transition-colors shadow-sm"><Save className="w-4 h-4" />Save Changes</button>
+                  <button type="button" onClick={() => setIsEditing(false)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-sm transition-colors border border-zinc-700"><Undo2 className="w-4 h-4" />Cancel</button>
+                  <button type="button" onClick={onClose} className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"><X className="h-5 w-5" /></button>
                 </div>
               </form>
-            ) : (
-              /* ===== VIEW MODE ===== */
-              <>
+            </div>
+          ) : (
+            /* ===== VIEW MODE ===== */
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-0">
+              {/* Left Column: Posters & Nav */}
+              <div className="md:col-span-5 bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider">
+                {movieIndex > 0 && (
+                  <button onClick={(e) => { e.stopPropagation(); handlePrev(); }} className="absolute left-2 z-10 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/60 hover:bg-amber-400 hover:text-black text-white flex items-center justify-center border border-zinc-700/50 backdrop-blur-md transition-all opacity-70 sm:opacity-0 group-hover/slider:opacity-100"><ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+                )}
+                <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group"><img src={getImageSource(movie.posterUrl)} alt={`${movie.title} - Front`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" /></div>
+                <div onClick={() => setZoomedImageUrl(movie.backdropUrl || movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group"><img src={getImageSource(movie.backdropUrl || movie.posterUrl)} alt={`${movie.title} - Back`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" /></div>
+                {movieIndex >= 0 && movieIndex < movies.length - 1 && (
+                  <button onClick={(e) => { e.stopPropagation(); handleNext(); }} className="absolute right-2 z-10 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/60 hover:bg-amber-400 hover:text-black text-white flex items-center justify-center border border-zinc-700/50 backdrop-blur-md transition-all opacity-70 sm:opacity-0 group-hover/slider:opacity-100"><ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+                )}
+              </div>
+
+              {/* Right Column: Details */}
+              <div className="md:col-span-7 p-4 flex flex-col justify-between">
                 <div>
                   <div className="flex min-w-0 items-center justify-between gap-2">
-                    <h2 className="flex min-w-0 items-center gap-2 text-xl font-extrabold leading-tight tracking-tight text-white sm:text-2xl">
-                      <span className="min-w-0 truncate">{movie.title}</span>
-                      {movie.uncensored && (
-                        <span className="shrink-0 rounded-md border border-rose-500/40 bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-300 sm:text-[10px]">
-                          Uncensored
-                        </span>
-                      )}
-                    </h2>
-                    {(movie.favorite || movie.reviewed) && (
-                      <div className="flex shrink-0 items-center gap-2">
-                        {movie.favorite && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-300">
-                            <Star aria-label="Favorite" title="Favorite" className="h-4 w-4 fill-amber-400 text-amber-400" />
-                            Favorite
-                          </span>
-                        )}
-                        {movie.reviewed && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-300">
-                            <Check aria-label="Review" title="Review" className="h-4 w-4 text-rose-400" />
-                            Review
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    <h2 className="flex min-w-0 items-center gap-2 text-xl font-extrabold text-white sm:text-2xl"><span className="min-w-0 truncate">{movie.title}</span>{movie.uncensored && <span className="shrink-0 rounded-md border border-rose-500/40 bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-rose-300">Uncensored</span>}</h2>
                   </div>
-
-                  {/* Rearranged Details */}
                   <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                <div 
-                  onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('year', movie.year); } }}
-                  className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group"
-                  title="Filter by year"
-                >
-                  <Calendar className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
-                  <span className="font-mono">{movie.year}</span>
-                </div>
-                <div 
-                  onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('studio', movie.studio); } }}
-                  className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group"
-                  title="Filter by studio"
-                >
-                  <Building2 className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
-                  <span className="truncate">{movie.studio}</span>
-                </div>
-                <div 
-                  onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('minutes', movie.minutes); } }}
-                  className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group"
-                  title="Filter by duration"
-                >
-                  <Clock className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
-                  <span className="font-mono">{movie.minutes} min</span>
-                </div>
-                <div 
-                  onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('size', movie.size); } }}
-                  className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group"
-                  title="Filter by file size"
-                >
-                  <HardDrive className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
-                  <span className="font-mono">{movie.size}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!movie.resolution || !onFilterByAttribute) return;
-                    onClose();
-                    onFilterByAttribute('resolution', movie.resolution);
-                  }}
-                  disabled={!movie.resolution || !onFilterByAttribute}
-                  className="flex min-w-0 items-center gap-2 text-left text-zinc-400 transition-colors enabled:cursor-pointer enabled:hover:text-amber-300 disabled:cursor-default"
-                  title={movie.resolution ? 'Show movies with this resolution' : 'Resolution unavailable'}
-                >
-                  <Film className="w-4 h-4 shrink-0 text-amber-400" />
-                  <span className="truncate text-xs font-semibold">{movie.resolution || 'Standard'}</span>
-                </button>
-                {/* Genre */}
-                <div className="col-span-2 pt-1 border-t border-zinc-800/60">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Film className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="text-xs text-zinc-400">Genre:</span>
-                    {getMovieGenres(movie.genre).map((genre) => (
-                      <button
-                        key={genre}
-                        type="button"
-                        onClick={() => {
-                          if (!onFilterByAttribute) return;
-                          onClose();
-                          onFilterByAttribute('genre', genre);
-                        }}
-                        className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-400/20"
-                        title={`Filter library by ${genre}`}
-                      >
-                        {genre}
-                      </button>
-                    ))}
+                    <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('year', movie.year); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer group"><Calendar className="w-4 h-4 text-amber-400 shrink-0" /><span className="font-mono">{movie.year}</span></div>
+                    <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('studio', movie.studio); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer group"><Building2 className="w-4 h-4 text-amber-400 shrink-0" /><span className="truncate">{movie.studio}</span></div>
+                    <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('minutes', movie.minutes); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer group"><Clock className="w-4 h-4 text-amber-400 shrink-0" /><span className="font-mono">{movie.minutes} min</span></div>
+                    <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('size', movie.size); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer group"><HardDrive className="w-4 h-4 text-amber-400 shrink-0" /><span className="font-mono">{movie.size}</span></div>
+                    <button type="button" onClick={() => { if (!movie.resolution || !onFilterByAttribute) return; onClose(); onFilterByAttribute('resolution', movie.resolution); }} disabled={!movie.resolution || !onFilterByAttribute} className="flex min-w-0 items-center gap-2 text-left text-zinc-400 enabled:cursor-pointer enabled:hover:text-amber-300"><Film className="w-4 h-4 shrink-0 text-amber-400" /><span className="truncate text-xs font-semibold">{movie.resolution || 'Standard'}</span></button>
+                    <div className="col-span-2 pt-1 border-t border-zinc-800/60">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Film className="w-4 h-4 text-amber-400 shrink-0" /><span className="text-xs text-zinc-400">Genre:</span>
+                        {getMovieGenres(movie.genre).map((genre) => <button key={genre} type="button" onClick={() => { if (!onFilterByAttribute) return; onClose(); onFilterByAttribute('genre', genre); }} className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-xs font-semibold text-amber-300 hover:bg-amber-400/20">{genre}</button>)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-1.5">Starring Cast{(movie.castCount ?? movie.actors.length) > 1 && ` (${movie.castCount ?? movie.actors.length})`}</div>
+                    <div className="flex flex-wrap gap-1">
+                      {movie.actors.map((actor) => <button key={actor} type="button" onClick={() => onSelectActor?.(actor)} className="px-2 py-0.5 text-[10px] rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 transition-colors">{actor}</button>)}
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Cast / Actors - Compact */}
-              <div className="mt-3">
-                <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
-                  Starring Cast{(movie.castCount ?? movie.actors.length) > 1 && ` (${movie.castCount ?? movie.actors.length})`}
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {movie.actors.map((actor) => (
-                    <button
-                      key={actor}
-                      type="button"
-                      onClick={() => onSelectActor?.(actor)}
-                      className="px-2 py-0.5 text-[10px] rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors"
-                      title={`View actor ${actor}`}
-                    >
-                      {actor}
-                    </button>
-                  ))}
+                <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-end gap-2">
+                  {onUpdateMovie && <button type="button" onClick={() => setIsEditing(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-amber-400 hover:bg-amber-400 hover:text-zinc-950"><Edit3 className="h-4 w-4" /></button>}
+                  <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"><X className="h-4 w-4" /></button>
                 </div>
               </div>
             </div>
-
-            {/* Bottom Actions */}
-            <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-end gap-2">
-              {onUpdateMovie && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-zinc-950"
-                  title="Edit movie details"
-                  aria-label="Edit movie details"
-                >
-                  <Edit3 className="h-4 w-4" />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onClose}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
-                title="Close movie details"
-                aria-label="Close movie details"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </>
-            )}
-          </div>
-        </div>
+          )}
       </div>
 
-      {/* Phone-width Image Zoom / Lightbox Modal */}
       {zoomedImageUrl && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            setZoomedImageUrl(null);
-          }}
-        >
-          <div 
-            className="relative max-w-[360px] w-full aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 bg-black animate-in fade-in zoom-in-95 duration-150 cursor-default"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setZoomedImageUrl(null);
-              }}
-              className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 flex items-center justify-center transition-colors"
-              title="Close image"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <img
-              src={getImageSource(zoomedImageUrl)}
-              alt="Enlarged cover"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover bg-black"
-            />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-pointer" onClick={(e) => { e.stopPropagation(); setZoomedImageUrl(null); }}>
+          <div className="relative max-w-[360px] w-full aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border border-zinc-700 bg-black animate-in fade-in zoom-in-95 duration-150 cursor-default" onClick={(e) => e.stopPropagation()}>
+            <button onClick={(e) => { e.stopPropagation(); setZoomedImageUrl(null); }} className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center"><X className="w-4 h-4" /></button>
+            <img src={getImageSource(zoomedImageUrl)} alt="Enlarged cover" referrerPolicy="no-referrer" className="w-full h-full object-cover bg-black" />
           </div>
         </div>
       )}
