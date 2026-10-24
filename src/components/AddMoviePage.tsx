@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Film,
   Building2,
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Movie } from '../types';
 import { ALL_GENRES, ALL_STUDIOS } from '../data/initialMovies';
-import { registerCustomActor, ActorProfile } from '../data/actorsData';
+import { registerCustomActor, ActorProfile, getCustomActors, getActorAliases, KNOWN_ACTORS } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
 
 // Imported generated images for presets
@@ -63,8 +63,8 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
   const [title, setTitle] = useState('');
   const [genre, setGenre] = useState('');
   const [studio, setStudio] = useState('Warner Bros. Pictures');
-  const [year, setYear] = useState<number>(new Date().getFullYear());
-  const [minutes, setMinutes] = useState<number>(128);
+  const [year, setYear] = useState<string>(new Date().getFullYear().toString());
+  const [minutes, setMinutes] = useState<string>('128');
   const [sizeStr, setSizeStr] = useState('12.4 GB');
   const [resolution, setResolution] = useState<(typeof ALLOWED_RESOLUTIONS)[number]>('1080p HD');
   const [actorsInput, setActorsInput] = useState('');
@@ -81,12 +81,34 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
   // STUDIO FORM STATE
   const [studioName, setStudioName] = useState('');
   const [studioHq, setStudioHq] = useState('Los Angeles, California, USA');
-  const [studioYear, setStudioYear] = useState(1995);
+  const [studioYear, setStudioYear] = useState<number>(1995);
   const [studioSuccess, setStudioSuccess] = useState(false);
+
+  // GET ACTOR SUGGESTIONS FOR AUTOCOMPLETE
+  const actorSuggestions = useMemo(() => {
+    const customProfiles = getCustomActors();
+    const names = new Set<string>();
+    
+    // Ambil dari known actors
+    Object.keys(KNOWN_ACTORS).forEach(name => names.add(name));
+    
+    // Ambil dari custom actors
+    Object.entries(customProfiles).forEach(([name, profile]) => {
+      names.add(name);
+      if (profile.alias) {
+        getActorAliases(profile.alias).forEach(alias => names.add(alias));
+      }
+    });
+
+    // Ambil dari existing movies (jika ada aktor yang belum masuk daftar)
+    existingMovies.forEach(m => m.actors.forEach(a => names.add(a)));
+
+    return Array.from(names).sort();
+  }, [existingMovies]);
 
   // Parse numerical size for sorting
   const parseSizeToMB = (str: string): number => {
-    const num = parseFloat(str) || 0;
+    const num = parseFloat(str.replace(',', '.')) || 0;
     if (str.toUpperCase().includes('GB')) return num * 1000;
     if (str.toUpperCase().includes('TB')) return num * 1000000;
     return num;
@@ -111,7 +133,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
       minutes: Number(minutes) || 120,
       size: sizeStr.trim() || '8.0 GB',
       sizeBytes: parseSizeToMB(sizeStr),
-      resolution, // 720p HD, 1080p HD, or 960p HD
+      resolution,
       posterUrl: finalPoster,
       actors: actorsList.length > 0 ? actorsList : ['Lead Actor'],
       addedDate: new Date().toISOString().split('T')[0],
@@ -131,9 +153,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
       photoUrl: getImageSource(actorPhotoUrl),
     };
 
-    // Register into persistent actor store
     registerCustomActor(profile);
-
     setActorSuccess(true);
     if (onAddActorSuccess) {
       setTimeout(() => onAddActorSuccess(profile.name), 800);
@@ -204,7 +224,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
       {/* TAB 1: ADD MOVIE */}
       {activeTab === 'movie' && (
         <div className="max-w-2xl mx-auto">
-          {/* Form Container */}
           <form onSubmit={handleMovieSubmit} className="space-y-4 bg-[#121520] border border-zinc-800 rounded-2xl p-6 sm:p-7 shadow-xl">
             {savedSuccess && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs">
@@ -223,6 +242,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                onFocus={(e) => e.target.select()}
                 placeholder="e.g. Blade Runner 2099"
                 className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
               />
@@ -275,12 +295,18 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                   Year <span className="text-amber-400">*</span>
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   required
-                  min="1900"
-                  max="2035"
+                  inputMode="numeric"
+                  maxLength={4}
                   value={year}
-                  onChange={(e) => setYear(Number(e.target.value))}
+                  onChange={(e) => {
+                    // Hanya izinkan angka
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setYear(val);
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  placeholder="YYYY"
                   className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-amber-500/60"
                 />
               </div>
@@ -290,12 +316,17 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                   Minutes <span className="text-amber-400">*</span>
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   required
-                  min="10"
-                  max="600"
+                  inputMode="numeric"
                   value={minutes}
-                  onChange={(e) => setMinutes(Number(e.target.value))}
+                  onChange={(e) => {
+                    // Hanya izinkan angka
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setMinutes(val);
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  placeholder="120"
                   className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-amber-500/60"
                 />
               </div>
@@ -307,15 +338,21 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                 <input
                   type="text"
                   required
+                  inputMode="decimal"
                   value={sizeStr}
-                  onChange={(e) => setSizeStr(e.target.value)}
-                  placeholder="14.2 GB"
+                  onChange={(e) => {
+                    // Hanya izinkan angka dan koma
+                    const val = e.target.value.replace(/[^0-9,]/g, '');
+                    setSizeStr(val);
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  placeholder="e.g. 1,5"
                   className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-amber-500/60"
                 />
               </div>
             </div>
 
-            {/* Row 3: RESOLUTION ONLY FOR 720p HD, 1080p HD, 960p HD */}
+            {/* Row 3: RESOLUTION */}
             <div>
               <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
                 Resolution (HD Standards Only) <span className="text-amber-400">*</span>
@@ -342,21 +379,28 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
               </div>
             </div>
 
-            {/* Starring Cast */}
+            {/* Starring Cast with Autocomplete */}
             <div>
               <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
                 Starring Actors (comma separated)
               </label>
               <input
                 type="text"
+                list="actor-suggestions"
                 value={actorsInput}
                 onChange={(e) => setActorsInput(e.target.value)}
+                onFocus={(e) => e.target.select()}
                 placeholder="e.g. Victor Lynch, Elena Rostova, Robert Stone"
                 className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
               />
+              <datalist id="actor-suggestions">
+                {actorSuggestions.map((name, index) => (
+                  <option key={index} value={name} />
+                ))}
+              </datalist>
             </div>
 
-            {/* Poster URL (Optional) */}
+            {/* Poster URL */}
             <div>
               <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
                 Poster Image URL (Optional)
@@ -365,6 +409,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                 type="text"
                 value={customPoster}
                 onChange={(e) => setCustomPoster(e.target.value)}
+                onFocus={(e) => e.target.select()}
                 placeholder="Paste an image URL or Google Drive sharing link"
                 className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
               />
@@ -405,7 +450,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
               </div>
             )}
 
-            {/* Actor Name */}
             <div>
               <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
                 Actor Full Name <span className="text-amber-400">*</span>
@@ -415,12 +459,12 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                 required
                 value={actorName}
                 onChange={(e) => setActorName(e.target.value)}
+                onFocus={(e) => e.target.select()}
                 placeholder="e.g. Leonardo DiCaprio"
                 className="w-full bg-[#121520] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
               />
             </div>
 
-            {/* Date of Birth */}
             <div>
               <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
                 Date of Birth <span className="text-amber-400">*</span>
@@ -432,13 +476,13 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                   required
                   value={actorDob}
                   onChange={(e) => setActorDob(e.target.value)}
+                  onFocus={(e) => e.target.select()}
                   placeholder="e.g. November 11, 1974"
                   className="w-full bg-[#121520] border border-zinc-800 rounded-xl pl-9 pr-3.5 py-2 text-sm text-zinc-100 font-mono placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
                 />
               </div>
             </div>
 
-            {/* Actor Photo URL */}
             <div>
               <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
                 Actor Photo URL (Optional)
@@ -447,6 +491,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                 type="text"
                 value={actorPhotoUrl}
                 onChange={(e) => setActorPhotoUrl(e.target.value)}
+                onFocus={(e) => e.target.select()}
                 placeholder="Paste an image URL or Google Drive sharing link"
                 className="w-full bg-[#121520] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
               />
@@ -455,7 +500,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
               </p>
             </div>
 
-            {/* Submit Actions */}
             <div className="pt-4 flex items-center gap-3">
               <button
                 type="submit"
@@ -487,7 +531,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
               </div>
             )}
 
-            {/* Studio Name */}
             <div>
               <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
                 Studio Name <span className="text-amber-400">*</span>
@@ -497,12 +540,12 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                 required
                 value={studioName}
                 onChange={(e) => setStudioName(e.target.value)}
+                onFocus={(e) => e.target.select()}
                 placeholder="e.g. DreamWorks Pictures"
                 className="w-full bg-[#121520] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
               />
             </div>
 
-            {/* Headquarters & Founded Year */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
@@ -514,6 +557,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                     type="text"
                     value={studioHq}
                     onChange={(e) => setStudioHq(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     placeholder="e.g. Burbank, California, USA"
                     className="w-full bg-[#121520] border border-zinc-800 rounded-xl pl-9 pr-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60"
                   />
@@ -532,13 +576,13 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                     max="2035"
                     value={studioYear}
                     onChange={(e) => setStudioYear(Number(e.target.value))}
+                    onFocus={(e) => e.target.select()}
                     className="w-full bg-[#121520] border border-zinc-800 rounded-xl pl-9 pr-3.5 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-amber-500/60"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Submit Actions */}
             <div className="pt-4 flex items-center gap-3">
               <button
                 type="submit"
@@ -557,7 +601,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
             </div>
           </form>
 
-          {/* Studio Preview Card */}
           <div className="lg:col-span-5 flex flex-col items-center">
             <div className="w-full max-w-xs space-y-3 sticky top-24">
               <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
