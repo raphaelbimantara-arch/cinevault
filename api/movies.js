@@ -66,71 +66,112 @@ export default {
 
     try {
       // ==========================================
-      // 1. LOAD DATA (Ambil Film)
+      // 1. LOAD DATA (Ambil Film & Aktor)
       // ==========================================
       if (body.action === 'load') {
         const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
-        
         const formattedMovies = result.rows.map(row => ({
-          id: row.id,
+          id: row.id.toString(),
           title: row.title || 'Tanpa Judul',
-          year: row.year || '',
+          year: row.year || 0,
           genre: row.genre || '',
           studio: row.studio || '',
-          minutes: 0,
-          size: '0 GB',
-          sizeBytes: 0,
-          resolution: '720p',
-          posterUrl: '',
-          backdropUrl: '',
-          actors: [],
-          favorite: false,
-          reviewed: false,
-          uncensored: false,
-          addedDate: new Date().toISOString()
+          minutes: row.minutes || 0,
+          size: row.size || '0 GB',
+          sizeBytes: row.size_bytes || 0,
+          resolution: row.resolution || '1080p',
+          posterUrl: row.poster_url || '',
+          backdropUrl: row.backdrop_url || '',
+          actors: row.actors || [], // Ambil dari JSONB
+          favorite: row.favorite,
+          reviewed: row.reviewed,
+          uncensored: row.uncensored,
+          addedDate: row.added_date || new Date().toISOString()
         }));
-
         return jsonResponse({ movies: formattedMovies }, 200, headers);
       }
 
+      if (body.action === 'loadActors') {
+        const result = await pool.query('SELECT * FROM actors ORDER BY name ASC');
+        const formattedActors = result.rows.map(row => ({
+          name: row.name,
+          alias: row.alias || '',
+          dob: row.dob ? row.dob.toISOString().split('T')[0] : '',
+          photoUrl: row.photo_url || '',
+          favorite: row.favorite,
+          reviewed: row.reviewed,
+          movieCount: row.movie_count
+        }));
+        return jsonResponse({ actors: formattedActors }, 200, headers);
+      }
+
       // ==========================================
-      // 2. SAVE DATA (Simpan/Update/Hapus Film)
+      // 2. SAVE FILM (Simpan Full Data)
       // ==========================================
       if (body.action === 'save') {
         if (!Array.isArray(body.movies)) {
           return jsonResponse({ error: 'Movies must be an array.' }, 400, headers);
         }
 
-        // Kita gunakan metode "Hapus semua, lalu masukkan lagi" agar kodenya simpel
-        // (Cocok untuk aplikasi personal dengan data < 10.000 film)
+        // Hapus semua film lama dan masukkan yang baru (Metode Replace All)
         await pool.query('DELETE FROM movies');
 
-        for (const movie of body.movies) {
+        for (const m of body.movies) {
           await pool.query(
-            `INSERT INTO movies (title, year, genre, studio) VALUES ($1, $2, $3, $4)`,
-            [movie.title, movie.year || null, movie.genre || null, movie.studio || null]
+            `INSERT INTO movies (title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+            [
+              m.title, m.year || null, m.genre || null, m.studio || null, 
+              m.minutes || null, m.size || null, m.sizeBytes || null, m.resolution || null, 
+              m.posterUrl || null, m.backdropUrl || null, m.favorite || false, 
+              m.reviewed || false, m.uncensored || false, m.addedDate || null, 
+              JSON.stringify(m.actors || []) // Simpan aktor sebagai JSON
+            ]
           );
         }
-
-        return jsonResponse({ message: 'Berhasil menyimpan data.' }, 200, headers);
+        return jsonResponse({ message: `${body.movies.length} film berhasil disimpan ke Neon.` }, 200, headers);
       }
 
       // ==========================================
-      // 3. AKTOR (Sementara kosongkan dulu)
+      // 3. SAVE ACTOR (Profil Aktor)
       // ==========================================
-      if (body.action === 'loadActors') {
-        return jsonResponse({ actors: [] }, 200, headers);
+      if (body.action === 'saveActor' || body.action === 'saveActors') {
+        const actorsToSave = body.action === 'saveActor' ? [body.actor] : body.actors;
+        if (!actorsToSave || !Array.isArray(actorsToSave)) {
+          return jsonResponse({ error: 'Data aktor tidak valid.' }, 400, headers);
+        }
+
+        for (const a of actorsToSave) {
+          await pool.query(
+            `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (name) DO UPDATE 
+             SET alias = EXCLUDED.alias, dob = EXCLUDED.dob, photo_url = EXCLUDED.photo_url, 
+                 favorite = EXCLUDED.favorite, reviewed = EXCLUDED.reviewed, movie_count = EXCLUDED.movie_count`,
+            [a.name, a.alias || null, a.dob || null, a.photoUrl || null, a.favorite || false, a.reviewed || false, a.movieCount || 0]
+          );
+        }
+        return jsonResponse({ message: 'Aktor berhasil disimpan.' }, 200, headers);
       }
 
-      if (['saveActor', 'deleteActors', 'saveActors'].includes(body.action)) {
-        return jsonResponse({ message: 'Fitur aktor diskip dulu.' }, 200, headers);
+      // ==========================================
+      // 4. DELETE ACTORS
+      // ==========================================
+      if (body.action === 'deleteActors') {
+        if (!Array.isArray(body.names)) {
+          return jsonResponse({ error: 'Names must be an array.' }, 400, headers);
+        }
+        for (const name of body.names) {
+          await pool.query('DELETE FROM actors WHERE name = $1', [name]);
+        }
+        return jsonResponse({ message: 'Aktor berhasil dihapus.' }, 200, headers);
       }
 
       return jsonResponse({ error: 'Aksi tidak dikenal.' }, 400, headers);
 
     } catch (error) {
       console.error('Database error:', error);
-      return jsonResponse({ error: 'Gagal menghubungi database.' }, 502, headers);
+      return jsonResponse({ error: 'Gagal menghubungi database: ' + error.message }, 502, headers);
     }
   },
 };
