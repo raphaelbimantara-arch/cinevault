@@ -20,19 +20,26 @@ async function requestCatalog(payload: {
   const response = await fetch(CATALOG_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    // Token sudah dihapus dari payload
     body: serializedPayload ?? JSON.stringify(payload),
   });
-  const result = (await response.json()) as {
-    movies?: Movie[];
-    actors?: ActorProfile[];
-    count?: number;
-    error?: string;
-  };
+
+  // Baca respons sebagai teks terlebih dahulu
+  const text = await response.text();
+  let result: any;
+
+  try {
+    // Coba ubah teks menjadi JSON
+    result = JSON.parse(text);
+  } catch (error) {
+    // Jika gagal (karena server mengirim HTML), tampilkan pesan error yang rapi
+    console.error('Invalid JSON response from server:', text.substring(0, 100));
+    throw new Error('Server returned an invalid response. Please try again later.');
+  }
 
   if (!response.ok) {
     throw new Error(result.error || `Shared catalog request failed (${response.status}).`);
   }
+  
   return result;
 }
 
