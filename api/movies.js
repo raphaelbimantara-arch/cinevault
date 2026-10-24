@@ -1,3 +1,5 @@
+import pool from '../database/connection.js';
+
 const DEFAULT_ORIGIN = 'https://cinevault-delta-lake.vercel.app';
 const PREVIEW_ORIGINS = [
   'https://cinevault-mdu67avr6-raphaelbimantara-5365.vercel.app',
@@ -52,62 +54,49 @@ export default {
       return jsonResponse({ error: 'Request body must be valid JSON.' }, 400, headers);
     }
 
-    const sharedSecret = process.env.CINEVAULT_SHARED_SECRET;
-    const appsScriptUrl = process.env.GOOGLE_SHEETS_WEB_APP_URL;
-    if (!sharedSecret || !appsScriptUrl) {
-      console.error('Google Sheets integration environment variables are missing.');
-      return jsonResponse({ error: 'Shared catalog is not configured on the server.' }, 503, headers);
+    // --- BAGIAN YANG DIUBAH: Ganti Pengecekan Gsheet ke Database Neon ---
+    
+    // 1. Cek apakah koneksi database sudah disetel di Vercel
+    if (!process.env.DATABASE_URL) {
+      console.error('Database URL is missing.');
+      return jsonResponse({ error: 'Database is not configured on the server.' }, 503, headers);
     }
+
+    // 2. Tetap gunakan token rahasia untuk keamanan
+    const sharedSecret = process.env.CINEVAULT_SHARED_SECRET;
     if (typeof body.token !== 'string' || body.token !== sharedSecret) {
       return jsonResponse({ error: 'Access key is incorrect.' }, 401, headers);
     }
+
     const supportedActions = ['load', 'save', 'loadActors', 'saveActor', 'deleteActors', 'saveActors'];
     if (!supportedActions.includes(body.action)) {
       return jsonResponse({ error: 'Unsupported catalog action.' }, 400, headers);
     }
-    if (body.action === 'save' && !Array.isArray(body.movies)) {
-      return jsonResponse({ error: 'Movies must be an array.' }, 400, headers);
-    }
-    if (body.action === 'saveActor' && (!body.actor || typeof body.actor !== 'object')) {
-      return jsonResponse({ error: 'Actor profile is required.' }, 400, headers);
-    }
-    if (body.action === 'saveActors' && !Array.isArray(body.actors)) {
-      return jsonResponse({ error: 'Actors must be an array.' }, 400, headers);
-    }
-    if (body.action === 'deleteActors' && !Array.isArray(body.names)) {
-      return jsonResponse({ error: 'Actor names must be an array.' }, 400, headers);
-    }
 
     try {
-      const upstream = await fetch(appsScriptUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: body.action,
-          token: sharedSecret,
-          movies: body.action === 'save' ? body.movies : undefined,
-          actor: body.action === 'saveActor' ? body.actor : undefined,
-          oldName: body.action === 'saveActor' ? body.oldName : undefined,
-          actors: body.action === 'saveActors' ? body.actors : undefined,
-          names: body.action === 'deleteActors' ? body.names : undefined,
-        }),
-        redirect: 'follow',
-      });
-      const result = await upstream.json();
+      // --- LOGIKA BARU UNTUK POSTGRESQL (NEON) ---
 
-      if (!upstream.ok || result.error) {
-        console.error('Google Sheets request failed:', result.error || upstream.statusText);
-        return jsonResponse(
-          { error: result.error || 'Google Sheets request failed.' },
-          502,
-          headers
-        );
+      if (body.action === 'load') {
+        const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
+        return jsonResponse({ movies: result.rows }, 200, headers);
       }
 
-      return jsonResponse(result, 200, headers);
+      if (body.action === 'loadActors') {
+        const result = await pool.query('SELECT * FROM actors ORDER BY name ASC');
+        return jsonResponse({ actors: result.rows }, 200, headers);
+      }
+
+      // (Catatan: Fungsi save, saveActor, dll. sengaja dibiarkan kosong dulu
+      // agar aplikasi tidak crash. Besok kita isi pakai AI)
+      if (['save', 'saveActor', 'deleteActors', 'saveActors'].includes(body.action)) {
+        return jsonResponse({ error: 'Fitur simpan belum diaktifkan di PostgreSQL.' }, 501, headers);
+      }
+
+      return jsonResponse({ error: 'Aksi tidak dikenal.' }, 400, headers);
+
     } catch (error) {
-      console.error('Google Sheets request failed:', error);
-      return jsonResponse({ error: 'Unable to reach Google Sheets.' }, 502, headers);
+      console.error('Database request failed:', error);
+      return jsonResponse({ error: 'Gagal menghubungi database.' }, 502, headers);
     }
   },
 };
