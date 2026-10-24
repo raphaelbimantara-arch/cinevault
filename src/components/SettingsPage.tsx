@@ -44,6 +44,7 @@ interface DuplicateGroup {
 interface ActorDuplicateCandidate {
   name: string;
   alias: string;
+  dob: string;
   movieCount: number;
 }
 
@@ -130,7 +131,9 @@ function getMovieDuplicateReviewKey(group: DuplicateGroup): string {
 }
 
 function normalizePersonName(value: string): string {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+  // Hilangkan teks dalam kurung sebelum normalisasi
+  const clean = value.replace(/\s*\(.*?\)\s*/g, '');
+  return clean.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
 }
 
 function editDistance(left: string, right: string): number {
@@ -187,7 +190,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [parseNotes, setParseNotes] = useState<string[]>([]);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const [isProcessingCsv, setIsProcessingCsv] = useState(false);
-  const [autoImportEnabled, setAutoImportEnabled] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { try { localStorage.setItem(REVIEWED_DUPLICATE_GROUPS_KEY, JSON.stringify([...reviewedDuplicateGroups])); } catch { showToast('error', 'Could not save review.'); } }, 0);
@@ -197,7 +199,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
     setNotification({ type, message }); setTimeout(() => { setNotification((curr) => (curr?.message === message ? null : curr)); }, 4500);
   };
-    const handleCancelUpload = () => {
+
+  const handleCancelUpload = () => {
     setCsvFile(null); setParsedMovies([]); setRawPreviewData([]); setParseErrors([]); setParseNotes([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -309,11 +312,46 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const actorDuplicateGroups: ActorDuplicateGroup[] = useMemo(() => {
     const actorMap = new Map<string, ActorDuplicateCandidate>(); const custom = getCustomActors();
-    const addActor = (name: string, count = 0) => { const t = name.trim(); if (!t) return; const k = t.toLowerCase(); const e = actorMap.get(k); actorMap.set(k, { name: e?.name || t, alias: e?.alias || '', movieCount: (e?.movieCount || 0) + count }); };
-    movies.forEach((m) => m.actors.forEach((a) => addActor(a, 1))); [...Object.keys(KNOWN_ACTORS), ...Object.keys(custom)].forEach((n) => addActor(n));
+    
+    // FUNGSI UNTUK MEMBERSIHKAN NAMA DARI KURUNG
+    const cleanName = (name: string) => name.replace(/\s*\(.*?\)\s*/g, '').trim();
+
+    const addActor = (name: string, count = 0) => { 
+      const t = cleanName(name); 
+      if (!t) return; 
+      const k = t.toLowerCase(); 
+      const e = actorMap.get(k); 
+      const profile = custom[name];
+      actorMap.set(k, { 
+        name: e?.name || name, 
+        alias: e?.alias || profile?.alias || '', 
+        dob: e?.dob || profile?.dob || '', // Ambil DOB
+        movieCount: (e?.movieCount || 0) + count 
+      }); 
+    };
+    
+    movies.forEach((m) => m.actors.forEach((a) => addActor(a, 1))); 
+    [...Object.keys(KNOWN_ACTORS), ...Object.keys(custom)].forEach((n) => addActor(n));
+    
     const actors = [...actorMap.values()]; const parents = actors.map((_, i) => i); const reasons = new Map<number, Set<ActorDuplicateGroup['reason']>>();
     const findRoot = (i: number): number => { if (parents[i] !== i) parents[i] = findRoot(parents[i]); return parents[i]; };
-    for (let i = 0; i < actors.length; i++) { for (let j = i + 1; j < actors.length; j++) { const reason = getActorDuplicateReason(actors[i], actors[j]); if (!reason) continue; const ri = findRoot(i); const rj = findRoot(j); if (ri !== rj) { parents[rj] = ri; const comb = new Set([...(reasons.get(ri) || []), ...(reasons.get(rj) || []), reason]); reasons.set(ri, comb); reasons.delete(rj); } else { const comb = reasons.get(ri) || new Set(); comb.add(reason); reasons.set(ri, comb); } } }
+    
+    for (let i = 0; i < actors.length; i++) { 
+      for (let j = i + 1; j < actors.length; j++) { 
+        const reason = getActorDuplicateReason(actors[i], actors[j]); 
+        if (!reason) continue; 
+        const ri = findRoot(i); const rj = findRoot(j); 
+        if (ri !== rj) { 
+          parents[rj] = ri; 
+          const comb = new Set([...(reasons.get(ri) || []), ...(reasons.get(rj) || []), reason]); 
+          reasons.set(ri, comb); reasons.delete(rj); 
+        } else { 
+          const comb = reasons.get(ri) || new Set(); 
+          comb.add(reason); reasons.set(ri, comb); 
+        } 
+      } 
+    }
+    
     const grouped = new Map<number, ActorDuplicateCandidate[]>(); actors.forEach((a, i) => { const r = findRoot(i); const g = grouped.get(r) || []; g.push(a); grouped.set(r, g); });
     return [...grouped.entries()].filter(([, g]) => g.length > 1).map(([r, g]) => { const gr = reasons.get(r) || new Set(); const reason = gr.has('name-or-alias') ? 'name-or-alias' : gr.has('matching-name-parts') ? 'matching-name-parts' : 'similar-spelling'; const sorted = g.sort((a, b) => a.name.localeCompare(b.name)); return { key: sorted.map((a) => normalizePersonName(a.name)).join('|'), reason, actors: sorted }; }).sort((a, b) => a.actors[0].name.localeCompare(b.actors[0].name));
   }, [movies]);
@@ -359,7 +397,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setIsRefreshing(true);
     try { const count = await onRefreshSharedCatalog(); showToast('success', `Database refreshed! ${count} loaded.`); } catch (error) { showToast('error', error instanceof Error ? error.message : 'Failed.'); } finally { setIsRefreshing(false); }
   };
-    return (
+
+  return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12 w-full max-w-full overflow-hidden">
       {notification && (
         <div className={`p-3 sm:p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs sm:text-sm ${
@@ -376,9 +415,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0">
-              <Sliders className="w-5 h-5" />
-            </div>
+            <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0"><Sliders className="w-5 h-5" /></div>
             <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Catalog & Data Settings</h2>
           </div>
           <p className="text-xs sm:text-sm text-zinc-400 mt-1">Export and import CSV spreadsheets, detect duplicate movies, and manage library storage.</p>
@@ -401,33 +438,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 w-full">
           <div className="md:col-span-4 bg-[#121520] border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-lg">
             <div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0"><Download className="w-5 h-5" /></div>
-                <div><h3 className="font-bold text-base text-zinc-100">Export to CSV</h3><p className="text-xs text-zinc-400">Download collection</p></div>
-              </div>
-              <div className="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 space-y-2 text-xs">
-                <div className="flex justify-between items-center text-zinc-400"><span>Movies:</span><strong className="text-zinc-100 font-mono text-sm">{movies.length} Titles</strong></div>
-              </div>
+              <div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0"><Download className="w-5 h-5" /></div><div><h3 className="font-bold text-base text-zinc-100">Export to CSV</h3><p className="text-xs text-zinc-400">Download collection</p></div></div>
+              <div className="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 space-y-2 text-xs"><div className="flex justify-between items-center text-zinc-400"><span>Movies:</span><strong className="text-zinc-100 font-mono text-sm">{movies.length} Titles</strong></div></div>
             </div>
-            <div className="mt-4 pt-4 border-t border-zinc-800/80">
-              <button onClick={handleExportCsv} className="w-full py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md"><Download className="w-4 h-4" /><span>Download CSV</span></button>
-            </div>
+            <div className="mt-4 pt-4 border-t border-zinc-800/80"><button onClick={handleExportCsv} className="w-full py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md"><Download className="w-4 h-4" /><span>Download CSV</span></button></div>
           </div>
 
           <div className="md:col-span-8 bg-[#121520] border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col shadow-lg">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0"><Upload className="w-5 h-5" /></div>
-              <div><h3 className="font-bold text-base text-zinc-100">Import from CSV</h3><p className="text-xs text-zinc-400">Load movies into CineVault</p></div>
-            </div>
-
+            <div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0"><Upload className="w-5 h-5" /></div><div><h3 className="font-bold text-base text-zinc-100">Import from CSV</h3><p className="text-xs text-zinc-400">Load movies into CineVault</p></div></div>
             <div className="flex gap-2 items-stretch">
               <input ref={fileInputRef} type="file" accept=".csv,*" onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} onChange={handleFileChange} className="hidden" id="csv-file-picker" />
-              <label htmlFor="csv-file-picker" className="flex-1 border-2 border-dashed border-zinc-700 hover:border-amber-400 rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-center cursor-pointer transition-colors bg-zinc-900/40 hover:bg-zinc-900/80">
-                <FileSpreadsheet className="w-6 h-6 text-amber-400" /><span className="text-xs font-semibold text-zinc-200 truncate max-w-full">{csvFile ? csvFile.name : 'Choose CSV file'}</span>
-              </label>
+              <label htmlFor="csv-file-picker" className="flex-1 border-2 border-dashed border-zinc-700 hover:border-amber-400 rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-center cursor-pointer transition-colors bg-zinc-900/40 hover:bg-zinc-900/80"><FileSpreadsheet className="w-6 h-6 text-amber-400" /><span className="text-xs font-semibold text-zinc-200 truncate max-w-full">{csvFile ? csvFile.name : 'Choose CSV file'}</span></label>
               {csvFile && (<button onClick={handleCancelUpload} className="px-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" title="Cancel upload"><X className="w-5 h-5" /></button>)}
             </div>
-
             {rawPreviewData.length > 0 && (
               <div className="mt-4 border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900">
                 <div className="px-3 py-2 border-b border-zinc-800 flex justify-between items-center bg-[#151926]"><span className="text-[10px] font-bold text-zinc-300 uppercase">Data Preview (First 5 rows)</span><span className="text-[10px] text-emerald-400 font-mono">{parsedMovies.length} rows parsed</span></div>
@@ -439,15 +462,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </div>
               </div>
             )}
-
             <div className="mt-auto pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex gap-2 w-full sm:w-auto">
                 <button type="button" onClick={() => setImportMode('merge')} className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg border text-xs font-semibold ${importMode === 'merge' ? 'bg-amber-400/10 border-amber-500/50 text-amber-300' : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>Merge</button>
                 <button type="button" onClick={() => setImportMode('replace')} className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg border text-xs font-semibold ${importMode === 'replace' ? 'bg-rose-500/10 border-rose-500/50 text-rose-300' : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>Replace All</button>
               </div>
-              <button onClick={handleExecuteImport} disabled={parsedMovies.length === 0 || isProcessingCsv} className="w-full sm:w-auto py-2 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:bg-zinc-800 disabled:text-zinc-600 text-zinc-950 font-bold text-xs flex items-center justify-center gap-2">
-                <Upload className="w-3.5 h-3.5" /><span>{isProcessingCsv ? 'Processing...' : `Apply Import (${parsedMovies.length})`}</span>
-              </button>
+              <button onClick={handleExecuteImport} disabled={parsedMovies.length === 0 || isProcessingCsv} className="w-full sm:w-auto py-2 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:bg-zinc-800 disabled:text-zinc-600 text-zinc-950 font-bold text-xs flex items-center justify-center gap-2"><Upload className="w-3.5 h-3.5" /><span>{isProcessingCsv ? 'Processing...' : `Apply Import (${parsedMovies.length})`}</span></button>
             </div>
           </div>
         </div>
@@ -465,17 +485,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-base sm:text-lg text-white">Duplicate Movie Finder</h3>
-                    {visibleMovieGroups.length > 0 ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">{visibleMovieGroups.length} Groups ({totalMovieDuplicates} duplicates)</span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Clean Catalog (0 Duplicates)</span>
-                    )}
+                    {visibleMovieGroups.length > 0 ? (<span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">{visibleMovieGroups.length} Groups ({totalMovieDuplicates} duplicates)</span>) : (<span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Clean Catalog (0 Duplicates)</span>)}
                   </div>
                   <p className="text-xs text-zinc-400 mt-1">Scans for identical titles, identical title & release year, or spelling variations.</p>
                 </div>
-                {visibleMovieGroups.length > 0 && (
-                  <button onClick={handleAutoCleanAllDuplicates} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors shrink-0 shadow-md"><Trash2 className="w-3.5 h-3.5" /><span>Auto Clean All Duplicates</span></button>
-                )}
+                {visibleMovieGroups.length > 0 && (<button onClick={handleAutoCleanAllDuplicates} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors shrink-0 shadow-md"><Trash2 className="w-3.5 h-3.5" /><span>Auto Clean All Duplicates</span></button>)}
               </div>
               {visibleMovieGroups.length === 0 && (
                 <div className="py-16 text-center rounded-2xl border border-dashed border-zinc-800 bg-[#0d0f16]/60 p-6">
@@ -494,9 +508,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-white text-sm truncate">"{group.movies[0].title}"</span>
-                              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${group.reason === 'title-and-year' ? 'bg-rose-500/15 border-rose-500/30 text-rose-300' : group.reason === 'exact-title' ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-blue-500/15 border-blue-500/30 text-blue-300'}`}>
-                                {group.reason === 'title-and-year' && 'Same Title & Year'}{group.reason === 'exact-title' && 'Exact Title Match'}{group.reason === 'similar-title' && 'Similar Title Match'}
-                              </span>
+                              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${group.reason === 'title-and-year' ? 'bg-rose-500/15 border-rose-500/30 text-rose-300' : group.reason === 'exact-title' ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-blue-500/15 border-blue-500/30 text-blue-300'}`}>{group.reason === 'title-and-year' && 'Same Title & Year'}{group.reason === 'exact-title' && 'Exact Title Match'}{group.reason === 'similar-title' && 'Similar Title Match'}</span>
                             </div>
                             <span className="text-[11px] text-zinc-400">{group.movies.length} duplicate entries found</span>
                           </div>
@@ -509,14 +521,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {group.movies.map((m, idx) => (
                           <div key={m.id} className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 transition-colors overflow-hidden">
-                            <div onClick={() => onSelectMovie(m)} className="w-14 sm:w-16 aspect-[2/3] rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700/60 shrink-0 cursor-pointer shadow" title="Click to view movie details">
-                              <img src={getImageSource(m.posterUrl)} alt={m.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
-                            </div>
+                            <div onClick={() => onSelectMovie(m)} className="w-14 sm:w-16 aspect-[2/3] rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700/60 shrink-0 cursor-pointer shadow" title="Click to view movie details"><img src={getImageSource(m.posterUrl)} alt={m.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" /></div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-bold text-zinc-100 text-xs truncate">{m.title}</span>
-                                <span className="text-[10px] font-mono text-zinc-500 shrink-0">#{idx + 1}</span>
-                              </div>
+                              <div className="flex items-center justify-between gap-2"><span className="font-bold text-zinc-100 text-xs truncate">{m.title}</span><span className="text-[10px] font-mono text-zinc-500 shrink-0">#{idx + 1}</span></div>
                               <div className="text-[11px] text-zinc-400 space-y-0.5 mt-1 font-mono">
                                 <div className="flex items-center gap-2 flex-wrap"><span>{m.year}</span><span aria-hidden="true">·</span><span className="text-amber-400 font-semibold">{m.genre}</span><span aria-hidden="true">·</span><span>{m.minutes}m</span></div>
                                 <div className="flex items-center gap-2 text-zinc-500 flex-wrap"><span className="truncate max-w-[100px]">{m.studio}</span><span aria-hidden="true">·</span><span>{m.resolution || '1080p'}</span><span aria-hidden="true">·</span><span className="text-zinc-300 font-semibold">{formatStorageSize(Number(m.sizeBytes) || 0)}</span></div>
@@ -539,7 +546,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="space-y-4">
               <div className="rounded-2xl border border-zinc-800 bg-[#121520] p-4 sm:p-5">
                 <h3 className="font-bold text-base text-white">Duplicate Actor Finder</h3>
-                <p className="mt-1 text-xs text-zinc-400">Checks actor names and aliases for exact matches, spelling variations, and similar first/last names. Review each group before merging; similar names are suggestions, not guaranteed duplicates.</p>
+                <p className="mt-1 text-xs text-zinc-400">Checks actor names and aliases for exact matches, spelling variations, and similar first/last names.</p>
                 <div className="mt-3 text-xs font-mono text-zinc-300">{visibleActorGroups.length} groups · {totalActorDuplicates} possible duplicate entries</div>
               </div>
               {visibleActorGroups.length === 0 ? (
@@ -596,7 +603,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-3.5 sm:p-4"><span className="text-[11px] text-zinc-400 uppercase font-semibold tracking-wider">Total Movies</span><div className="text-xl sm:text-2xl font-bold font-mono text-white mt-1">{movies.length}</div></div>
             <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-3.5 sm:p-4"><span className="text-[11px] text-zinc-400 uppercase font-semibold tracking-wider">Storage</span><div className="text-xl sm:text-2xl font-bold font-mono text-amber-400 mt-1">{formatStorageSize(movies.reduce((acc, m) => acc + (Math.round(Number(m.sizeBytes)) || 0), 0))}</div></div>
             <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-3.5 sm:p-4"><span className="text-[11px] text-zinc-400 uppercase font-semibold tracking-wider">Actors</span><div className="text-xl sm:text-2xl font-bold font-mono text-white mt-1">{new Set(movies.flatMap((m) => m.actors).filter(Boolean)).size}</div></div>
-            <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-3.5 sm:p-4"><span className="text-[11px] text-zinc-400 uppercase font-semibold tracking-wider">Studios</span><div className="text-xl sm:text-2xl font-bold font-mono text-white mt-1">{new Set(movies.map((m) => m.studio)).size}</div></div>
+            <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-3.5 sm:p-4"><span className="text-[11px] text-zinc-400 font-semibold tracking-wider uppercase">Studios</span><div className="text-xl sm:text-2xl font-bold font-mono text-white mt-1">{new Set(movies.map((m) => m.studio)).size}</div></div>
           </div>
         </div>
       )}
