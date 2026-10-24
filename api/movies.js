@@ -106,21 +106,39 @@ export default {
       }
 
       // ==========================================
-      // 2. SAVE MOVIES
+      // 2. SAVE MOVIES (UPSERT: Update or Insert)
       // ==========================================
       if (body.action === 'save') {
         if (!Array.isArray(body.movies)) {
           return jsonResponse({ error: 'Movies must be an array.' }, 400, headers);
         }
 
-        await pool.query('DELETE FROM movies');
-
+        // Loop setiap film, lalu lakukan UPSERT berdasarkan ID
         for (const m of body.movies) {
+          // Pastikan ID ada (jika dari CSV baru, kita generate ID unik)
+          const movieId = m.id ? String(m.id) : `csv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          
           await pool.query(
-            `INSERT INTO movies (title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+            `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+             ON CONFLICT (id) DO UPDATE SET 
+               title = EXCLUDED.title,
+               year = EXCLUDED.year,
+               genre = EXCLUDED.genre,
+               studio = EXCLUDED.studio,
+               minutes = EXCLUDED.minutes,
+               size = EXCLUDED.size,
+               size_bytes = EXCLUDED.size_bytes,
+               resolution = EXCLUDED.resolution,
+               poster_url = EXCLUDED.poster_url,
+               backdrop_url = EXCLUDED.backdrop_url,
+               favorite = EXCLUDED.favorite,
+               reviewed = EXCLUDED.reviewed,
+               uncensored = EXCLUDED.uncensored,
+               added_date = EXCLUDED.added_date,
+               actors = EXCLUDED.actors`,
             [
-              m.title, m.year || null, m.genre || null, m.studio || null, 
+              movieId, m.title, m.year || null, m.genre || null, m.studio || null, 
               m.minutes || null, m.size || null, m.sizeBytes || null, m.resolution || null, 
               m.posterUrl || null, m.backdropUrl || null, m.favorite || false, 
               m.reviewed || false, m.uncensored || false, m.addedDate || null, 
@@ -128,11 +146,11 @@ export default {
             ]
           );
         }
-        return jsonResponse({ message: `${body.movies.length} movies successfully saved to Neon.` }, 200, headers);
+        return jsonResponse({ message: `${body.movies.length} movies successfully synchronized.` }, 200, headers);
       }
 
       // ==========================================
-      // 3. SAVE ACTORS
+      // 3. SAVE ACTORS (UPSERT: Update or Insert)
       // ==========================================
       if (body.action === 'saveActor' || body.action === 'saveActors') {
         const actorsToSave = body.action === 'saveActor' ? [body.actor] : body.actors;
