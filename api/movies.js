@@ -66,13 +66,13 @@ export default {
 
     try {
       // ==========================================
-      // 1. LOAD DATA (Ambil Film & Aktor)
+      // 1. LOAD DATA (Movies & Actors)
       // ==========================================
       if (body.action === 'load') {
         const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
         const formattedMovies = result.rows.map(row => ({
           id: row.id.toString(),
-          title: row.title || 'Tanpa Judul',
+          title: row.title || 'Untitled',
           year: row.year || 0,
           genre: row.genre || '',
           studio: row.studio || '',
@@ -82,7 +82,7 @@ export default {
           resolution: row.resolution || '1080p',
           posterUrl: row.poster_url || '',
           backdropUrl: row.backdrop_url || '',
-          actors: row.actors || [], // Ambil dari JSONB
+          actors: row.actors || [],
           favorite: row.favorite,
           reviewed: row.reviewed,
           uncensored: row.uncensored,
@@ -106,14 +106,13 @@ export default {
       }
 
       // ==========================================
-      // 2. SAVE FILM (Simpan Full Data)
+      // 2. SAVE MOVIES
       // ==========================================
       if (body.action === 'save') {
         if (!Array.isArray(body.movies)) {
           return jsonResponse({ error: 'Movies must be an array.' }, 400, headers);
         }
 
-        // Hapus semua film lama dan masukkan yang baru (Metode Replace All)
         await pool.query('DELETE FROM movies');
 
         for (const m of body.movies) {
@@ -125,20 +124,20 @@ export default {
               m.minutes || null, m.size || null, m.sizeBytes || null, m.resolution || null, 
               m.posterUrl || null, m.backdropUrl || null, m.favorite || false, 
               m.reviewed || false, m.uncensored || false, m.addedDate || null, 
-              JSON.stringify(m.actors || []) // Simpan aktor sebagai JSON
+              JSON.stringify(m.actors || [])
             ]
           );
         }
-        return jsonResponse({ message: `${body.movies.length} film berhasil disimpan ke Neon.` }, 200, headers);
+        return jsonResponse({ message: `${body.movies.length} movies successfully saved to Neon.` }, 200, headers);
       }
 
       // ==========================================
-      // 3. SAVE ACTOR (Profil Aktor)
+      // 3. SAVE ACTORS
       // ==========================================
       if (body.action === 'saveActor' || body.action === 'saveActors') {
         const actorsToSave = body.action === 'saveActor' ? [body.actor] : body.actors;
         if (!actorsToSave || !Array.isArray(actorsToSave)) {
-          return jsonResponse({ error: 'Data aktor tidak valid.' }, 400, headers);
+          return jsonResponse({ error: 'Invalid actor data.' }, 400, headers);
         }
 
         for (const a of actorsToSave) {
@@ -151,7 +150,7 @@ export default {
             [a.name, a.alias || null, a.dob || null, a.photoUrl || null, a.favorite || false, a.reviewed || false, a.movieCount || 0]
           );
         }
-        return jsonResponse({ message: 'Aktor berhasil disimpan.' }, 200, headers);
+        return jsonResponse({ message: 'Actors successfully saved.' }, 200, headers);
       }
 
       // ==========================================
@@ -164,14 +163,14 @@ export default {
         for (const name of body.names) {
           await pool.query('DELETE FROM actors WHERE name = $1', [name]);
         }
-        return jsonResponse({ message: 'Aktor berhasil dihapus.' }, 200, headers);
+        return jsonResponse({ message: 'Actors successfully deleted.' }, 200, headers);
       }
 
-      return jsonResponse({ error: 'Aksi tidak dikenal.' }, 400, headers);
+      return jsonResponse({ error: 'Unknown action.' }, 400, headers);
 
     } catch (error) {
       console.error('Database error:', error);
-      return jsonResponse({ error: 'Gagal menghubungi database: ' + error.message }, 502, headers);
+      return jsonResponse({ error: 'Failed to connect to database: ' + error.message }, 502, headers);
     }
   },
 };

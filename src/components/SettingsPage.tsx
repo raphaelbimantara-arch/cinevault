@@ -86,11 +86,11 @@ const SaveSharedCatalogButton: React.FC<SaveSharedCatalogButtonProps> = ({
     setSaving(true);
     try {
       const count = await onSave();
-      onNotify('success', `${count} film berhasil disimpan ke database bersama.`);
+      onNotify('success', `${count} movies successfully saved to the database.`);
     } catch (error) {
       const message = error instanceof Error
         ? error.message
-        : 'Gagal menyimpan database perangkat ini ke katalog bersama.';
+        : 'Failed to save this device database to the shared catalog.';
       onNotify('error', message);
     } finally {
       setSaving(false);
@@ -134,7 +134,7 @@ const SaveSharedCatalogButton: React.FC<SaveSharedCatalogButtonProps> = ({
       className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
     >
       <Upload className="h-4 w-4" />
-      {isLoading ? 'Menyimpan database...' : 'Save to Database'}
+      {isLoading ? 'Saving database...' : 'Save to Database'}
     </button>
   );
 };
@@ -336,15 +336,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         'posterUrl', 'backdropUrl', 'actors', 'addedDate', 'castCount', 'favorite', 'reviewed', 'uncensored'
       ];
 
-      // Fungsi baru: Hanya pakai tanda kutip jika ada koma, enter, atau kutip di dalam teks
       const escapeCsvCell = (val: unknown): string => {
         if (val === null || val === undefined) return '';
         const str = String(val);
-        // Jika ada koma, enter, atau kutip, bungkus dengan kutip dan gandakan kutipnya
         if (str.includes(',') || str.includes('\n') || str.includes('\r') || str.includes('"')) {
           return `"${str.replace(/"/g, '""')}"`;
         }
-        return str; // Kalau teks biasa, biarkan tanpa tanda kutip
+        return str;
       };
 
       const rows = movies.map((m) => [
@@ -821,10 +819,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const totalActorDuplicateCount = useMemo(() => visibleActorDuplicateGroups.reduce((count, group) => count + group.actors.length - 1, 0), [visibleActorDuplicateGroups]);
 
   const handleKeepDuplicateGroup = (type: 'movie' | 'actor', key: string) => {
-    const kind = type === 'movie' ? 'film' : 'aktor';
+    const kind = type === 'movie' ? 'movie' : 'actor';
     startTransition(() => {
       setReviewedDuplicateGroups((previous) => new Set(previous).add(`${type}:${key}`));
-      showToast('success', `Grup ${kind} ditandai sudah ditinjau. Data tetap disimpan.`);
+      showToast('success', `${kind} group marked as reviewed. Data is kept.`);
     });
   };
 
@@ -1179,15 +1177,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {activeTab === 'system' && (
         <div className="space-y-6 w-full">
-          {/* Tombol Save to Database - DIKEMBALIKAN DI SINI */}
+          {/* Tombol Save to Database */}
           <div className="bg-[#121520] border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h3 className="font-bold text-base text-zinc-100 flex items-center gap-2">
                 <Upload className="w-4 h-4 text-emerald-400" />
-                <span>Simpan Perubahan ke Database</span>
+                <span>Save Changes to Database</span>
               </h3>
               <p className="text-xs text-zinc-400 mt-1">
-                Kirim semua data film dari perangkat ini ke database Neon agar bisa diakses dari HP atau laptop lain.
+                Send all movie data from this device to the Neon database so it can be accessed from other phones or laptops.
               </p>
             </div>
             <div className="w-full sm:w-auto">
