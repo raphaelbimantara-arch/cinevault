@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Film, Star, Check, Building2 } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -34,6 +34,23 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
 }) => {
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
   const lastSelectedIdRef = useRef<string | null>(null);
+  const isShiftPressedRef = useRef(false);
+
+  // Menangkap event Shift di level global (keyboard)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') isShiftPressedRef.current = true;
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') isShiftPressedRef.current = false;
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   if (movies.length === 0) {
     return (
@@ -74,12 +91,28 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     <div
       className="grid gap-3 sm:gap-4 select-none"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-      onPointerDown={longPressHandlers.onPointerDown}
-      onPointerMove={longPressHandlers.onPointerMove}
-      onPointerUp={longPressHandlers.onPointerUp}
-      onPointerCancel={longPressHandlers.onPointerCancel}
+      onPointerDown={(e) => {
+        // PENGAMAN: Jika Shift sedang ditekan, matikan Long Press
+        if (e.shiftKey || isShiftPressedRef.current) return;
+        longPressHandlers.onPointerDown(e);
+      }}
+      onPointerMove={(e) => {
+        if (e.shiftKey || isShiftPressedRef.current) return;
+        longPressHandlers.onPointerMove(e);
+      }}
+      onPointerUp={(e) => {
+        if (e.shiftKey || isShiftPressedRef.current) return;
+        longPressHandlers.onPointerUp();
+      }}
+      onPointerCancel={(e) => {
+        if (e.shiftKey || isShiftPressedRef.current) return;
+        longPressHandlers.onPointerCancel();
+      }}
       onContextMenu={longPressHandlers.onContextMenu}
-      onClickCapture={longPressHandlers.onClickCapture}
+      onClickCapture={(e) => {
+        if (e.shiftKey || isShiftPressedRef.current) return;
+        longPressHandlers.onClickCapture(e);
+      }}
     >
       {movies.map((movie) => {
         const isSelected = selectedMovieIds.has(movie.id);
@@ -93,13 +126,12 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
-            {/* Area Poster */}
             <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0 pointer-events-none">
               <img
                 src={getImageSource(movie.posterUrl)}
                 alt={movie.title}
                 referrerPolicy="no-referrer"
-                draggable={false} // Mencegah gambar di-drag saat Shift diklik
+                draggable={false}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
               />
@@ -128,7 +160,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               )}
             </div>
 
-            {/* Area Info */}
             <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520] pointer-events-none">
               <h3 
                 className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors" 
