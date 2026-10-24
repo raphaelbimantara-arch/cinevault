@@ -194,9 +194,10 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     const safeMinutes = parseInt(String(editMinutes).replace(/[^0-9]/g, ''), 10) || 110;
 
     // Perbaikan: Baca titik untuk ukuran file
-    const cleanSizeString = String(editSize).replace(/[^0-9.]/g, '');
-    const numericSize = parseFloat(cleanSizeString) || 4.5;
+    const cleanSizeString = String(editSize).replace(',', '.').replace(/[^0-9.]/g, '');
+    const numericSize = parseFloat(cleanSizeString) || 0;
     const sizeBytes = Math.round(numericSize * 1000);
+    const finalSizeString = `${numericSize} GB`;
     
     // Format akhir pakai titik
     const finalSizeString = `${numericSize} GB`;

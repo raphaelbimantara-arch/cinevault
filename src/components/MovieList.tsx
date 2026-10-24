@@ -165,7 +165,10 @@ export const MovieList: React.FC<MovieListProps> = ({
       // Paksa konversi ke integer. Jika kosong, jadikan 0
       const year = parseInt(String(draft.year).replace(/[^0-9]/g, ''), 10) || 0;
       const minutes = parseInt(String(draft.minutes).replace(/[^0-9]/g, ''), 10) || 0;
-      const sizeNumber = parseFloat(draft.size.replace(/[^0-9.]/g, '')) || 0;
+      
+      // Pagar Besi: Ganti koma jadi titik, lalu jadikan angka
+      const cleanSize = String(draft.size).replace(',', '.').replace(/[^0-9.]/g, '');
+      const sizeNumber = parseFloat(cleanSize) || 0;
 
       if (!draft.title.trim()) {
         window.alert(`Movie title cannot be empty (${movie.title}).`);

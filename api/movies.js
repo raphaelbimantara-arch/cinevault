@@ -1,3 +1,98 @@
+Gsheet 30k film
+Ibu minta maaf sebesar-besarnya. Kamu benar, Ibu yang salah dan membuatmu bingung. Ibu terlalu bersemangat ingin cepat selesai sampai lupa memberi urutan yang logis.
+
+Ibu akan tegas sekarang. JANGAN sentuh Neon dulu.
+
+Ikuti urutan pasti ini dari atas ke bawah. Jangan ada yang terlewat.
+
+🍼 LANGKAH 1: Ubah API (api/movies.js)
+Buka file api/movies.js.
+
+Cari baris sizeBytes: Number(row.size_bytes) || 0, (di dalam fungsi load).
+
+Ganti menjadi: sizeBytes: Math.round(Number(row.size_bytes)) || 0,
+
+Cari bagian fungsi save (di dalam loop for (const m of body.movies)). Pastikan barisnya seperti ini:
+
+javascript
+const safeSizeBytes = Math.round(Number(m.sizeBytes)) || 0;
+const safeYear = parseInt(m.year) || 0;
+const safeMinutes = parseInt(m.minutes) || 0;
+
+await pool.query(
+  `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) 
+   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+   ON CONFLICT (id) DO UPDATE SET 
+     title = EXCLUDED.title, year = EXCLUDED.year, genre = EXCLUDED.genre, studio = EXCLUDED.studio, 
+     minutes = EXCLUDED.minutes, size = EXCLUDED.size, size_bytes = EXCLUDED.size_bytes, resolution = EXCLUDED.resolution, 
+     poster_url = EXCLUDED.poster_url, backdrop_url = EXCLUDED.backdrop_url, favorite = EXCLUDED.favorite, 
+     reviewed = EXCLUDED.reviewed, uncensored = EXCLUDED.uncensored, added_date = EXCLUDED.added_date, actors = EXCLUDED.actors`,
+  [
+    movieId, m.title, safeYear, m.genre || null, m.studio || null, 
+    safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, 
+    m.posterUrl || null, m.backdropUrl || null, m.favorite || false, 
+    m.reviewed || false, m.uncensored || false, m.addedDate || null, 
+    JSON.stringify(m.actors || [])
+  ]
+);
+🍼 LANGKAH 2: Ubah Modal Edit (MovieDetailModal.tsx)
+Buka file MovieDetailModal.tsx.
+
+Cari fungsi handleSaveEdit.
+
+Ganti bagian perhitungan size menjadi:
+
+javascript
+const cleanSizeString = String(editSize).replace(',', '.').replace(/[^0-9.]/g, '');
+const numericSize = parseFloat(cleanSizeString) || 0;
+const sizeBytes = Math.round(numericSize * 1000);
+const finalSizeString = `${numericSize} GB`;
+🍼 LANGKAH 3: Ubah Tabel Edit (MovieList.tsx)
+Buka file MovieList.tsx.
+
+Cari fungsi saveEditing.
+
+Ganti bagian perhitungan size menjadi:
+
+javascript
+const year = parseInt(String(draft.year).replace(/[^0-9]/g, ''), 10) || 0;
+const minutes = parseInt(String(draft.minutes).replace(/[^0-9]/g, ''), 10) || 0;
+const cleanSize = String(draft.size).replace(',', '.').replace(/[^0-9.]/g, '');
+const sizeNumber = parseFloat(cleanSize) || 0;
+Di bagian updatedMovies.push, pastikan:
+
+javascript
+size: `${sizeNumber} GB`,
+sizeBytes: Math.round(sizeNumber * 1000),
+🍼 LANGKAH 4: Commit & Sync ke Vercel
+Simpan ketiga file di atas (Ctrl + S).
+
+Buka Source Control (ikon garpu).
+
+Commit dengan pesan: Final fix for size calculation.
+
+Sync Changes. Tunggu Vercel hijau Ready.
+
+🍼 LANGKAH 5: Baru Bersihkan Neon
+Setelah Vercel hijau, buka Neon Console -> SQL Editor, lalu jalankan perintah ini satu per satu:
+
+sql
+UPDATE movies SET size_bytes = ROUND(size_bytes);
+sql
+UPDATE movies 
+SET size_bytes = 0, size = '0 GB' 
+WHERE size_bytes > 500000;
+🍼 LANGKAH 6: Cek Hasil
+Buka aplikasimu, tekan Ctrl + Shift + R. Buka menu Overview. Angka total storage sekarang pasti wajar dan akurat.
+
+Sekali lagi Ibu minta maaf atas kebingungan tadi. Silakan mulai dari Langkah 1. 👶🍼✨
+
+berikan saya full code untuk langkah 1
+Baik, ini kode lengkap (full) untuk api/movies.js.
+
+Ibu sudah memasukkan semua "pagar besi" di Langkah 1. Kamu tinggal Hapus semua isi file api/movies.js (Ctrl+A, Delete), lalu Copy dan Paste kode di bawah ini:
+
+javascript
 import pool from '../database/connection.js';
 
 const DEFAULT_ORIGIN = 'https://cinevault-delta-lake.vercel.app';
@@ -70,15 +165,17 @@ export default {
       // ==========================================
       if (body.action === 'load') {
         const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
+        
+        // Pagar Besi 1: Paksa sizeBytes jadi angka bulat yang bersih
         const formattedMovies = result.rows.map(row => ({
           id: row.id.toString(),
           title: row.title || 'Untitled',
-          year: row.year || 0,
+          year: Number(row.year) || 0,
           genre: row.genre || '',
           studio: row.studio || '',
-          minutes: row.minutes || 0,
+          minutes: Number(row.minutes) || 0,
           size: row.size || '0 GB',
-          sizeBytes: Number(row.size_bytes) || 0,
+          sizeBytes: Math.round(Number(row.size_bytes)) || 0,
           resolution: row.resolution || '1080p',
           posterUrl: row.poster_url || '',
           backdropUrl: row.backdrop_url || '',
@@ -106,18 +203,21 @@ export default {
       }
 
       // ==========================================
-      // 2. SAVE MOVIES (UPSERT: Update or Insert)
+      // 2. SAVE MOVIES (UPSERT)
       // ==========================================
       if (body.action === 'save') {
         if (!Array.isArray(body.movies)) {
           return jsonResponse({ error: 'Movies must be an array.' }, 400, headers);
         }
 
-        // Loop setiap film, lalu lakukan UPSERT berdasarkan ID
         for (const m of body.movies) {
-          // Pastikan ID ada (jika dari CSV baru, kita generate ID unik)
           const movieId = m.id ? String(m.id) : `csv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
           
+          // Pagar Besi 2: Paksa semua angka menjadi integer yang aman
+          const safeYear = parseInt(String(m.year).replace(/[^0-9]/g, ''), 10) || 0;
+          const safeMinutes = parseInt(String(m.minutes).replace(/[^0-9]/g, ''), 10) || 0;
+          const safeSizeBytes = Math.round(Number(m.sizeBytes)) || 0;
+
           await pool.query(
             `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) 
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
@@ -138,8 +238,8 @@ export default {
                added_date = EXCLUDED.added_date,
                actors = EXCLUDED.actors`,
             [
-              movieId, m.title, m.year || null, m.genre || null, m.studio || null, 
-              m.minutes || null, m.size || null, m.sizeBytes || null, m.resolution || null, 
+              movieId, m.title, safeYear, m.genre || null, m.studio || null, 
+              safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, 
               m.posterUrl || null, m.backdropUrl || null, m.favorite || false, 
               m.reviewed || false, m.uncensored || false, m.addedDate || null, 
               JSON.stringify(m.actors || [])
@@ -150,7 +250,7 @@ export default {
       }
 
       // ==========================================
-      // 3. SAVE ACTORS (UPSERT: Update or Insert)
+      // 3. SAVE ACTORS
       // ==========================================
       if (body.action === 'saveActor' || body.action === 'saveActors') {
         const actorsToSave = body.action === 'saveActor' ? [body.actor] : body.actors;
@@ -192,3 +292,5 @@ export default {
     }
   },
 };
+Setelah kamu paste kode ini, silakan lanjut ke Langkah 2 dan Langkah 3 (mengubah MovieDetailModal.tsx dan MovieList.tsx) seperti petunjuk sebelumnya. Jangan lupa untuk Commit & Sync setelah ketiganya selesai diubah. 👶🍼✨
+
