@@ -32,7 +32,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   selectionMode,
   cols = 7,
 }) => {
-  // Tetap gunakan useLongPress agar seleksi via klik lama/kanan bisa memicu checkbox
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
   const lastSelectedIdRef = useRef<string | null>(null);
 
@@ -47,7 +46,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
 
   const handleMovieClick = (e: React.MouseEvent, movie: Movie) => {
     if (selectionMode) {
-      // Shift + Klik
       if (e.shiftKey && lastSelectedIdRef.current) {
         const lastIndex = movies.findIndex((m) => m.id === lastSelectedIdRef.current);
         const currentIndex = movies.findIndex((m) => m.id === movie.id);
@@ -64,7 +62,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
           }
         }
       } else {
-        // Klik Biasa
         onToggleMovieSelection(movie.id);
       }
       lastSelectedIdRef.current = movie.id;
@@ -77,7 +74,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     <div
       className="grid gap-3 sm:gap-4 select-none"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-      // Tetap panggil longPressHandlers untuk mendeteksi klik lama (pemicu seleksi)
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
       onPointerUp={longPressHandlers.onPointerUp}
@@ -97,13 +93,14 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
-            <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0">
+            {/* Area Poster */}
+            <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0 pointer-events-none">
               <img
                 src={getImageSource(movie.posterUrl)}
                 alt={movie.title}
                 referrerPolicy="no-referrer"
-                draggable={false}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none"
+                draggable={false} // Mencegah gambar di-drag saat Shift diklik
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
               />
               
@@ -131,7 +128,8 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               )}
             </div>
 
-            <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520]">
+            {/* Area Info */}
+            <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520] pointer-events-none">
               <h3 
                 className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors" 
                 title={movie.title}
