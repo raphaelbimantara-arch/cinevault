@@ -31,6 +31,20 @@ interface MovieEditDraft {
   genre: string;
 }
 
+// ==========================================
+// FUNGSI FORMAT STORAGE PINTAR
+// ==========================================
+const formatStorageSize = (sizeInMB: number) => {
+  if (isNaN(sizeInMB) || sizeInMB <= 0) return '0.00 GB';
+
+  const sizeInGB = sizeInMB / 1000;
+
+  return new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: sizeInGB < 1000 ? 2 : 0,
+    maximumFractionDigits: sizeInGB < 1000 ? 2 : 0,
+  }).format(sizeInGB) + ' GB';
+};
+
 const toDraft = (movie: Movie): MovieEditDraft => ({
   title: movie.title,
   year: String(movie.year),
@@ -148,27 +162,17 @@ export const MovieList: React.FC<MovieListProps> = ({
       const draft = drafts[movie.id];
       if (!draft) continue;
 
-      // Paksa konversi ke integer
-      const year = parseInt(String(draft.year).replace(/[^0-9]/g, ''), 10);
-      const minutes = parseInt(String(draft.minutes).replace(/[^0-9]/g, ''), 10);
-      const sizeNumber = parseFloat(draft.size.replace(/[^0-9.]/g, ''));
+      // Paksa konversi ke integer. Jika kosong, jadikan 0
+      const year = parseInt(String(draft.year).replace(/[^0-9]/g, ''), 10) || 0;
+      const minutes = parseInt(String(draft.minutes).replace(/[^0-9]/g, ''), 10) || 0;
+      const sizeNumber = parseFloat(draft.size.replace(/[^0-9.]/g, '')) || 0;
 
       if (!draft.title.trim()) {
         window.alert(`Movie title cannot be empty (${movie.title}).`);
         return;
       }
       
-      // Validasi tahun dan menit
-      if (isNaN(year) || year < 1 || isNaN(minutes) || minutes < 1) {
-        window.alert(`Year and duration must be positive whole numbers (${movie.title}).`);
-        return;
-      }
-      
-      // Validasi size
-      if (isNaN(sizeNumber) || sizeNumber <= 0) {
-        window.alert(`Enter a valid movie size (${movie.title}).`);
-        return;
-      }
+      // Validasi ketat dihapus agar tidak error saat ada yang kosong
 
       const actors = draft.actors.split(/[|,;]/).map((actor) => actor.trim()).filter(Boolean);
       const genres = draft.genre.split(/[|,;]/).map((genre) => genre.trim()).filter(Boolean);
@@ -364,7 +368,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                       />
                       <span className="shrink-0 text-[8px] text-zinc-400">GB</span>
                     </div>
-                  ) : <span className="inline-block whitespace-nowrap">{movie.size}</span>}
+                  ) : <span className="inline-block whitespace-nowrap">{formatStorageSize(Number(movie.sizeBytes) || 0)}</span>}
                 </td>
                 <td className="overflow-hidden whitespace-nowrap px-0.5 py-2 text-right font-mono text-[8px] text-zinc-300 sm:text-xs">
                   {isEditing && draft ? (

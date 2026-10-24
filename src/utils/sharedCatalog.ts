@@ -7,7 +7,6 @@ const CATALOG_API_URL =
 
 async function requestCatalog(payload: {
   action: 'load' | 'save' | 'loadActors' | 'saveActor' | 'deleteActors' | 'saveActors';
-  token: string;
   movies?: Movie[];
   actor?: ActorProfile;
   oldName?: string;
@@ -21,6 +20,7 @@ async function requestCatalog(payload: {
   const response = await fetch(CATALOG_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    // Token sudah dihapus dari payload
     body: serializedPayload ?? JSON.stringify(payload),
   });
   const result = (await response.json()) as {
@@ -36,8 +36,8 @@ async function requestCatalog(payload: {
   return result;
 }
 
-export async function loadSharedCatalog(token: string): Promise<Movie[]> {
-  const result = await requestCatalog({ action: 'load', token });
+export async function loadSharedCatalog(): Promise<Movie[]> {
+  const result = await requestCatalog({ action: 'load' });
   if (!Array.isArray(result.movies)) {
     throw new Error('The shared catalog returned invalid movie data.');
   }
@@ -45,33 +45,31 @@ export async function loadSharedCatalog(token: string): Promise<Movie[]> {
 }
 
 export async function saveSharedCatalog(
-  token: string,
   movies: Movie[],
   serializedPayload?: string,
 ): Promise<void> {
-  await requestCatalog({ action: 'save', token, movies }, serializedPayload);
+  await requestCatalog({ action: 'save', movies }, serializedPayload);
 }
 
-export async function loadSharedActors(token: string): Promise<ActorProfile[]> {
-  const result = await requestCatalog({ action: 'loadActors', token });
+export async function loadSharedActors(): Promise<ActorProfile[]> {
+  const result = await requestCatalog({ action: 'loadActors' });
   if (!Array.isArray(result.actors)) {
     throw new Error('The shared catalog returned invalid actor profiles.');
   }
   return result.actors;
 }
 
-export async function saveSharedActors(token: string, actors: ActorProfile[]): Promise<void> {
-  await requestCatalog({ action: 'saveActors', token, actors });
+export async function saveSharedActors(actors: ActorProfile[]): Promise<void> {
+  await requestCatalog({ action: 'saveActors', actors });
 }
 
 export async function saveSharedActor(
-  token: string,
   actor: ActorProfile,
   oldName?: string,
 ): Promise<void> {
-  await requestCatalog({ action: 'saveActor', token, actor, oldName });
+  await requestCatalog({ action: 'saveActor', actor, oldName });
 }
 
-export async function deleteSharedActors(token: string, names: string[]): Promise<void> {
-  await requestCatalog({ action: 'deleteActors', token, names });
+export async function deleteSharedActors(names: string[]): Promise<void> {
+  await requestCatalog({ action: 'deleteActors', names });
 }

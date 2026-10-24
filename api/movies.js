@@ -78,7 +78,7 @@ export default {
           studio: row.studio || '',
           minutes: row.minutes || 0,
           size: row.size || '0 GB',
-          sizeBytes: row.size_bytes || 0,
+          sizeBytes: Number(row.size_bytes) || 0,
           resolution: row.resolution || '1080p',
           posterUrl: row.poster_url || '',
           backdropUrl: row.backdrop_url || '',

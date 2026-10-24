@@ -21,6 +21,22 @@ import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 import { getActorAliases, getCustomActors, KNOWN_ACTORS } from '../data/actorsData';
 
+// ==========================================
+// FUNGSI FORMAT STORAGE PINTAR
+// ==========================================
+const formatStorageSize = (sizeInMB: number) => {
+  if (isNaN(sizeInMB) || sizeInMB <= 0) return '0.00 GB';
+
+  const sizeInGB = sizeInMB / 1000;
+
+  // Jika angkanya besar (>= 1000 GB), pakai pemisah ribuan tanpa desimal (misal: 1.500 GB)
+  // Jika angkanya kecil (< 1000 GB), tampilkan 2 desimal (misal: 0.80 GB)
+  return new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: sizeInGB < 1000 ? 2 : 0,
+    maximumFractionDigits: sizeInGB < 1000 ? 2 : 0,
+  }).format(sizeInGB) + ' GB';
+};
+
 interface SettingsPageProps {
   movies: Movie[];
   sharedCatalogToken: string;
@@ -1117,7 +1133,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                               </div>
                               <div className="text-[11px] text-zinc-400 space-y-0.5 mt-1 font-mono">
                                 <div className="flex items-center gap-2 flex-wrap"><span>{m.year}</span><span aria-hidden="true">·</span><span className="text-amber-400 font-semibold">{m.genre}</span><span aria-hidden="true">·</span><span>{m.minutes}m</span></div>
-                                <div className="flex items-center gap-2 text-zinc-500 flex-wrap"><span className="truncate max-w-[100px]">{m.studio}</span><span aria-hidden="true">·</span><span>{m.resolution || '1080p'}</span><span aria-hidden="true">·</span><span className="text-zinc-300 font-semibold">{m.size}</span></div>
+                                <div className="flex items-center gap-2 text-zinc-500 flex-wrap"><span className="truncate max-w-[100px]">{m.studio}</span><span aria-hidden="true">·</span><span>{m.resolution || '1080p'}</span><span aria-hidden="true">·</span><span className="text-zinc-300 font-semibold">{formatStorageSize(Number(m.sizeBytes) || 0)}</span></div>
                                 <div className="text-[10px] text-zinc-500 truncate mt-1">Cast: {m.actors.join(', ')}</div>
                               </div>
                               <div className="mt-3 flex items-center gap-2 flex-wrap">
@@ -1206,7 +1222,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
             <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-3.5 sm:p-4">
               <span className="text-[11px] text-zinc-400 uppercase font-semibold tracking-wider">Storage</span>
-              <div className="text-xl sm:text-2xl font-bold font-mono text-amber-400 mt-1">{(movies.reduce((acc, m) => acc + (m.sizeBytes || 0), 0) / 1000).toFixed(1)} GB</div>
+              <div className="text-xl sm:text-2xl font-bold font-mono text-amber-400 mt-1">
+                {formatStorageSize(movies.reduce((acc, m) => {
+                  const val = typeof m.sizeBytes === 'string' ? parseFloat(m.sizeBytes) : m.sizeBytes;
+                  return acc + (Number(val) || 0);
+                }, 0))}
+              </div>
               <span className="text-[10px] sm:text-[11px] text-zinc-500 mt-1 block">Estimated capacity</span>
             </div>
             <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-3.5 sm:p-4">
