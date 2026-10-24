@@ -21,16 +21,9 @@ import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 import { getActorAliases, getCustomActors, KNOWN_ACTORS } from '../data/actorsData';
 
-// ==========================================
-// FUNGSI FORMAT STORAGE PINTAR
-// ==========================================
 const formatStorageSize = (sizeInMB: number) => {
   if (isNaN(sizeInMB) || sizeInMB <= 0) return '0.00 GB';
-
   const sizeInGB = sizeInMB / 1000;
-
-  // Jika angkanya besar (>= 1000 GB), pakai pemisah ribuan tanpa desimal (misal: 1.500 GB)
-  // Jika angkanya kecil (< 1000 GB), tampilkan 2 desimal (misal: 0.80 GB)
   return new Intl.NumberFormat('id-ID', {
     minimumFractionDigits: sizeInGB < 1000 ? 2 : 0,
     maximumFractionDigits: sizeInGB < 1000 ? 2 : 0,
@@ -334,7 +327,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return () => window.clearTimeout(timer);
   }, [reviewedDuplicateGroups]);
 
-  // Auto-dismiss notification after 4s
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
     setNotification({ type, message });
     setTimeout(() => {
@@ -880,6 +872,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
   };
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const count = await onRefreshSharedCatalog();
+      showToast('success', `Database refreshed! ${count} movies loaded from server.`);
+    } catch (error) {
+      showToast('error', error instanceof Error ? error.message : 'Failed to refresh database.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12 w-full max-w-full overflow-hidden">
       {notification && (
@@ -923,7 +929,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {activeTab === 'csv' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full">
-          {/* Card 1: Export CSV */}
           <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-lg">
             <div>
               <div className="flex items-center gap-3 mb-3">
@@ -956,7 +961,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
           </div>
 
-          {/* Card 2: Import CSV */}
           <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-lg">
             <div>
               <div className="flex items-center gap-3 mb-3">
@@ -1193,18 +1197,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {activeTab === 'system' && (
         <div className="space-y-6 w-full">
-          {/* Tombol Save to Database */}
+          {/* Tombol Save & Refresh Database */}
           <div className="bg-[#121520] border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h3 className="font-bold text-base text-zinc-100 flex items-center gap-2">
                 <Upload className="w-4 h-4 text-emerald-400" />
-                <span>Save Changes to Database</span>
+                <span>Database Synchronization</span>
               </h3>
               <p className="text-xs text-zinc-400 mt-1">
-                Send all movie data from this device to the Neon database so it can be accessed from other phones or laptops.
+                Save changes to the cloud, or pull the latest data from the Neon database to this device.
               </p>
             </div>
-            <div className="w-full sm:w-auto">
+            <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
+              <button
+                type="button"
+                onClick={handleManualRefresh}
+                disabled={isRefreshing || sharedCatalogStatus === 'loading'}
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-blue-400/40 bg-blue-400/10 px-4 py-2.5 text-xs font-bold text-blue-300 transition-colors hover:bg-blue-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing || sharedCatalogStatus === 'loading' ? 'animate-spin' : ''}`} />
+                {isRefreshing || sharedCatalogStatus === 'loading' ? 'Refreshing...' : 'Refresh from Database'}
+              </button>
               <SaveSharedCatalogButton
                 movieCount={movies.length}
                 isLoading={sharedCatalogStatus === 'loading'}
@@ -1225,7 +1238,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <div className="text-xl sm:text-2xl font-bold font-mono text-amber-400 mt-1">
                 {formatStorageSize(movies.reduce((acc, m) => {
                   const val = typeof m.sizeBytes === 'string' ? parseFloat(m.sizeBytes) : m.sizeBytes;
-                  return acc + (Number(val) || 0);
+                  return acc + (Math.round(Number(val)) || 0);
                 }, 0))}
               </div>
               <span className="text-[10px] sm:text-[11px] text-zinc-500 mt-1 block">Estimated capacity</span>
