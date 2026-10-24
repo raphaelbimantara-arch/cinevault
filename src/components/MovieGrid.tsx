@@ -34,6 +34,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
 }) => {
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
   const lastSelectedIdRef = useRef<string | null>(null);
+  const longPressTriggeredRef = useRef(false);
 
   if (movies.length === 0) {
     return (
@@ -45,8 +46,14 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   }
 
   const handleMovieClick = (e: React.MouseEvent, movie: Movie) => {
+    // Jika long press baru saja terpicu, abaikan click event
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
+
     if (selectionMode) {
-      // Logika Shift + Klik untuk memilih banyak film
+      // Logika Shift + Klik untuk memilih rentang film
       if (e.shiftKey && lastSelectedIdRef.current) {
         const lastIndex = movies.findIndex((m) => m.id === lastSelectedIdRef.current);
         const currentIndex = movies.findIndex((m) => m.id === movie.id);
@@ -63,7 +70,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
           }
         }
       } else {
-        // Klik biasa
+        // Klik biasa: pilih/batalkan pilih satu film
         onToggleMovieSelection(movie.id);
       }
       lastSelectedIdRef.current = movie.id;
@@ -77,13 +84,23 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     <div
       className="grid gap-3 sm:gap-4"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-      // Handler long press hanya dipasang di container utama
+      // Event handler long press dipasang di container utama
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
-      onPointerUp={longPressHandlers.onPointerUp}
+      onPointerUp={(e) => {
+        longPressHandlers.onPointerUp();
+        // Reset status long press setelah delay sedikit agar tidak menembak click
+        setTimeout(() => { longPressTriggeredRef.current = false; }, 50);
+      }}
       onPointerCancel={longPressHandlers.onPointerCancel}
       onContextMenu={longPressHandlers.onContextMenu}
-      // onClickCapture DIHAPUS agar tidak membajak event klik dari mouse/laptop
+      onClickCapture={(e) => {
+        longPressHandlers.onClickCapture(e);
+        // Deteksi jika event ini dipicu oleh long press
+        if (e.defaultPrevented) {
+          longPressTriggeredRef.current = true;
+        }
+      }}
     >
       {movies.map((movie) => {
         const isSelected = selectedMovieIds.has(movie.id);
@@ -97,7 +114,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
-            {/* Poster Section */}
             <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0">
               <img
                 src={getImageSource(movie.posterUrl)}
@@ -109,7 +125,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
 
-              {/* Status Icons */}
               <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
                 {movie.favorite && (
                   <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-amber-400 shadow-sm">
@@ -123,7 +138,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                 )}
               </div>
 
-              {/* Selection Checkbox */}
               {selectionMode && (
                 <div className="absolute top-2 left-2 z-10">
                   <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shadow-sm ${isSelected ? 'bg-amber-400 border-amber-400' : 'bg-black/50 border-white/50'}`}>
@@ -133,7 +147,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               )}
             </div>
 
-            {/* Info Section */}
             <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520]">
               <h3 
                 className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors" 
