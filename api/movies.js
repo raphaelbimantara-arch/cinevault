@@ -65,11 +65,12 @@ export default {
     }
 
     try {
+      // ==========================================
+      // 1. LOAD DATA (Ambil Film)
+      // ==========================================
       if (body.action === 'load') {
-        // Ambil semua film dari Neon
         const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
         
-        // Format ulang agar sesuai dengan yang diharapkan aplikasi React kamu
         const formattedMovies = result.rows.map(row => ({
           id: row.id,
           title: row.title || 'Tanpa Judul',
@@ -92,13 +93,37 @@ export default {
         return jsonResponse({ movies: formattedMovies }, 200, headers);
       }
 
+      // ==========================================
+      // 2. SAVE DATA (Simpan/Update/Hapus Film)
+      // ==========================================
+      if (body.action === 'save') {
+        if (!Array.isArray(body.movies)) {
+          return jsonResponse({ error: 'Movies must be an array.' }, 400, headers);
+        }
+
+        // Kita gunakan metode "Hapus semua, lalu masukkan lagi" agar kodenya simpel
+        // (Cocok untuk aplikasi personal dengan data < 10.000 film)
+        await pool.query('DELETE FROM movies');
+
+        for (const movie of body.movies) {
+          await pool.query(
+            `INSERT INTO movies (title, year, genre, studio) VALUES ($1, $2, $3, $4)`,
+            [movie.title, movie.year || null, movie.genre || null, movie.studio || null]
+          );
+        }
+
+        return jsonResponse({ message: 'Berhasil menyimpan data.' }, 200, headers);
+      }
+
+      // ==========================================
+      // 3. AKTOR (Sementara kosongkan dulu)
+      // ==========================================
       if (body.action === 'loadActors') {
         return jsonResponse({ actors: [] }, 200, headers);
       }
 
-      // Fitur simpan sementara dimatikan dulu
-      if (['save', 'saveActor', 'deleteActors', 'saveActors'].includes(body.action)) {
-        return jsonResponse({ error: 'Fitur simpan belum aktif.' }, 501, headers);
+      if (['saveActor', 'deleteActors', 'saveActors'].includes(body.action)) {
+        return jsonResponse({ message: 'Fitur aktor diskip dulu.' }, 200, headers);
       }
 
       return jsonResponse({ error: 'Aksi tidak dikenal.' }, 400, headers);
