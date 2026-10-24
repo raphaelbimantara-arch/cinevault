@@ -1,113 +1,60 @@
 import pool from '../database/connection.js';
 
 const DEFAULT_ORIGIN = 'https://cinevault-delta-lake.vercel.app';
-const PREVIEW_ORIGINS = [
-  'https://cinevault-mdu67avr6-raphaelbimantara-5365.vercel.app',
-];
+const PREVIEW_ORIGINS = ['https://cinevault-mdu67avr6-raphaelbimantara-5365.vercel.app'];
 
 function jsonResponse(value, status, headers) {
-  return new Response(JSON.stringify(value), {
-    status,
-    headers: { ...Object.fromEntries(headers), 'Content-Type': 'application/json' },
-  });
+  return new Response(JSON.stringify(value), { status, headers: { ...Object.fromEntries(headers), 'Content-Type': 'application/json' } });
 }
 
 export default {
   async fetch(request) {
     const origin = request.headers.get('origin');
-    const allowedOrigins = [
-      DEFAULT_ORIGIN,
-      ...PREVIEW_ORIGINS,
-      'http://localhost:5173',
-      'https://localhost',
-      'capacitor://localhost',
-      ...(process.env.CINEVAULT_ALLOWED_ORIGINS || '')
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean),
-    ];
+    const allowedOrigins = [DEFAULT_ORIGIN, ...PREVIEW_ORIGINS, 'http://localhost:5173', 'https://localhost', 'capacitor://localhost', ...(process.env.CINEVAULT_ALLOWED_ORIGINS || '').split(',').map((v) => v.trim()).filter(Boolean)];
     const headers = new Headers({ 'Cache-Control': 'no-store' });
 
-    // Keamanan: Hanya izinkan request dari Origin yang terdaftar
-    if (origin && !allowedOrigins.includes(origin)) {
-      return jsonResponse({ error: 'Origin is not allowed.' }, 403, headers);
-    }
-    if (origin) {
-      headers.set('Access-Control-Allow-Origin', origin);
-      headers.set('Vary', 'Origin');
-    }
-    headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    headers.set('Access-Control-Allow-Headers', 'Content-Type');
-    headers.set('Access-Control-Max-Age', '86400');
+    if (origin && !allowedOrigins.includes(origin)) return jsonResponse({ error: 'Origin is not allowed.' }, 403, headers);
+    if (origin) { headers.set('Access-Control-Allow-Origin', origin); headers.set('Vary', 'Origin'); }
+    headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS'); headers.set('Access-Control-Allow-Headers', 'Content-Type'); headers.set('Access-Control-Max-Age', '86400');
 
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers });
-    }
-    if (request.method !== 'POST') {
-      headers.set('Allow', 'POST, OPTIONS');
-      return jsonResponse({ error: 'Method not allowed.' }, 405, headers);
-    }
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
+    if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405, headers);
 
     let body;
-    try {
-      body = await request.json();
-    } catch {
-      return jsonResponse({ error: 'Request body must be valid JSON.' }, 400, headers);
-    }
-
-    // PENGECEKAN TOKEN DIHAPUS KARENA SUDAH DIGANTI ORIGIN CHECK
+    try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid JSON.' }, 400, headers); }
 
     const supportedActions = ['load', 'save', 'loadActors', 'saveActor', 'deleteActors', 'saveActors'];
-    if (!supportedActions.includes(body.action)) {
-      return jsonResponse({ error: 'Unsupported catalog action.' }, 400, headers);
-    }
+    if (!supportedActions.includes(body.action)) return jsonResponse({ error: 'Unsupported action.' }, 400, headers);
 
     try {
       if (body.action === 'load') {
         const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
-        const formattedMovies = result.rows.map(row => ({
-          id: row.id.toString(),
-          title: row.title || 'Untitled',
-          year: Number(row.year) || 0,
-          genre: row.genre || '',
-          studio: row.studio || '',
-          minutes: Number(row.minutes) || 0,
-          size: row.size || '0 GB',
-          sizeBytes: Math.round(Number(row.size_bytes)) || 0,
-          resolution: row.resolution || '1080p',
-          posterUrl: row.poster_url || '',
-          backdropUrl: row.backdrop_url || '',
-          actors: row.actors || [],
-          favorite: row.favorite,
-          reviewed: row.reviewed,
-          uncensored: row.uncensored,
+        const formatted = result.rows.map(row => ({
+          id: row.id.toString(), title: row.title || 'Untitled', year: Number(row.year) || 0,
+          genre: row.genre || '', studio: row.studio || '', minutes: Number(row.minutes) || 0,
+          size: row.size || '0 GB', sizeBytes: Math.round(Number(row.size_bytes)) || 0,
+          resolution: row.resolution || '1080p', posterUrl: row.poster_url || '', backdropUrl: row.backdrop_url || '',
+          actors: row.actors || [], favorite: row.favorite, reviewed: row.reviewed, uncensored: row.uncensored,
           addedDate: row.added_date || new Date().toISOString()
         }));
-        return jsonResponse({ movies: formattedMovies }, 200, headers);
+        return jsonResponse({ movies: formatted }, 200, headers);
       }
 
       if (body.action === 'loadActors') {
         const result = await pool.query('SELECT * FROM actors ORDER BY name ASC');
-        const formattedActors = result.rows.map(row => ({
-          name: row.name,
-          alias: row.alias || '',
-          dob: row.dob ? row.dob.toISOString().split('T')[0] : '',
-          photoUrl: row.photo_url || '',
-          favorite: row.favorite,
-          reviewed: row.reviewed,
-          movieCount: row.movie_count
+        const formatted = result.rows.map(row => ({
+          name: row.name, alias: row.alias || '', dob: row.dob ? row.dob.toISOString().split('T')[0] : '',
+          photoUrl: row.photo_url || '', favorite: row.favorite, reviewed: row.reviewed, movieCount: row.movie_count
         }));
-        return jsonResponse({ actors: formattedActors }, 200, headers);
+        return jsonResponse({ actors: formatted }, 200, headers);
       }
 
       if (body.action === 'save') {
-        if (!Array.isArray(body.movies)) {
-          return jsonResponse({ error: 'Movies must be an array.' }, 400, headers);
-        }
-
+        if (!Array.isArray(body.movies)) return jsonResponse({ error: 'Movies must be array.' }, 400, headers);
         for (const m of body.movies) {
           const movieId = m.id ? String(m.id) : `csv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
           
+          // PENGAMAN GANDA: Memastikan yang masuk ke database benar-benar Integer murni
           const safeYear = parseInt(String(m.year).replace(/[^0-9]/g, ''), 10) || 0;
           const safeMinutes = parseInt(String(m.minutes).replace(/[^0-9]/g, ''), 10) || 0;
           const safeSizeBytes = Math.round(Number(m.sizeBytes)) || 0;
@@ -129,43 +76,32 @@ export default {
             ]
           );
         }
-        return jsonResponse({ message: `${body.movies.length} movies successfully synchronized.` }, 200, headers);
+        return jsonResponse({ message: `Movies synchronized.` }, 200, headers);
       }
 
       if (body.action === 'saveActor' || body.action === 'saveActors') {
         const actorsToSave = body.action === 'saveActor' ? [body.actor] : body.actors;
-        if (!actorsToSave || !Array.isArray(actorsToSave)) {
-          return jsonResponse({ error: 'Invalid actor data.' }, 400, headers);
-        }
-
+        if (!Array.isArray(actorsToSave)) return jsonResponse({ error: 'Invalid actor data.' }, 400, headers);
         for (const a of actorsToSave) {
           await pool.query(
-            `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             ON CONFLICT (name) DO UPDATE 
-             SET alias = EXCLUDED.alias, dob = EXCLUDED.dob, photo_url = EXCLUDED.photo_url, 
+            `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count) VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (name) DO UPDATE SET alias = EXCLUDED.alias, dob = EXCLUDED.dob, photo_url = EXCLUDED.photo_url, 
                  favorite = EXCLUDED.favorite, reviewed = EXCLUDED.reviewed, movie_count = EXCLUDED.movie_count`,
             [a.name, a.alias || null, a.dob || null, a.photoUrl || null, a.favorite || false, a.reviewed || false, a.movieCount || 0]
           );
         }
-        return jsonResponse({ message: 'Actors successfully saved.' }, 200, headers);
+        return jsonResponse({ message: 'Actors saved.' }, 200, headers);
       }
 
       if (body.action === 'deleteActors') {
-        if (!Array.isArray(body.names)) {
-          return jsonResponse({ error: 'Names must be an array.' }, 400, headers);
-        }
-        for (const name of body.names) {
-          await pool.query('DELETE FROM actors WHERE name = $1', [name]);
-        }
-        return jsonResponse({ message: 'Actors successfully deleted.' }, 200, headers);
+        if (!Array.isArray(body.names)) return jsonResponse({ error: 'Names must be array.' }, 400, headers);
+        for (const name of body.names) { await pool.query('DELETE FROM actors WHERE name = $1', [name]); }
+        return jsonResponse({ message: 'Actors deleted.' }, 200, headers);
       }
-
       return jsonResponse({ error: 'Unknown action.' }, 400, headers);
-
     } catch (error) {
       console.error('Database error:', error);
-      return jsonResponse({ error: 'Database operation failed: ' + error.message }, 500, headers);
+      return jsonResponse({ error: 'Database failed: ' + error.message }, 500, headers);
     }
   },
 };
