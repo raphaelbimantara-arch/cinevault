@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, Star, Check } from 'lucide-react';
+import { Film, Star, Check, Building2, Clock, HardDrive } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
@@ -10,8 +10,17 @@ interface MovieGridProps {
   selectedMovieIds: Set<string>;
   onToggleMovieSelection: (movieId: string) => void;
   selectionMode: boolean;
-  cols?: number; // <-- Properti baru untuk slider
+  cols?: number;
 }
+
+const formatStorageSize = (sizeInMB: number) => {
+  if (isNaN(sizeInMB) || sizeInMB <= 0) return '0.00 GB';
+  const sizeInGB = sizeInMB / 1000;
+  return new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: sizeInGB < 1000 ? 2 : 0,
+    maximumFractionDigits: sizeInGB < 1000 ? 2 : 0,
+  }).format(sizeInGB) + ' GB';
+};
 
 export const MovieGrid: React.FC<MovieGridProps> = ({
   movies,
@@ -19,7 +28,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   selectedMovieIds,
   onToggleMovieSelection,
   selectionMode,
-  cols = 7, // <-- Standar awal 7 kolom
+  cols = 7,
 }) => {
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
 
@@ -35,7 +44,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   return (
     <div
       className="grid gap-3 sm:gap-4"
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }} // <-- Grid dinamis
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
       onPointerUp={longPressHandlers.onPointerUp}
@@ -58,8 +67,8 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
-            {/* Poster */}
-            <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900">
+            {/* Poster Section */}
+            <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0">
               <img
                 src={getImageSource(movie.posterUrl)}
                 alt={movie.title}
@@ -68,18 +77,18 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                 loading="lazy"
               />
               
-              {/* Overlay Gradient */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
+              {/* Overlay Gradient for readability if text is inside */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
 
               {/* Status Icons */}
-              <div className="absolute top-2 right-2 flex flex-col gap-1">
+              <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
                 {movie.favorite && (
-                  <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-amber-400">
+                  <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-amber-400 shadow-sm">
                     <Star className="w-3 h-3 fill-amber-400" />
                   </div>
                 )}
                 {movie.reviewed && (
-                  <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-rose-400">
+                  <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-rose-400 shadow-sm">
                     <Check className="w-3 h-3" />
                   </div>
                 )}
@@ -87,18 +96,34 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
 
               {/* Selection Checkbox */}
               {selectionMode && (
-                <div className="absolute top-2 left-2">
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-amber-400 border-amber-400' : 'bg-black/50 border-white/50'}`}>
+                <div className="absolute top-2 left-2 z-10">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shadow-sm ${isSelected ? 'bg-amber-400 border-amber-400' : 'bg-black/50 border-white/50'}`}>
                     {isSelected && <Check className="w-3.5 h-3.5 text-black" />}
                   </div>
                 </div>
               )}
+            </div>
 
-              {/* Text Info Overlay */}
-              <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                <h3 className="text-[10px] sm:text-xs font-bold text-white leading-tight line-clamp-2 drop-shadow-md">
-                  {movie.title}
-                </h3>
+            {/* Info Section (Keterangan di bawah cover) */}
+            <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520]">
+              <h3 
+                className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors" 
+                title={movie.title}
+              >
+                {movie.title}
+              </h3>
+              
+              <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[8px] sm:text-[10px] text-zinc-400 font-mono">
+                <span>{movie.year}</span>
+                <span aria-hidden="true">·</span>
+                <span>{movie.minutes}m</span>
+                <span aria-hidden="true">·</span>
+                <span className="text-zinc-300">{formatStorageSize(Number(movie.sizeBytes) || 0)}</span>
+              </div>
+              
+              <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-zinc-500 truncate mt-0.5">
+                <Building2 className="w-3 h-3 shrink-0" />
+                <span className="truncate">{movie.studio}</span>
               </div>
             </div>
           </div>
