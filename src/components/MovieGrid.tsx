@@ -1,8 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { Film, Star, Check, Building2 } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
-import { useLongPress } from '../utils/useLongPress';
 
 interface MovieGridProps {
   movies: Movie[];
@@ -32,25 +31,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   selectionMode,
   cols = 7,
 }) => {
-  const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
   const lastSelectedIdRef = useRef<string | null>(null);
-  const isShiftPressedRef = useRef(false);
-
-  // Menangkap event Shift di level global (keyboard)
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') isShiftPressedRef.current = true;
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') isShiftPressedRef.current = false;
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
 
   if (movies.length === 0) {
     return (
@@ -91,28 +72,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     <div
       className="grid gap-3 sm:gap-4 select-none"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-      onPointerDown={(e) => {
-        // PENGAMAN: Jika Shift sedang ditekan, matikan Long Press
-        if (e.shiftKey || isShiftPressedRef.current) return;
-        longPressHandlers.onPointerDown(e);
-      }}
-      onPointerMove={(e) => {
-        if (e.shiftKey || isShiftPressedRef.current) return;
-        longPressHandlers.onPointerMove(e);
-      }}
-      onPointerUp={(e) => {
-        if (e.shiftKey || isShiftPressedRef.current) return;
-        longPressHandlers.onPointerUp();
-      }}
-      onPointerCancel={(e) => {
-        if (e.shiftKey || isShiftPressedRef.current) return;
-        longPressHandlers.onPointerCancel();
-      }}
-      onContextMenu={longPressHandlers.onContextMenu}
-      onClickCapture={(e) => {
-        if (e.shiftKey || isShiftPressedRef.current) return;
-        longPressHandlers.onClickCapture(e);
-      }}
     >
       {movies.map((movie) => {
         const isSelected = selectedMovieIds.has(movie.id);
@@ -126,6 +85,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
+            {/* Area Poster */}
             <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0 pointer-events-none">
               <img
                 src={getImageSource(movie.posterUrl)}
@@ -138,19 +98,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
 
-              <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
-                {movie.favorite && (
-                  <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-amber-400 shadow-sm">
-                    <Star className="w-3 h-3 fill-amber-400" />
-                  </div>
-                )}
-                {movie.reviewed && (
-                  <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full text-rose-400 shadow-sm">
-                    <Check className="w-3 h-3" />
-                  </div>
-                )}
-              </div>
-
               {selectionMode && (
                 <div className="absolute top-2 left-2 z-10">
                   <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shadow-sm ${isSelected ? 'bg-amber-400 border-amber-400' : 'bg-black/50 border-white/50'}`}>
@@ -160,14 +107,41 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
               )}
             </div>
 
+            {/* Area Info */}
             <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520] pointer-events-none">
-              <h3 
-                className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors" 
-                title={movie.title}
-              >
-                {movie.title}
-              </h3>
               
+              {/* BARIS JUDUL DENGAN PENANDA */}
+              <div className="flex items-start justify-between gap-1.5">
+                <div className="flex flex-col gap-0.5">
+                  <h3 
+                    className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors" 
+                    title={movie.title}
+                  >
+                    {movie.title}
+                  </h3>
+                  {/* Teks Uncensored (Warna Merah) */}
+                  {movie.uncensored && (
+                    <span className="text-[8px] font-bold text-rose-500 uppercase tracking-wider">
+                      Uncensored
+                    </span>
+                  )}
+                </div>
+
+                {/* Ikon Favorite di kanan judul */}
+                <div className="shrink-0 mt-0.5">
+                  {movie.favorite ? (
+                    <div className="w-3.5 h-3.5 rounded-full bg-zinc-700 flex items-center justify-center">
+                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                    </div>
+                  ) : (
+                    <div className="w-3.5 h-3.5 rounded-full border border-zinc-700/50 flex items-center justify-center">
+                      {/* Lingkaran kosong sebagai penanda tidak favorite */}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Baris Tahun, Menit, Size */}
               <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[8px] sm:text-[10px] text-zinc-400 font-mono">
                 <span>{movie.year}</span>
                 <span aria-hidden="true">·</span>
@@ -176,6 +150,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                 <span className="text-zinc-300">{formatStorageSize(Number(movie.sizeBytes) || 0)}</span>
               </div>
               
+              {/* Baris Studio */}
               <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-zinc-500 truncate mt-0.5">
                 <Building2 className="w-3 h-3 shrink-0" />
                 <span className="truncate">{movie.studio}</span>
