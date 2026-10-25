@@ -245,8 +245,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto" onClick={onClose}>
       <div 
-        // PERUBAHAN 1: max-w-5xl & h-[85vh] dikunci agar ukuran statis dan lebar
-        className={`relative w-full ${isEditing ? 'max-w-[1200px] h-auto' : 'max-w-5xl h-[85vh]'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-visible shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
+        // PERUBAHAN 1: Lebar maksimal (max-w-7xl) & Tinggi dikunci (h-[85vh])
+        className={`relative w-full ${isEditing ? 'max-w-[1200px] h-auto' : 'max-w-7xl h-[85vh]'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-visible shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
         data-selection-id={movie.id}
         onClick={(e) => e.stopPropagation()}
         onClickCapture={(event) => {
@@ -316,7 +316,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
           </div>
 
-          {/* PERUBAHAN 2: h-full & overflow-y-auto agar scroll hanya di area kanan */}
+          {/* PERUBAHAN 2: Area kanan di-scroll agar tinggi modal statis */}
           <div className={`${isEditing ? 'md:col-span-9' : 'md:col-span-7'} p-4 flex flex-col justify-between h-full overflow-y-auto custom-scrollbar`}>
             {editSavedToast && (
               <div className="mb-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in duration-150">
@@ -472,14 +472,14 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
               <div className="mt-3">
                 <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Starring Cast{(movie.castCount ?? movie.actors.length) > 1 && ` (${movie.castCount ?? movie.actors.length})`}</div>
-                {/* PERUBAHAN UTAMA: Grid Dinamis (Auto-fill) agar kotak fit dengan teks dan bisa memuat banyak per baris */}
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,max-content))] gap-1.5">
+                {/* PERUBAHAN 3: Flexbox (w-fit) agar kotak nama aktor menyesuaikan panjang teks & tidak terpotong */}
+                <div className="flex flex-wrap gap-1.5">
                   {movie.actors.map((actor) => (
                     <button 
                       key={actor} 
                       type="button" 
                       onClick={() => onSelectActor?.(actor)} 
-                      className="px-2 py-1 text-[10px] rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors truncate text-left" 
+                      className="px-2 py-1 text-[10px] rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors w-fit whitespace-nowrap" 
                       title={`View actor ${actor}`}
                     >
                       {actor}
