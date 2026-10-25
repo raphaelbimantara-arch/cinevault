@@ -10,7 +10,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { Movie } from '../types';
-import { ALL_GENRES, ALL_STUDIOS } from '../data/initialMovies';
+import { ALL_STUDIOS } from '../data/initialMovies';
 import { registerCustomActor, ActorProfile, getCustomActors, getActorAliases, KNOWN_ACTORS } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
 
@@ -58,7 +58,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
 
   // MOVIE FORM STATE
   const [title, setTitle] = useState('');
-  const [genre, setGenre] = useState('');
+  const [genre, setGenre] = useState(''); // Ubah menjadi input teks
   const [studio, setStudio] = useState('Warner Bros. Pictures');
   const [year, setYear] = useState<string>(new Date().getFullYear().toString());
   const [minutes, setMinutes] = useState<string>('128');
@@ -113,7 +113,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
     const safeYear = parseInt(year, 10) || new Date().getFullYear();
     const safeMinutes = parseInt(minutes, 10) || 120;
     
-    // Perbaikan: Baca titik untuk ukuran file
     const cleanSizeString = String(sizeStr).replace(',', '.').replace(/[^0-9.]/g, '');
     const numericSize = parseFloat(cleanSizeString) || 4.5;
     const sizeBytes = Math.round(numericSize * 1000);
@@ -250,16 +249,14 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                     <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
                       Genre
                     </label>
-                    <select
+                    {/* UBAH DROPDOWN MENJADI INPUT TEKS BEBAS */}
+                    <input
+                      type="text"
                       value={genre}
                       onChange={(e) => setGenre(e.target.value)}
-                      className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/60"
-                    >
-                      <option value="" className="bg-[#121520]">No genre</option>
-                      {ALL_GENRES.filter((g) => g !== 'All').map((g) => (
-                        <option key={g} value={g} className="bg-[#121520]">{g}</option>
-                      ))}
-                    </select>
+                      placeholder="e.g. Action, Sci-Fi"
+                      className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/60 placeholder:text-zinc-600"
+                    />
                   </div>
 
                   <div>
