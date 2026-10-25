@@ -245,8 +245,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto" onClick={onClose}>
       <div 
-        // PERUBAHAN: max-w-4xl diubah menjadi max-w-6xl agar sedikit lebih lebar (pas di layar), tinggi tetap fleksibel
-        className={`relative w-full ${isEditing ? 'max-w-[1200px]' : 'max-w-6xl'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-visible shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
+        // PERUBAHAN 1: max-w-5xl & h-[85vh] dikunci agar ukuran statis dan lebar
+        className={`relative w-full ${isEditing ? 'max-w-[1200px] h-auto' : 'max-w-5xl h-[85vh]'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-visible shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
         data-selection-id={movie.id}
         onClick={(e) => e.stopPropagation()}
         onClickCapture={(event) => {
@@ -304,7 +304,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-0 rounded-2xl overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-0 rounded-2xl overflow-hidden h-full">
           <div className={`${isEditing ? 'md:col-span-3' : 'md:col-span-5'} bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
             
             <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
@@ -316,7 +316,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
           </div>
 
-          <div className={`${isEditing ? 'md:col-span-9' : 'md:col-span-7'} p-4 flex flex-col justify-between max-h-[85vh] overflow-y-auto custom-scrollbar`}>
+          {/* PERUBAHAN 2: h-full & overflow-y-auto agar scroll hanya di area kanan */}
+          <div className={`${isEditing ? 'md:col-span-9' : 'md:col-span-7'} p-4 flex flex-col justify-between h-full overflow-y-auto custom-scrollbar`}>
             {editSavedToast && (
               <div className="mb-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in duration-150">
                 <Save className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -471,14 +472,14 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
               <div className="mt-3">
                 <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Starring Cast{(movie.castCount ?? movie.actors.length) > 1 && ` (${movie.castCount ?? movie.actors.length})`}</div>
-                {/* PERUBAHAN UTAMA: Daftar aktor diubah menjadi flex flex-wrap dengan w-fit */}
-                <div className="flex flex-wrap gap-1.5">
+                {/* PERUBAHAN UTAMA: Grid Dinamis (Auto-fill) agar kotak fit dengan teks dan bisa memuat banyak per baris */}
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,max-content))] gap-1.5">
                   {movie.actors.map((actor) => (
                     <button 
                       key={actor} 
                       type="button" 
                       onClick={() => onSelectActor?.(actor)} 
-                      className="px-2 py-1 text-[10px] rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors w-fit whitespace-nowrap" 
+                      className="px-2 py-1 text-[10px] rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors truncate text-left" 
                       title={`View actor ${actor}`}
                     >
                       {actor}
