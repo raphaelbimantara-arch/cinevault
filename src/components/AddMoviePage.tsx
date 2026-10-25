@@ -8,11 +8,13 @@ import {
   User,
   Tv,
   MapPin,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Movie } from '../types';
-import { ALL_STUDIOS } from '../data/initialMovies';
 import { registerCustomActor, ActorProfile, getCustomActors, getActorAliases, KNOWN_ACTORS } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
+import { addMasterActor, addMasterStudio, addMasterGenre } from '../data/masterData';
 
 // Imported generated images for presets
 import posterScifi from '../assets/images/poster_scifi_odyssey_1792588295227.jpg';
@@ -21,12 +23,19 @@ import posterCyberpunk from '../assets/images/poster_cyberpunk_tokyo_17925882978
 import posterSummit from '../assets/images/poster_drama_summit_1792588297246.jpg';
 
 interface AddDataPageProps {
-  initialTab?: 'movie' | 'actor' | 'studio';
+  initialTab?: 'movie' | 'actor' | 'studio' | 'delete';
   onAddMovie: (newMovie: Movie) => void;
   onAddActorSuccess?: (actorName: string) => void;
   onAddStudioSuccess?: (studioName: string) => void;
   onCancel: () => void;
   existingMovies: Movie[];
+  existingGenres: string[];
+  existingStudios: string[];
+  existingActors: string[];
+  onDeleteMovie: (id: string) => Promise<void> | void;
+  onDeleteActors: (names: string[]) => void;
+  onDeleteStudio: (studioName: string) => void;
+  onDeleteGenre: (genreName: string) => void;
 }
 
 const PRESET_POSTERS = [
@@ -47,8 +56,15 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
   onAddStudioSuccess,
   onCancel,
   existingMovies,
+  existingGenres,
+  existingStudios,
+  existingActors,
+  onDeleteMovie,
+  onDeleteActors,
+  onDeleteStudio,
+  onDeleteGenre,
 }) => {
-  const [activeTab, setActiveTab] = useState<'movie' | 'actor' | 'studio'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'movie' | 'actor' | 'studio' | 'delete'>(initialTab);
 
   useEffect(() => {
     if (initialTab) {
@@ -58,7 +74,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
 
   // MOVIE FORM STATE
   const [title, setTitle] = useState('');
-  const [genre, setGenre] = useState(''); // Ubah menjadi input teks
+  const [genre, setGenre] = useState('');
   const [studio, setStudio] = useState('Warner Bros. Pictures');
   const [year, setYear] = useState<string>(new Date().getFullYear().toString());
   const [minutes, setMinutes] = useState<string>('128');
@@ -81,13 +97,23 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
   const [studioYear, setStudioYear] = useState<string>('1995');
   const [studioSuccess, setStudioSuccess] = useState(false);
 
+  // DELETE STATE
+  const [deleteSubTab, setDeleteSubTab] = useState<'movie' | 'actor' | 'studio' | 'genre'>('movie');
+  const [selectedMovieToDelete, setSelectedMovieToDelete] = useState<string>('');
+  const [selectedActorsToDelete, setSelectedActorsToDelete] = useState<Set<string>>(new Set());
+  const [selectedStudioToDelete, setSelectedStudioToDelete] = useState<string>('');
+  const [selectedGenreToDelete, setSelectedGenreToDelete] = useState<string>('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteSuccess, setDeleteSuccess] = useState('');
+  const [searchDeleteQuery, setSearchDeleteQuery] = useState('');
+
   // GET ACTOR SUGGESTIONS FOR AUTOCOMPLETE
   const actorSuggestions = useMemo(() => {
     const customProfiles = getCustomActors();
     const names = new Set<string>();
-    
+
     Object.keys(KNOWN_ACTORS).forEach(name => names.add(name));
-    
+
     Object.entries(customProfiles).forEach(([name, profile]) => {
       names.add(name);
       if (profile.alias) {
@@ -112,7 +138,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
 
     const safeYear = parseInt(year, 10) || new Date().getFullYear();
     const safeMinutes = parseInt(minutes, 10) || 120;
-    
+
     const cleanSizeString = String(sizeStr).replace(',', '.').replace(/[^0-9.]/g, '');
     const numericSize = parseFloat(cleanSizeString) || 4.5;
     const sizeBytes = Math.round(numericSize * 1000);
@@ -133,6 +159,11 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
       addedDate: new Date().toISOString().split('T')[0],
     };
 
+    // Register into master data
+    genre.split(',').map((g) => g.trim()).filter(Boolean).forEach((g) => addMasterGenre(g));
+    if (newMovie.studio) addMasterStudio(newMovie.studio);
+    actorsList.forEach((a) => addMasterActor(a));
+
     onAddMovie(newMovie);
     setSavedSuccess(true);
   };
@@ -147,6 +178,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
       photoUrl: getImageSource(actorPhotoUrl),
     };
 
+    addMasterActor(profile.name);
     registerCustomActor(profile);
     setActorSuccess(true);
     if (onAddActorSuccess) {
@@ -158,6 +190,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
     e.preventDefault();
     if (!studioName.trim()) return;
 
+    addMasterStudio(studioName.trim());
     setStudioSuccess(true);
     if (onAddStudioSuccess) {
       setTimeout(() => onAddStudioSuccess(studioName.trim()), 800);
@@ -173,12 +206,12 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
             Catalog Creator Hub
           </h2>
           <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-            Add movies, actors, or production studios into your catalog.
+            Add or delete movies, actors, studios, and genres from your catalog.
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="grid grid-cols-3 w-full sm:w-auto p-1 bg-[#121520] border border-zinc-800 rounded-xl gap-1">
+        <div className="grid grid-cols-4 w-full sm:w-auto p-1 bg-[#121520] border border-zinc-800 rounded-xl gap-1">
           <button
             onClick={() => setActiveTab('movie')}
             className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-colors ${
@@ -212,10 +245,21 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
             <Building2 className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Studio</span>
           </button>
+          <button
+            onClick={() => setActiveTab('delete')}
+            className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-colors ${
+              activeTab === 'delete'
+                ? 'bg-rose-500 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Delete</span>
+          </button>
         </div>
       </div>
 
-      {/* TAB 1: ADD MOVIE (2 KOLOM UNTUK WEB) */}
+      {/* TAB 1: ADD MOVIE */}
       {activeTab === 'movie' && (
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleMovieSubmit} className="space-y-4 bg-[#121520] border border-zinc-800 rounded-2xl p-6 sm:p-7 shadow-xl">
@@ -227,7 +271,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* KOLOM KIRI: INFO UTAMA */}
+              {/* LEFT COLUMN: MAIN INFO */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
@@ -249,7 +293,6 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                     <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
                       Genre
                     </label>
-                    {/* UBAH DROPDOWN MENJADI INPUT TEKS BEBAS */}
                     <input
                       type="text"
                       value={genre}
@@ -268,10 +311,9 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                       onChange={(e) => setStudio(e.target.value)}
                       className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/60"
                     >
-                      {ALL_STUDIOS.filter((s) => s !== 'All Studios').map((s) => (
+                      {existingStudios.map((s) => (
                         <option key={s} value={s} className="bg-[#121520]">{s}</option>
                       ))}
-                      <option value="A24" className="bg-[#121520]">A24</option>
                       <option value="Independent / Other" className="bg-[#121520]">Independent / Other</option>
                     </select>
                   </div>
@@ -351,7 +393,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                 </div>
               </div>
 
-              {/* KOLOM KANAN: ACTOR & POSTER */}
+              {/* RIGHT COLUMN: ACTOR & POSTER */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
@@ -597,6 +639,213 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* TAB 4: DELETE DATA */}
+      {activeTab === 'delete' && (
+        <div className="max-w-3xl mx-auto space-y-4">
+          <div className="grid grid-cols-4 gap-2 p-1 bg-[#121520] border border-zinc-800 rounded-xl">
+            {(['movie', 'actor', 'studio', 'genre'] as const).map((sub) => (
+              <button
+                key={sub}
+                onClick={() => {
+                  setDeleteSubTab(sub);
+                  setDeleteConfirmText('');
+                  setSearchDeleteQuery('');
+                  setDeleteSuccess('');
+                }}
+                className={`py-2 rounded-lg text-xs font-semibold capitalize transition-colors ${
+                  deleteSubTab === sub
+                    ? 'bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {sub}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-rose-500/10 text-rose-300 border border-rose-500/30 text-xs">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>Deleted data cannot be recovered. Type <b className="font-mono">DELETE</b> to confirm.</span>
+          </div>
+
+          {deleteSuccess && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs">
+              <Check className="w-4 h-4 shrink-0" />
+              <span>{deleteSuccess}</span>
+            </div>
+          )}
+
+          <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
+                Type "DELETE" to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-rose-500/60"
+              />
+            </div>
+
+            {deleteSubTab === 'movie' && (
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={searchDeleteQuery}
+                  onChange={(e) => setSearchDeleteQuery(e.target.value)}
+                  placeholder="Search movie title..."
+                  className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100"
+                />
+                <div className="max-h-72 overflow-y-auto rounded-xl border border-zinc-800 divide-y divide-zinc-800">
+                  {existingMovies
+                    .filter((m) => m.title.toLowerCase().includes(searchDeleteQuery.toLowerCase()))
+                    .map((movie) => (
+                      <label key={movie.id} className="flex items-center gap-3 px-3 py-2 hover:bg-zinc-800/40 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="movie-delete"
+                          checked={selectedMovieToDelete === movie.id}
+                          onChange={() => setSelectedMovieToDelete(movie.id)}
+                          className="accent-rose-500"
+                        />
+                        <img src={movie.posterUrl} alt="" className="w-8 h-11 rounded object-cover" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-zinc-100 truncate">{movie.title}</p>
+                          <p className="text-[11px] text-zinc-500">{movie.year} · {movie.studio}</p>
+                        </div>
+                      </label>
+                    ))}
+                </div>
+                <button
+                  type="button"
+                  disabled={!selectedMovieToDelete || deleteConfirmText !== 'DELETE'}
+                  onClick={async () => {
+                    const movie = existingMovies.find((m) => m.id === selectedMovieToDelete);
+                    await onDeleteMovie(selectedMovieToDelete);
+                    setDeleteSuccess(`Movie "${movie?.title}" deleted successfully.`);
+                    setSelectedMovieToDelete('');
+                    setDeleteConfirmText('');
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete Selected Movie
+                </button>
+              </div>
+            )}
+
+            {deleteSubTab === 'actor' && (
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={searchDeleteQuery}
+                  onChange={(e) => setSearchDeleteQuery(e.target.value)}
+                  placeholder="Search actor..."
+                  className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100"
+                />
+                <div className="max-h-72 overflow-y-auto rounded-xl border border-zinc-800 divide-y divide-zinc-800">
+                  {existingActors
+                    .filter((a) => a.toLowerCase().includes(searchDeleteQuery.toLowerCase()))
+                    .map((actor) => (
+                      <label key={actor} className="flex items-center gap-3 px-3 py-2 hover:bg-zinc-800/40 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedActorsToDelete.has(actor)}
+                          onChange={(e) => {
+                            const next = new Set(selectedActorsToDelete);
+                            if (e.target.checked) next.add(actor);
+                            else next.delete(actor);
+                            setSelectedActorsToDelete(next);
+                          }}
+                          className="accent-rose-500"
+                        />
+                        <span className="text-sm text-zinc-100">{actor}</span>
+                      </label>
+                    ))}
+                </div>
+                <button
+                  type="button"
+                  disabled={selectedActorsToDelete.size === 0 || deleteConfirmText !== 'DELETE'}
+                  onClick={() => {
+                    const names = [...selectedActorsToDelete];
+                    onDeleteActors(names);
+                    setDeleteSuccess(`${names.length} actor(s) deleted successfully.`);
+                    setSelectedActorsToDelete(new Set());
+                    setDeleteConfirmText('');
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete {selectedActorsToDelete.size} Actor(s)
+                </button>
+              </div>
+            )}
+
+            {deleteSubTab === 'studio' && (
+              <div className="space-y-3">
+                <select
+                  value={selectedStudioToDelete}
+                  onChange={(e) => setSelectedStudioToDelete(e.target.value)}
+                  className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-200"
+                >
+                  <option value="">-- Select Studio --</option>
+                  {existingStudios.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-zinc-500">
+                  Studio will be deleted from master data and all related movies will be set to "Unknown Studio".
+                </p>
+                <button
+                  type="button"
+                  disabled={!selectedStudioToDelete || deleteConfirmText !== 'DELETE'}
+                  onClick={() => {
+                    onDeleteStudio(selectedStudioToDelete);
+                    setDeleteSuccess(`Studio "${selectedStudioToDelete}" deleted successfully.`);
+                    setSelectedStudioToDelete('');
+                    setDeleteConfirmText('');
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete Selected Studio
+                </button>
+              </div>
+            )}
+
+            {deleteSubTab === 'genre' && (
+              <div className="space-y-3">
+                <select
+                  value={selectedGenreToDelete}
+                  onChange={(e) => setSelectedGenreToDelete(e.target.value)}
+                  className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-200"
+                >
+                  <option value="">-- Select Genre --</option>
+                  {existingGenres.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-zinc-500">
+                  Genre will be deleted from master data and removed from all related movies.
+                </p>
+                <button
+                  type="button"
+                  disabled={!selectedGenreToDelete || deleteConfirmText !== 'DELETE'}
+                  onClick={() => {
+                    onDeleteGenre(selectedGenreToDelete);
+                    setDeleteSuccess(`Genre "${selectedGenreToDelete}" deleted successfully.`);
+                    setSelectedGenreToDelete('');
+                    setDeleteConfirmText('');
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete Selected Genre
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

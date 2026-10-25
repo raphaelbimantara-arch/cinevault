@@ -22,6 +22,16 @@ import { Check, RotateCcw, Star, Trash2, X } from 'lucide-react';
 import { deleteSharedActors, loadSharedActors, loadSharedCatalog, saveSharedActor, saveSharedActors, saveSharedCatalog } from './utils/sharedCatalog';
 import { getMovieGenres } from './utils/movieGenres';
 import { getImageSource } from './utils/googleDriveImage';
+import {
+  getMasterStudios,
+  getMasterGenres,
+  getMasterActors,
+  subscribeMasterData,
+  deleteMasterStudio,
+  deleteMasterGenre,
+  deleteMasterActors,
+  resetMasterData,
+} from './data/masterData';
 
 const STORAGE_KEY = 'cinevault_movies_library_v2';
 const MOVIE_COVER_COLS_STORAGE_KEY = 'cinevault_movie_cover_cols_v1';
@@ -72,6 +82,19 @@ export default function App() {
   const sharedCatalogSaveQueue = useRef<Promise<void>>(Promise.resolve());
   const sharedActorSaveQueue = useRef<Promise<void>>(Promise.resolve());
   const [actorProfileRevision, setActorProfileRevision] = useState(0);
+
+  // Master data state
+  const [masterStudios, setMasterStudios] = useState<string[]>(() => getMasterStudios());
+  const [masterGenres, setMasterGenres] = useState<string[]>(() => getMasterGenres());
+  const [masterActors, setMasterActors] = useState<string[]>(() => getMasterActors());
+
+  useEffect(() => {
+    return subscribeMasterData(() => {
+      setMasterStudios(getMasterStudios());
+      setMasterGenres(getMasterGenres());
+      setMasterActors(getMasterActors());
+    });
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(movies)); } catch (e) { console.error(e); }
@@ -170,7 +193,7 @@ export default function App() {
   };
 
   const [activePage, setActivePage] = useState<ActivePage>('library');
-  const [addTab, setAddTab] = useState<'movie' | 'actor' | 'studio'>('movie');
+  const [addTab, setAddTab] = useState<'movie' | 'actor' | 'studio' | 'delete'>('movie');
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [selectedMovieIds, setSelectedMovieIds] = useState<Set<string>>(() => new Set());
   const [actionNotification, setActionNotification] = useState<ActionNotification | null>(null);
@@ -268,7 +291,7 @@ export default function App() {
     setSelectedMovie(null); setSelectedActorName(null); startTransition(() => setActivePage(page));
   };
 
-  const handleTriggerAdd = (tab: 'movie' | 'actor' | 'studio' = 'movie') => {
+  const handleTriggerAdd = (tab: 'movie' | 'actor' | 'studio' | 'delete' = 'movie') => {
     setSelectedMovie(null); setSelectedActorName(null); setAddTab(tab); startTransition(() => setActivePage('add'));
   };
 
@@ -288,12 +311,12 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const availableGenres = useMemo(() => {
     const genres = new Map<string, string>();
-    [...ALL_GENRES, ...movies.flatMap((movie) => getMovieGenres(movie.genre))].forEach((genre) => {
+    [...masterGenres, ...movies.flatMap((movie) => getMovieGenres(movie.genre))].forEach((genre) => {
       const normalized = genre.trim().toLowerCase();
       if (normalized && normalized !== 'all' && !genres.has(normalized)) genres.set(normalized, genre.trim());
     });
     return [...genres.values()].sort((a, b) => a.localeCompare(b));
-  }, [movies]);
+  }, [movies, masterGenres]);
 
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
   const [pendingMovieJumpLetter, setPendingMovieJumpLetter] = useState<string | null>(null);
@@ -466,10 +489,36 @@ export default function App() {
 
   const handleDeleteActors = (actorNames: string[]) => {
     const namesToDelete = new Set(actorNames.map((name) => name.trim().toLowerCase()));
-    removeCustomActors(actorNames); setActorProfileRevision((revision) => revision + 1);
+    removeCustomActors(actorNames);
+    deleteMasterActors(actorNames);
+    setActorProfileRevision((revision) => revision + 1);
     if (sharedCatalogStatus === 'connected') enqueueSharedActorUpdate(() => deleteSharedActors(actorNames));
     setMovies((prev) => prev.map((movie) => ({ ...movie, actors: movie.actors.filter((name) => !namesToDelete.has(name.trim().toLowerCase())) })));
     setSelectedActorName((current) => current && namesToDelete.has(current.trim().toLowerCase()) ? null : current);
+    showActionNotification(`${actorNames.length} actor(s) deleted from master & all movies.`);
+  };
+
+  const handleDeleteStudio = (studioName: string) => {
+    const key = studioName.trim().toLowerCase();
+    deleteMasterStudio(studioName);
+    setMovies((prev) =>
+      prev.map((m) => (m.studio.trim().toLowerCase() === key ? { ...m, studio: 'Unknown Studio' } : m))
+    );
+    showActionNotification(`Studio "${studioName}" deleted from master & all movies.`);
+  };
+
+  const handleDeleteGenre = (genreName: string) => {
+    const key = genreName.trim().toLowerCase();
+    deleteMasterGenre(genreName);
+    setMovies((prev) =>
+      prev.map((m) => {
+        const genres = getMovieGenres(m.genre);
+        const filtered = genres.filter((g) => g.toLowerCase() !== key);
+        if (filtered.length === genres.length) return m;
+        return { ...m, genre: filtered.join(', ') };
+      })
+    );
+    showActionNotification(`Genre "${genreName}" deleted from master & all movies.`);
   };
 
   const handleImportMovies = (imported: Movie[], mode: 'merge' | 'replace') => {
@@ -479,7 +528,7 @@ export default function App() {
       setMovies((prev) => {
         const existingMap = new Map<string, Movie>();
         prev.forEach((m) => existingMap.set(m.id, m));
-        
+
         const compositeMap = new Map<string, Movie>();
         prev.forEach((m) => {
           const key = `${m.title.toLowerCase().trim()}|${m.year}|${m.studio.toLowerCase().trim()}|${m.minutes}|${m.size.toLowerCase().trim()}`;
@@ -488,7 +537,7 @@ export default function App() {
 
         imported.forEach((m) => {
           const compositeKey = `${m.title.toLowerCase().trim()}|${m.year}|${m.studio.toLowerCase().trim()}|${m.minutes}|${m.size.toLowerCase().trim()}`;
-          
+
           if (m.id && existingMap.has(m.id)) {
             const existing = existingMap.get(m.id)!;
             existingMap.set(m.id, { ...existing, ...m, id: m.id });
@@ -508,7 +557,7 @@ export default function App() {
 
   const handleResetCatalog = () => {
     if (window.confirm('Reset movie catalog to original default library?')) {
-      setMovies(INITIAL_MOVIES); setSelectedMovieIds(new Set()); localStorage.removeItem(STORAGE_KEY); setActiveMetadataFilter(null); setSelectedCategory('All'); setSelectedAlphabets(['All']); setSearchQuery(''); setSortBy('alphabet-asc');
+      setMovies(INITIAL_MOVIES); setSelectedMovieIds(new Set()); localStorage.removeItem(STORAGE_KEY); resetMasterData(); setActiveMetadataFilter(null); setSelectedCategory('All'); setSelectedAlphabets(['All']); setSearchQuery(''); setSortBy('alphabet-asc');
     }
   };
 
@@ -572,12 +621,12 @@ export default function App() {
 
   const actorNames = useMemo(() => {
     const names = new Map<string, string>();
-    movies.flatMap((movie) => movie.actors).forEach((name) => {
+    [...masterActors, ...movies.flatMap((movie) => movie.actors)].forEach((name) => {
       const trimmed = name.trim();
       if (trimmed && trimmed.toLowerCase() !== 'cast' && !names.has(trimmed.toLowerCase())) names.set(trimmed.toLowerCase(), trimmed);
     });
     return [...names.values()].sort((a, b) => a.localeCompare(b));
-  }, [movies]);
+  }, [movies, masterActors]);
 
   const isFiltered = selectedCategory !== 'All' || (!selectedAlphabets.includes('All') && selectedAlphabets.length > 0) || searchQuery.trim() !== '' || activeMetadataFilter !== null || filteredAndSortedMovies.length !== movies.length;
   const selectedMovieCount = movies.filter((movie) => selectedMovieIds.has(movie.id)).length;
@@ -620,7 +669,21 @@ export default function App() {
           <ActorsPage movies={movies} viewMode={viewMode} actorProfileRevision={actorProfileRevision} keyboardAlphabetEnabled={!selectedActorName && !selectedMovie} onOpenActorDetail={(name) => setSelectedActorName(name)} onDeleteActors={handleDeleteActors} onNotify={showActionNotification} onTriggerAddActor={() => handleTriggerAdd('actor')} onUpdateActor={(oldName, updatedProfile) => { handleUpdateActor(oldName, updatedProfile); setSelectedActorName(null); }} onActorProfilesChanged={(actorNames) => { if (sharedCatalogStatus !== 'connected') return; enqueueSharedActorUpdate(async () => { for (const actorName of actorNames) { await saveSharedActor(getActorProfile(actorName)); } }); }} />
         )}
         {activePage === 'add' && (
-          <AddMoviePage initialTab={addTab} existingMovies={movies} onAddMovie={handleAddMovie} onAddActorSuccess={(actorName) => { if (sharedCatalogStatus === 'connected') { const actorProfile = getActorProfile(actorName); enqueueSharedActorUpdate(() => saveSharedActor(actorProfile)); } setSelectedActorName(actorName); setActivePage('actors'); }} onAddStudioSuccess={(studioName) => { handleFilterByAttribute('studio', studioName); }} onCancel={() => setActivePage('library')} />
+          <AddMoviePage
+            initialTab={addTab}
+            existingMovies={movies}
+            existingGenres={availableGenres}
+            existingStudios={masterStudios}
+            existingActors={actorNames}
+            onAddMovie={handleAddMovie}
+            onDeleteMovie={handleDeleteMovie}
+            onDeleteActors={handleDeleteActors}
+            onDeleteStudio={handleDeleteStudio}
+            onDeleteGenre={handleDeleteGenre}
+            onAddActorSuccess={(actorName) => { if (sharedCatalogStatus === 'connected') { const actorProfile = getActorProfile(actorName); enqueueSharedActorUpdate(() => saveSharedActor(actorProfile)); } setSelectedActorName(actorName); setActivePage('actors'); }}
+            onAddStudioSuccess={(studioName) => { handleFilterByAttribute('studio', studioName); }}
+            onCancel={() => setActivePage('library')}
+          />
         )}
         {activePage === 'settings' && (
           <SettingsPage movies={movies} sharedCatalogToken={''} sharedCatalogStatus={sharedCatalogStatus} sharedCatalogError={sharedCatalogError} onConnectSharedCatalog={() => {}} onDisconnectSharedCatalog={() => {}} onInitializeSharedCatalog={handleInitializeSharedCatalog} onSaveSharedCatalog={handleSaveSharedCatalog} onRefreshSharedCatalog={handleRefreshSharedCatalog} onImportMovies={handleImportMovies} onDeleteMovie={handleDeleteMovie} onBulkDeleteMovies={handleBulkDeleteMovies} onMergeActors={handleMergeActors} onResetCatalog={handleResetCatalog} onSelectMovie={setSelectedMovie} />
