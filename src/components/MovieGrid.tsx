@@ -116,7 +116,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
             onClick={(e) => handleMovieClick(e, movie)}
             // PERUBAHAN 1: rounded-xl diganti menjadi rounded-md agar lebih kotak
-            className={`group relative flex flex-col cursor-pointer rounded-md overflow-hidden bg-[#121520] border transition-all duration-200 select-none ${
+            className={`group relative flex flex-col cursor-pointer rounded-sm overflow-hidden bg-[#121520] border transition-all duration-200 select-none ${
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
