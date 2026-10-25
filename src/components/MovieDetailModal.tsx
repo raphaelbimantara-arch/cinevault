@@ -245,7 +245,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto" onClick={onClose}>
       <div 
-        className={`relative w-full ${isEditing ? 'max-w-[1200px]' : 'max-w-4xl'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
+        // PERUBAHAN 1: overflow-hidden diubah menjadi overflow-visible agar tombol di luar tidak terpotong
+        className={`relative w-full ${isEditing ? 'max-w-[1200px]' : 'max-w-4xl'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-visible shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
         data-selection-id={movie.id}
         onClick={(e) => e.stopPropagation()}
         onClickCapture={(event) => {
@@ -268,49 +269,56 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         onContextMenu={longPressHandlers.onContextMenu}
         style={{ touchAction: 'pan-y' }}
       >
-          {showLongPressActions && (
-            <div data-long-press-actions className="flex flex-wrap items-center gap-2 border-b border-zinc-800 bg-[#151926] px-3 py-2 sm:px-5" onPointerDown={(event) => event.stopPropagation()}>
-              <span className="mr-auto text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Movie actions</span>
-              <button type="button" onClick={() => { onUpdateMovie?.({ ...movie, favorite: !movie.favorite }); onNotify?.(movie.favorite ? 'Removed from favorite.' : 'Marked as favorite.'); setShowLongPressActions(false); }} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"><Star className="h-3.5 w-3.5" />{movie.favorite ? 'Remove favorite' : 'Favorite'}</button>
-              <button type="button" onClick={() => { onUpdateMovie?.({ ...movie, reviewed: !movie.reviewed }); onNotify?.(movie.reviewed ? 'Review mark removed.' : 'Marked for review.'); setShowLongPressActions(false); }} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20"><Check className="h-3.5 w-3.5" />{movie.reviewed ? 'Remove review' : 'Review'}</button>
-              <button type="button" onClick={() => { if (!window.confirm(`Delete "${movie.title}"? This cannot be undone.`)) return; onDeleteMovie?.(movie.id); setShowLongPressActions(false); onClose(); }} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-500"><Trash2 className="h-3.5 w-3.5" />Delete</button>
-              <button type="button" onClick={() => setShowLongPressActions(false)} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-white">Close</button>
+        
+        {/* PERUBAHAN 2: TOMBOL PANAH BARU DIPOSISIKAN DI LUAR KOTAK */}
+        {!isEditing && (
+          <>
+            {/* Tombol Kiri */}
+            {movieIndex > 0 && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+                className="absolute -left-14 sm:-left-20 top-1/2 -translate-y-1/2 z-50 flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-400 hover:bg-amber-400 hover:text-zinc-950 transition-all border border-zinc-700/50 backdrop-blur-md shadow-lg cursor-pointer"
+                title="Previous movie"
+              >
+                <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
+              </button>
+            )}
+
+            {/* Tombol Kanan */}
+            {movieIndex >= 0 && movieIndex < movies.length - 1 && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleNext(); }}
+                className="absolute -right-14 sm:-right-20 top-1/2 -translate-y-1/2 z-50 flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-400 hover:bg-amber-400 hover:text-zinc-950 transition-all border border-zinc-700/50 backdrop-blur-md shadow-lg cursor-pointer"
+                title="Next movie"
+              >
+                <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
+              </button>
+            )}
+          </>
+        )}
+
+        {showLongPressActions && (
+          <div data-long-press-actions className="flex flex-wrap items-center gap-2 border-b border-zinc-800 bg-[#151926] px-3 py-2 sm:px-5 rounded-t-2xl" onPointerDown={(event) => event.stopPropagation()}>
+            <span className="mr-auto text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Movie actions</span>
+            <button type="button" onClick={() => { onUpdateMovie?.({ ...movie, favorite: !movie.favorite }); onNotify?.(movie.favorite ? 'Removed from favorite.' : 'Marked as favorite.'); setShowLongPressActions(false); }} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"><Star className="h-3.5 w-3.5" />{movie.favorite ? 'Remove favorite' : 'Favorite'}</button>
+            <button type="button" onClick={() => { onUpdateMovie?.({ ...movie, reviewed: !movie.reviewed }); onNotify?.(movie.reviewed ? 'Review mark removed.' : 'Marked for review.'); setShowLongPressActions(false); }} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20"><Check className="h-3.5 w-3.5" />{movie.reviewed ? 'Remove review' : 'Review'}</button>
+            <button type="button" onClick={() => { if (!window.confirm(`Delete "${movie.title}"? This cannot be undone.`)) return; onDeleteMovie?.(movie.id); setShowLongPressActions(false); onClose(); }} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-500"><Trash2 className="h-3.5 w-3.5" />Delete</button>
+            <button type="button" onClick={() => setShowLongPressActions(false)} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-white">Close</button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-0 rounded-2xl overflow-hidden">
+          {/* Left Column: Front & Back Posters */}
+          <div className={`${isEditing ? 'md:col-span-3' : 'md:col-span-5'} bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
+            
+            <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
+              <img src={getImageSource(movie.posterUrl)} alt={`${movie.title} - Front`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
             </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-0">
-            {/* Left Column: Front & Back Posters + NAVIGATION ARROWS */}
-            <div className={`${isEditing ? 'md:col-span-3' : 'md:col-span-5'} bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
-              
-              {/* TOMBOL PANAH KIRI */}
-              {movieIndex > 0 && !isEditing && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-                  className="absolute left-2 z-10 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/60 hover:bg-amber-400 hover:text-black text-white flex items-center justify-center border border-zinc-700/50 backdrop-blur-md transition-all opacity-70 sm:opacity-0 group-hover/slider:opacity-100"
-                  title="Previous movie"
-                >
-                  <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-                </button>
-              )}
-
-              <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
-                <img src={getImageSource(movie.posterUrl)} alt={`${movie.title} - Front`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-              </div>
-              <div onClick={() => setZoomedImageUrl(movie.backdropUrl || movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
-                <img src={getImageSource(movie.backdropUrl || movie.posterUrl)} alt={`${movie.title} - Back`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-              </div>
-
-              {/* TOMBOL PANAH KANAN */}
-              {movieIndex >= 0 && movieIndex < movies.length - 1 && !isEditing && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); handleNext(); }}
-                  className="absolute right-2 z-10 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/60 hover:bg-amber-400 hover:text-black text-white flex items-center justify-center border border-zinc-700/50 backdrop-blur-md transition-all opacity-70 sm:opacity-0 group-hover/slider:opacity-100"
-                  title="Next movie"
-                >
-                  <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-                </button>
-              )}
+            <div onClick={() => setZoomedImageUrl(movie.backdropUrl || movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
+              <img src={getImageSource(movie.backdropUrl || movie.posterUrl)} alt={`${movie.title} - Back`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
             </div>
+
+          </div>
 
           {/* Right Column: Title and Details */}
           <div className={`${isEditing ? 'md:col-span-9' : 'md:col-span-7'} p-4 flex flex-col justify-between max-h-[85vh] overflow-y-auto custom-scrollbar`}>
@@ -327,10 +335,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <Edit3 className="w-3 h-3" /> Edit Movie Details
                 </div>
 
-                {/* 3 KOLOM UNTUK EDIT MODE */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  
-                  {/* KOLOM 1: INFO UTAMA */}
                   <div className="space-y-3">
                     <div>
                       <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Title</label>
@@ -365,7 +370,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {/* KOLOM 2: ACTORS (Dipindah ke tengah) */}
                   <div className="space-y-3">
                     <div>
                       <div className="mb-1 flex items-center justify-between gap-2">
@@ -392,7 +396,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {/* KOLOM 3: VISUAL, URL & GENRES (Dipindah ke kanan) */}
                   <div className="space-y-3">
                     <div className="flex gap-2">
                       <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"><input type="checkbox" checked={editFavorite} onChange={(e) => setEditFavorite(e.target.checked)} className="h-3.5 w-3.5 accent-amber-400" /><Star className={`h-3.5 w-3.5 ${editFavorite ? 'fill-amber-400 text-amber-400' : 'text-zinc-500'}`} />Favorite</label>
@@ -423,7 +426,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* ACTIONS */}
                 <div className="flex items-center gap-2 pt-3 border-t border-zinc-800/60 sticky bottom-0 bg-[#0f121b] py-2">
                   <button type="submit" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs transition-colors shadow-sm"><Save className="w-3.5 h-3.5" />Save Changes</button>
                   <button type="button" onClick={() => setIsEditing(false)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition-colors border border-zinc-700"><Undo2 className="w-3.5 h-3.5" />Cancel</button>
