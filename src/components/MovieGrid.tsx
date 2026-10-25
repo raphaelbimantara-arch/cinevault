@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Film, Star, Check, Building2 } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -23,6 +23,32 @@ const formatStorageSize = (sizeInMB: number) => {
   }).format(sizeInGB) + ' GB';
 };
 
+// Komponen kecil untuk menangani error gambar poster
+const PosterImage = ({ src, alt }: { src: string; alt: string }) => {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError || !src) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800/50 text-zinc-500">
+        <Film className="w-8 h-8 mb-2 opacity-50" />
+        <span className="text-[10px] uppercase font-bold tracking-wider">No Poster</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      referrerPolicy="no-referrer"
+      draggable={false}
+      onError={() => setHasError(true)}
+      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+      loading="lazy"
+    />
+  );
+};
+
 export const MovieGrid: React.FC<MovieGridProps> = ({
   movies,
   onSelectMovie,
@@ -32,7 +58,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   selectionMode,
   cols = 7,
 }) => {
-  // 1. FITUR KLIK LAMA (LONG PRESS) DIKEMBALIKAN
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
   const lastSelectedIdRef = useRef<string | null>(null);
 
@@ -47,7 +72,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
 
   const handleMovieClick = (e: React.MouseEvent, movie: Movie) => {
     if (selectionMode) {
-      // 2. FITUR SHIFT + KLIK
       if (e.shiftKey && lastSelectedIdRef.current) {
         const lastIndex = movies.findIndex((m) => m.id === lastSelectedIdRef.current);
         const currentIndex = movies.findIndex((m) => m.id === movie.id);
@@ -76,7 +100,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     <div
       className="grid gap-3 sm:gap-4 select-none"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-      // 3. EVENT HANDLER UNTUK KLIK LAMA
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
       onPointerUp={longPressHandlers.onPointerUp}
@@ -92,19 +115,18 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             data-selection-id={movie.id}
             data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
             onClick={(e) => handleMovieClick(e, movie)}
-            className={`group relative flex flex-col cursor-pointer rounded-xl overflow-hidden bg-[#121520] border transition-all duration-200 select-none ${
+            // PERUBAHAN 1: rounded-xl diganti menjadi rounded-md agar lebih kotak
+            className={`group relative flex flex-col cursor-pointer rounded-md overflow-hidden bg-[#121520] border transition-all duration-200 select-none ${
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
             {/* Area Poster */}
             <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0 pointer-events-none">
-              <img
-                src={getImageSource(movie.posterUrl)}
-                alt={movie.title}
-                referrerPolicy="no-referrer"
-                draggable={false}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                loading="lazy"
+              
+              {/* PERUBAHAN 2: Menggunakan komponen PosterImage untuk fallback */}
+              <PosterImage 
+                src={getImageSource(movie.posterUrl)} 
+                alt={movie.title} 
               />
               
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
@@ -121,7 +143,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             {/* Area Info */}
             <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520] pointer-events-none">
               
-              {/* BARIS JUDUL DENGAN PENANDA */}
               <div className="flex items-start justify-between gap-1.5">
                 <div className="flex flex-col gap-0.5">
                   <h3 
@@ -130,7 +151,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                   >
                     {movie.title}
                   </h3>
-                  {/* Teks Uncensored (Warna Merah) */}
                   {movie.uncensored && (
                     <span className="text-[8px] font-bold text-rose-500 uppercase tracking-wider">
                       Uncensored
@@ -138,7 +158,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                   )}
                 </div>
 
-                {/* Ikon Favorite di kanan judul */}
                 <div className="shrink-0 mt-0.5">
                   {movie.favorite ? (
                     <div className="w-3.5 h-3.5 rounded-full bg-zinc-700 flex items-center justify-center">
@@ -146,13 +165,11 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                     </div>
                   ) : (
                     <div className="w-3.5 h-3.5 rounded-full border border-zinc-700/50 flex items-center justify-center">
-                      {/* Lingkaran kosong sebagai penanda tidak favorite */}
                     </div>
                   )}
                 </div>
               </div>
               
-              {/* Baris Tahun, Menit, Size */}
               <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[8px] sm:text-[10px] text-zinc-400 font-mono">
                 <span>{movie.year}</span>
                 <span aria-hidden="true">·</span>
@@ -161,7 +178,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                 <span className="text-zinc-300">{formatStorageSize(Number(movie.sizeBytes) || 0)}</span>
               </div>
               
-              {/* Baris Studio */}
               <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-zinc-500 truncate mt-0.5">
                 <Building2 className="w-3 h-3 shrink-0" />
                 <span className="truncate">{movie.studio}</span>
