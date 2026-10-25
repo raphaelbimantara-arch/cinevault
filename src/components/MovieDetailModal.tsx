@@ -245,8 +245,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto" onClick={onClose}>
       <div 
-        // PERUBAHAN UTAMA: max-w diperlebar (max-w-[95vw] md:max-w-[1400px]) dan tinggi dikunci (h-[80vh] atau h-[85vh])
-        className={`relative w-full ${isEditing ? 'max-w-[1200px] h-auto' : 'max-w-[95vw] md:max-w-[1400px] h-[85vh]'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-visible shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
+        // PERUBAHAN: max-w-4xl diubah menjadi max-w-6xl agar sedikit lebih lebar (pas di layar), tinggi tetap fleksibel
+        className={`relative w-full ${isEditing ? 'max-w-[1200px]' : 'max-w-6xl'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-visible shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
         data-selection-id={movie.id}
         onClick={(e) => e.stopPropagation()}
         onClickCapture={(event) => {
@@ -269,6 +269,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         onContextMenu={longPressHandlers.onContextMenu}
         style={{ touchAction: 'pan-y' }}
       >
+        
         {!isEditing && (
           <>
             {movieIndex > 0 && (
@@ -303,9 +304,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-0 rounded-2xl overflow-hidden h-full">
-          {/* PERUBAHAN: md:col-span-5 diubah menjadi md:col-span-3 agar poster lebih ramping */}
-          <div className={`${isEditing ? 'md:col-span-3' : 'md:col-span-3'} bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-0 rounded-2xl overflow-hidden">
+          <div className={`${isEditing ? 'md:col-span-3' : 'md:col-span-5'} bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
             
             <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
               <img src={getImageSource(movie.posterUrl)} alt={`${movie.title} - Front`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -316,8 +316,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
           </div>
 
-          {/* PERUBAHAN: md:col-span-7 diubah menjadi md:col-span-9 agar teks lebih luas. h-full overflow-y-auto ditambahkan */}
-          <div className={`${isEditing ? 'md:col-span-9' : 'md:col-span-9'} p-4 flex flex-col h-full overflow-y-auto custom-scrollbar`}>
+          <div className={`${isEditing ? 'md:col-span-9' : 'md:col-span-7'} p-4 flex flex-col justify-between max-h-[85vh] overflow-y-auto custom-scrollbar`}>
             {editSavedToast && (
               <div className="mb-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in duration-150">
                 <Save className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -444,50 +443,58 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     )}
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
-                    <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('year', movie.year); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by year">
-                      <Calendar className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.year}</span>
-                    </div>
-                    <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('studio', movie.studio); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by studio">
-                      <Building2 className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="truncate">{movie.studio}</span>
-                    </div>
-                    <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('minutes', movie.minutes); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by duration">
-                      <Clock className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.minutes} min</span>
-                    </div>
-                    <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('size', movie.size); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by file size">
-                      <HardDrive className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.size}</span>
-                    </div>
-                    <button type="button" onClick={() => { if (!movie.resolution || !onFilterByAttribute) return; onClose(); onFilterByAttribute('resolution', movie.resolution); }} disabled={!movie.resolution || !onFilterByAttribute} className="flex min-w-0 items-center gap-2 text-left text-zinc-400 transition-colors enabled:cursor-pointer enabled:hover:text-amber-300 disabled:cursor-default" title={movie.resolution ? 'Show movies with this resolution' : 'Resolution unavailable'}>
-                      <Film className="w-4 h-4 shrink-0 text-amber-400" /><span className="truncate text-xs font-semibold">{movie.resolution || 'Standard'}</span>
-                    </button>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-zinc-800/60">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Film className="w-4 h-4 text-amber-400 shrink-0" /><span className="text-xs text-zinc-400">Genre:</span>
-                      {getMovieGenres(movie.genre).map((genre) => (
-                        <button key={genre} type="button" onClick={() => { if (!onFilterByAttribute) return; onClose(); onFilterByAttribute('genre', genre); }} className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-400/20" title={`Filter library by ${genre}`}>{genre}</button>
-                      ))}
-                    </div>
-                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('year', movie.year); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by year">
+                  <Calendar className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.year}</span>
                 </div>
-
-                {/* PERUBAHAN UTAMA: Daftar aktor diubah menjadi grid 5 kolom */}
-                <div className="mt-4 flex-1">
-                  <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Starring Cast{(movie.castCount ?? movie.actors.length) > 1 && ` (${movie.castCount ?? movie.actors.length})`}</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5">
-                    {movie.actors.map((actor) => (
-                      <button key={actor} type="button" onClick={() => onSelectActor?.(actor)} className="px-2 py-1 text-[10px] rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors truncate text-left w-full" title={`View actor ${actor}`}>{actor}</button>
+                <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('studio', movie.studio); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by studio">
+                  <Building2 className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="truncate">{movie.studio}</span>
+                </div>
+                <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('minutes', movie.minutes); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by duration">
+                  <Clock className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.minutes} min</span>
+                </div>
+                <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('size', movie.size); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by file size">
+                  <HardDrive className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.size}</span>
+                </div>
+                <button type="button" onClick={() => { if (!movie.resolution || !onFilterByAttribute) return; onClose(); onFilterByAttribute('resolution', movie.resolution); }} disabled={!movie.resolution || !onFilterByAttribute} className="flex min-w-0 items-center gap-2 text-left text-zinc-400 transition-colors enabled:cursor-pointer enabled:hover:text-amber-300 disabled:cursor-default" title={movie.resolution ? 'Show movies with this resolution' : 'Resolution unavailable'}>
+                  <Film className="w-4 h-4 shrink-0 text-amber-400" /><span className="truncate text-xs font-semibold">{movie.resolution || 'Standard'}</span>
+                </button>
+                <div className="col-span-2 pt-1 border-t border-zinc-800/60">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Film className="w-4 h-4 text-amber-400 shrink-0" /><span className="text-xs text-zinc-400">Genre:</span>
+                    {getMovieGenres(movie.genre).map((genre) => (
+                      <button key={genre} type="button" onClick={() => { if (!onFilterByAttribute) return; onClose(); onFilterByAttribute('genre', genre); }} className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-400/20" title={`Filter library by ${genre}`}>{genre}</button>
                     ))}
                   </div>
                 </div>
+              </div>
 
-                <div className="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-end gap-2 shrink-0">
-                  {onUpdateMovie && (
-                    <button type="button" onClick={() => setIsEditing(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-zinc-950" title="Edit movie details" aria-label="Edit movie details"><Edit3 className="h-4 w-4" /></button>
-                  )}
-                  <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white" title="Close movie details" aria-label="Close movie details"><X className="h-4 w-4" /></button>
+              <div className="mt-3">
+                <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Starring Cast{(movie.castCount ?? movie.actors.length) > 1 && ` (${movie.castCount ?? movie.actors.length})`}</div>
+                {/* PERUBAHAN UTAMA: Daftar aktor diubah menjadi flex flex-wrap dengan w-fit */}
+                <div className="flex flex-wrap gap-1.5">
+                  {movie.actors.map((actor) => (
+                    <button 
+                      key={actor} 
+                      type="button" 
+                      onClick={() => onSelectActor?.(actor)} 
+                      className="px-2 py-1 text-[10px] rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors w-fit whitespace-nowrap" 
+                      title={`View actor ${actor}`}
+                    >
+                      {actor}
+                    </button>
+                  ))}
                 </div>
-              </>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-end gap-2">
+              {onUpdateMovie && (
+                <button type="button" onClick={() => setIsEditing(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-zinc-950" title="Edit movie details" aria-label="Edit movie details"><Edit3 className="h-4 w-4" /></button>
+              )}
+              <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white" title="Close movie details" aria-label="Close movie details"><X className="h-4 w-4" /></button>
+            </div>
+          </>
             )}
           </div>
         </div>
