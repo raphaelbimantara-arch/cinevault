@@ -245,7 +245,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto" onClick={onClose}>
       <div 
-        // PERUBAHAN 1: Lebar maksimal (max-w-7xl) & Tinggi dikunci (h-[85vh])
         className={`relative w-full ${isEditing ? 'max-w-[1200px] h-auto' : 'max-w-7xl h-[85vh]'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-visible shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
         data-selection-id={movie.id}
         onClick={(e) => e.stopPropagation()}
@@ -316,7 +315,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
           </div>
 
-          {/* PERUBAHAN 2: Area kanan di-scroll agar tinggi modal statis */}
           <div className={`${isEditing ? 'md:col-span-9' : 'md:col-span-7'} p-4 flex flex-col justify-between h-full overflow-y-auto custom-scrollbar`}>
             {editSavedToast && (
               <div className="mb-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in duration-150">
@@ -444,7 +442,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     )}
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                  {/* PERUBAHAN: text-xs diubah menjadi text-sm agar font informasi lebih besar */}
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                 <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('year', movie.year); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by year">
                   <Calendar className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.year}</span>
                 </div>
@@ -458,11 +457,13 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <HardDrive className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.size}</span>
                 </div>
                 <button type="button" onClick={() => { if (!movie.resolution || !onFilterByAttribute) return; onClose(); onFilterByAttribute('resolution', movie.resolution); }} disabled={!movie.resolution || !onFilterByAttribute} className="flex min-w-0 items-center gap-2 text-left text-zinc-400 transition-colors enabled:cursor-pointer enabled:hover:text-amber-300 disabled:cursor-default" title={movie.resolution ? 'Show movies with this resolution' : 'Resolution unavailable'}>
-                  <Film className="w-4 h-4 shrink-0 text-amber-400" /><span className="truncate text-xs font-semibold">{movie.resolution || 'Standard'}</span>
+                  <Film className="w-4 h-4 shrink-0 text-amber-400" /><span className="truncate text-sm font-semibold">{movie.resolution || 'Standard'}</span>
                 </button>
                 <div className="col-span-2 pt-1 border-t border-zinc-800/60">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Film className="w-4 h-4 text-amber-400 shrink-0" /><span className="text-xs text-zinc-400">Genre:</span>
+                    <Film className="w-4 h-4 text-amber-400 shrink-0" />
+                    {/* PERUBAHAN: text-xs diubah menjadi text-sm */}
+                    <span className="text-sm text-zinc-400">Genre:</span>
                     {getMovieGenres(movie.genre).map((genre) => (
                       <button key={genre} type="button" onClick={() => { if (!onFilterByAttribute) return; onClose(); onFilterByAttribute('genre', genre); }} className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-400/20" title={`Filter library by ${genre}`}>{genre}</button>
                     ))}
@@ -470,16 +471,16 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 </div>
               </div>
 
-              <div className="mt-3">
-                <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Starring Cast{(movie.castCount ?? movie.actors.length) > 1 && ` (${movie.castCount ?? movie.actors.length})`}</div>
-                {/* PERUBAHAN 3: Flexbox (w-fit) agar kotak nama aktor menyesuaikan panjang teks & tidak terpotong */}
-                <div className="flex flex-wrap gap-1.5">
+              <div className="mt-4">
+                <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Starring Cast{(movie.castCount ?? movie.actors.length) > 1 && ` (${movie.castCount ?? movie.actors.length})`}</div>
+                {/* PERUBAHAN: Font diperbesar (text-xs) dan padding ditambah (px-2.5 py-1.5) */}
+                <div className="flex flex-wrap gap-2">
                   {movie.actors.map((actor) => (
                     <button 
                       key={actor} 
                       type="button" 
                       onClick={() => onSelectActor?.(actor)} 
-                      className="px-2 py-1 text-[10px] rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors w-fit whitespace-nowrap" 
+                      className="px-2.5 py-1.5 text-xs rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors w-fit whitespace-nowrap" 
                       title={`View actor ${actor}`}
                     >
                       {actor}
