@@ -226,7 +226,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const handleNext = () => { if (movieIndex >= 0 && movieIndex < movies.length - 1) onNavigateMovie(movies[movieIndex + 1]); };
 
   useEffect(() => {
-    if (!movie || isEditing || zoomedImageUrl) return;
+    if (!movie || zoomedImageUrl) return;
     const handleNavigationKeyDown = (event: KeyboardEvent) => {
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
@@ -235,7 +235,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     };
     window.addEventListener('keydown', handleNavigationKeyDown);
     return () => window.removeEventListener('keydown', handleNavigationKeyDown);
-  }, [isEditing, movie, movieIndex, movies, onNavigateMovie, zoomedImageUrl]);
+  }, [movie, movieIndex, movies, onNavigateMovie, zoomedImageUrl]);
 
   const swipeHandlers = useHorizontalSwipe(handleNext, handlePrev, !isEditing && !zoomedImageUrl);
   const longPressHandlers = useLongPress(() => setShowLongPressActions(true), !isEditing && !zoomedImageUrl);
@@ -269,9 +269,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         style={{ touchAction: 'pan-y' }}
       >
         
-        {!isEditing && (
-          <>
-            {movieIndex > 0 && (
+        {
+            movieIndex > 0 && (
               <button 
                 onClick={(e) => { e.stopPropagation(); handlePrev(); }}
                 className="absolute -left-14 sm:-left-20 top-1/2 -translate-y-1/2 z-50 flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-400 hover:bg-amber-400 hover:text-zinc-950 transition-all border border-zinc-700/50 backdrop-blur-md shadow-lg cursor-pointer"
@@ -290,8 +289,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
               </button>
             )}
-          </>
-        )}
 
         {showLongPressActions && (
           <div data-long-press-actions className="flex flex-wrap items-center gap-2 border-b border-zinc-800 bg-[#151926] px-3 py-2 sm:px-5 rounded-t-2xl" onPointerDown={(event) => event.stopPropagation()}>

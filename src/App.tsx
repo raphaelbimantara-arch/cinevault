@@ -262,13 +262,9 @@ export default function App() {
   }, [activePage, selectedMovie?.id, selectedActorName]);
 
   const handleCloseMovieDetail = () => {
-    const snapshot = rahJ91ZuNL8Y2px8iYciYeHN8sfSh5eXH8(window.history.state);
-    if (selectedMovie && snapshot?.movieId === selectedMovie.id && !closingOverlayWithHistoryRef.current) {
-      closingOverlayWithHistoryRef.current = true;
-      window.history.back();
-    } else if (!closingOverlayWithHistoryRef.current) {
-      setSelectedMovie(null);
-    }
+    // Closing the movie detail should always return to the library, never to the previously viewed movie.
+    setSelectedMovie(null);
+    closingOverlayWithHistoryRef.current = false;
   };
 
   const handleCloseActorDetail = () => {
