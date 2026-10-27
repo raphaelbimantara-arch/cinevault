@@ -23,7 +23,7 @@ export default {
     let body;
     try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid JSON.' }, 400, headers); }
 
-    const supportedActions = ['load', 'save', 'delete', 'loadActors', 'saveActor', 'deleteActors', 'saveActors'];
+    const supportedActions = ['load', 'save', 'delete', 'loadActors', 'saveActor', 'deleteActors', 'saveActors', 'clearDatabase'];
     if (!supportedActions.includes(body.action)) return jsonResponse({ error: 'Unsupported action.' }, 400, headers);
 
     try {
@@ -51,24 +51,58 @@ export default {
 
       if (body.action === 'save') {
         if (!Array.isArray(body.movies)) return jsonResponse({ error: 'Movies must be array.' }, 400, headers);
-        for (const m of body.movies) {
-          const movieId = m.id ? String(m.id) : `csv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-          const safeYear = parseInt(String(m.year).replace(/[^0-9]/g, ''), 10) || 0;
-          const safeMinutes = parseInt(String(m.minutes).replace(/[^0-9]/g, ''), 10) || 0;
-          const safeSizeBytes = Math.round(Number(String(m.sizeBytes).replace(/[^0-9]/g, ''))) || 0;
-
-          await pool.query(
-            `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-             ON CONFLICT (id) DO UPDATE SET 
-               title = EXCLUDED.title, year = EXCLUDED.year, genre = EXCLUDED.genre, studio = EXCLUDED.studio, 
-               minutes = EXCLUDED.minutes, size = EXCLUDED.size, size_bytes = EXCLUDED.size_bytes, resolution = EXCLUDED.resolution, 
-               poster_url = EXCLUDED.poster_url, backdrop_url = EXCLUDED.backdrop_url, favorite = EXCLUDED.favorite, 
-               reviewed = EXCLUDED.reviewed, uncensored = EXCLUDED.uncensored, added_date = EXCLUDED.added_date, actors = EXCLUDED.actors`,
-            [movieId, m.title, safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, m.favorite || false, m.reviewed || false, m.uncensored || false, m.addedDate || null, JSON.stringify(m.actors || [])]
-          );
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          // Replace the complete movie catalog atomically. If any row fails, rollback preserves the previous catalog.
+          await client.query('TRUNCATE TABLE movies RESTART IDENTITY CASCADE');
+          const usedIds = new Set();
+          for (const m of body.movies) {
+            const candidateId = String(m.id ?? '').trim();
+            const numericId = /^\d+$/.test(candidateId) && Number(candidateId) > 0 && Number.isSafeInteger(Number(candidateId)) && !usedIds.has(Number(candidateId))
+              ? Number(candidateId) : null;
+            if (numericId !== null) usedIds.add(numericId);
+            const safeYear = parseInt(String(m.year ?? '').replace(/[^0-9]/g, ''), 10) || 0;
+            const safeMinutes = parseInt(String(m.minutes ?? '').replace(/[^0-9]/g, ''), 10) || 0;
+            const safeSizeBytes = Math.round(Number(String(m.sizeBytes ?? '').replace(/[^0-9]/g, ''))) || 0;
+            const values = [m.title || 'Untitled', safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, Boolean(m.favorite), Boolean(m.reviewed), Boolean(m.uncensored), m.addedDate || null, JSON.stringify(Array.isArray(m.actors) ? m.actors : [])];
+            if (numericId !== null) {
+              await client.query(
+                `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+                [numericId, ...values]
+              );
+            } else {
+              await client.query(
+                `INSERT INTO movies (title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, values
+              );
+            }
+          }
+          await client.query(`SELECT setval(pg_get_serial_sequence('movies', 'id'), COALESCE((SELECT MAX(id) FROM movies), 1), EXISTS(SELECT 1 FROM movies))`);
+          await client.query('COMMIT');
+          return jsonResponse({ message: 'Movie database replaced successfully.', count: body.movies.length }, 200, headers);
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
         }
-        return jsonResponse({ message: `Movies synchronized.` }, 200, headers);
+      }
+
+      if (body.action === 'clearDatabase') {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query('TRUNCATE TABLE movies, actors RESTART IDENTITY CASCADE');
+          await client.query('COMMIT');
+          return jsonResponse({ message: 'All CineVault database records have been deleted.' }, 200, headers);
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
+        }
       }
 
       // FITUR HAPUS FILM BARU
@@ -81,14 +115,27 @@ export default {
       if (body.action === 'saveActor' || body.action === 'saveActors') {
         const actorsToSave = body.action === 'saveActor' ? [body.actor] : body.actors;
         if (!Array.isArray(actorsToSave)) return jsonResponse({ error: 'Invalid actor data.' }, 400, headers);
-        for (const a of actorsToSave) {
-          await pool.query(
-            `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count) VALUES ($1, $2, $3, $4, $5, $6, $7)
-             ON CONFLICT (name) DO UPDATE SET alias = EXCLUDED.alias, dob = EXCLUDED.dob, photo_url = EXCLUDED.photo_url, favorite = EXCLUDED.favorite, reviewed = EXCLUDED.reviewed, movie_count = EXCLUDED.movie_count`,
-            [a.name, a.alias || null, a.dob || null, a.photoUrl || null, a.favorite || false, a.reviewed || false, a.movieCount || 0]
-          );
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          // A full save replaces the actor snapshot; individual edits remain upserts.
+          if (body.action === 'saveActors') await client.query('TRUNCATE TABLE actors RESTART IDENTITY CASCADE');
+          for (const a of actorsToSave) {
+            if (!a || !String(a.name || '').trim()) continue;
+            await client.query(
+              `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count) VALUES ($1, $2, $3, $4, $5, $6, $7)
+               ON CONFLICT (name) DO UPDATE SET alias = EXCLUDED.alias, dob = EXCLUDED.dob, photo_url = EXCLUDED.photo_url, favorite = EXCLUDED.favorite, reviewed = EXCLUDED.reviewed, movie_count = EXCLUDED.movie_count`,
+              [a.name.trim(), a.alias || null, a.dob || null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), Number(a.movieCount) || 0]
+            );
+          }
+          await client.query('COMMIT');
+          return jsonResponse({ message: 'Actors saved.', count: actorsToSave.length }, 200, headers);
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
         }
-        return jsonResponse({ message: 'Actors saved.' }, 200, headers);
       }
 
       if (body.action === 'deleteActors') {

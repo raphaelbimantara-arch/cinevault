@@ -1,4 +1,5 @@
 import React, { startTransition, useState, useMemo, useRef, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { 
   Download, Upload, Copy, AlertTriangle, CheckCircle2, Trash2, FileSpreadsheet, 
   RefreshCw, Layers, HardDrive, Sliders, Info, Check, Smartphone, ShieldCheck, X
@@ -26,6 +27,7 @@ interface SettingsPageProps {
   onInitializeSharedCatalog: () => Promise<void>;
   onSaveSharedCatalog: () => Promise<number>;
   onRefreshSharedCatalog: () => Promise<number>;
+  onDeleteAllDatabase: () => Promise<void>;
   onImportMovies: (newMovies: Movie[], mode: 'merge' | 'replace') => void;
   onDeleteMovie: (movieId: string) => void;
   onBulkDeleteMovies: (movieIds: string[]) => void;
@@ -173,7 +175,7 @@ function getActorDuplicateReason(first: ActorDuplicateCandidate, second: ActorDu
 export const SettingsPage: React.FC<SettingsPageProps> = ({
   movies, sharedCatalogToken, sharedCatalogStatus, sharedCatalogError, onConnectSharedCatalog, onDisconnectSharedCatalog,
   onInitializeSharedCatalog, onSaveSharedCatalog, onRefreshSharedCatalog, onImportMovies, onDeleteMovie, onBulkDeleteMovies,
-  onMergeActors, onResetCatalog, onSelectMovie,
+  onMergeActors, onResetCatalog, onSelectMovie, onDeleteAllDatabase,
 }) => {
   const [activeTab, setActiveTab] = useState<'csv' | 'duplicates' | 'system'>('csv');
   const [duplicateType, setDuplicateType] = useState<'movies' | 'actors'>('movies');
@@ -184,6 +186,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [selectedFileType, setSelectedFileType] = useState<'csv' | 'excel' | null>(null);
   const [parsedMovies, setParsedMovies] = useState<Movie[]>([]);
   const [rawPreviewData, setRawPreviewData] = useState<string[][]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
@@ -201,7 +204,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   };
 
   const handleCancelUpload = () => {
-    setCsvFile(null); setParsedMovies([]); setRawPreviewData([]); setParseErrors([]); setParseNotes([]);
+    setCsvFile(null); setSelectedFileType(null); setParsedMovies([]); setRawPreviewData([]); setParseErrors([]); setParseNotes([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -289,14 +292,39 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
-    setCsvFile(file); setIsProcessingCsv(true);
-    const reader = new FileReader(); reader.onload = (event) => processRawCsvText(event.target?.result as string);
-    reader.onerror = () => { setParseErrors(['Unable to read file.']); setIsProcessingCsv(false); }; reader.readAsText(file);
+    const isExcel = /\.xlsx?$/i.test(file.name);
+    setCsvFile(file); setSelectedFileType(isExcel ? 'excel' : 'csv');
+    if (isExcel) setImportMode('merge');
+    setIsProcessingCsv(true);
+
+    if (isExcel) {
+      void file.arrayBuffer().then((buffer) => {
+        const workbook = XLSX.read(buffer, { type: 'array', cellDates: false });
+        const firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) throw new Error('Workbook tidak memiliki sheet.');
+        const worksheet = workbook.Sheets[firstSheetName];
+        const csvText = XLSX.utils.sheet_to_csv(worksheet, { FS: ',', RS: '\n', blankrows: false });
+        if (!csvText.trim()) throw new Error('Sheet Excel kosong.');
+        processRawCsvText(csvText);
+      }).catch((error) => {
+        setParseErrors(['Gagal membaca Excel: ' + (error instanceof Error ? error.message : String(error))]);
+        setParsedMovies([]); setRawPreviewData([]); setIsProcessingCsv(false);
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => processRawCsvText(event.target?.result as string);
+    reader.onerror = () => { setParseErrors(['Unable to read file.']); setIsProcessingCsv(false); };
+    reader.readAsText(file);
   };
 
   const handleExecuteImport = () => {
     if (parsedMovies.length === 0) { showToast('error', 'No data.'); return; }
-    onImportMovies(parsedMovies, importMode); showToast('success', `Successfully imported ${parsedMovies.length} movies!`); handleCancelUpload();
+    const safeMode = selectedFileType === 'excel' ? 'merge' : importMode;
+    onImportMovies(parsedMovies, safeMode);
+    showToast('success', `Successfully imported ${parsedMovies.length} movies using ${selectedFileType === 'excel' ? 'Excel' : 'CSV'}.`);
+    handleCancelUpload();
   };
 
   const duplicateGroups: DuplicateGroup[] = useMemo(() => {
@@ -398,6 +426,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     try { const count = await onRefreshSharedCatalog(); showToast('success', `Database refreshed! ${count} loaded.`); } catch (error) { showToast('error', error instanceof Error ? error.message : 'Failed.'); } finally { setIsRefreshing(false); }
   };
 
+  const [isDeletingDatabase, setIsDeletingDatabase] = useState(false);
+  const handleDeleteAllDatabase = async () => {
+    const confirmed = window.confirm('PERINGATAN: Semua data film dan profil aktor di database cloud CineVault akan dihapus permanen. Tindakan ini tidak dapat dibatalkan. Lanjutkan?');
+    if (!confirmed) return;
+    const typed = window.prompt('Ketik HAPUS SEMUA untuk mengonfirmasi penghapusan seluruh database:');
+    if (typed !== 'HAPUS SEMUA') { showToast('info', 'Penghapusan dibatalkan.'); return; }
+    setIsDeletingDatabase(true);
+    try { await onDeleteAllDatabase(); showToast('success', 'Seluruh database CineVault berhasil dihapus.'); }
+    catch (error) { showToast('error', error instanceof Error ? error.message : 'Gagal menghapus database.'); }
+    finally { setIsDeletingDatabase(false); }
+  };
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12 w-full max-w-full overflow-hidden">
       {notification && (
@@ -445,12 +485,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
 
           <div className="md:col-span-8 bg-[#121520] border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col shadow-lg">
-            <div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0"><Upload className="w-5 h-5" /></div><div><h3 className="font-bold text-base text-zinc-100">Import from CSV</h3><p className="text-xs text-zinc-400">Load movies into CineVault</p></div></div>
+            <div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0"><Upload className="w-5 h-5" /></div><div><h3 className="font-bold text-base text-zinc-100">Import from CSV or Excel</h3><p className="text-xs text-zinc-400">Load or update movies in CineVault</p></div></div>
             <div className="flex gap-2 items-stretch">
-              <input ref={fileInputRef} type="file" accept=".csv,*" onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} onChange={handleFileChange} className="hidden" id="csv-file-picker" />
-              <label htmlFor="csv-file-picker" className="flex-1 border-2 border-dashed border-zinc-700 hover:border-amber-400 rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-center cursor-pointer transition-colors bg-zinc-900/40 hover:bg-zinc-900/80"><FileSpreadsheet className="w-6 h-6 text-amber-400" /><span className="text-xs font-semibold text-zinc-200 truncate max-w-full">{csvFile ? csvFile.name : 'Choose CSV file'}</span></label>
+              <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} onChange={handleFileChange} className="hidden" id="csv-file-picker" />
+              <label htmlFor="csv-file-picker" className="flex-1 border-2 border-dashed border-zinc-700 hover:border-amber-400 rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-center cursor-pointer transition-colors bg-zinc-900/40 hover:bg-zinc-900/80"><FileSpreadsheet className="w-6 h-6 text-amber-400" /><span className="text-xs font-semibold text-zinc-200 truncate max-w-full">{csvFile ? csvFile.name : 'Choose CSV or Excel file (.csv, .xlsx, .xls)'}</span></label>
               {csvFile && (<button onClick={handleCancelUpload} className="px-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" title="Cancel upload"><X className="w-5 h-5" /></button>)}
             </div>
+            {selectedFileType === 'excel' && <p className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-200">Mode Excel: judul film digunakan untuk mencocokkan data. Film yang cocok diperbarui, film baru ditambahkan, dan film lain tidak dihapus.</p>}
             {rawPreviewData.length > 0 && (
               <div className="mt-4 border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900">
                 <div className="px-3 py-2 border-b border-zinc-800 flex justify-between items-center bg-[#151926]"><span className="text-[10px] font-bold text-zinc-300 uppercase">Data Preview (First 5 rows)</span><span className="text-[10px] text-emerald-400 font-mono">{parsedMovies.length} rows parsed</span></div>
@@ -465,7 +506,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="mt-auto pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex gap-2 w-full sm:w-auto">
                 <button type="button" onClick={() => setImportMode('merge')} className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg border text-xs font-semibold ${importMode === 'merge' ? 'bg-amber-400/10 border-amber-500/50 text-amber-300' : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>Merge</button>
-                <button type="button" onClick={() => setImportMode('replace')} className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg border text-xs font-semibold ${importMode === 'replace' ? 'bg-rose-500/10 border-rose-500/50 text-rose-300' : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>Replace All</button>
+                {selectedFileType !== 'excel' && <button type="button" onClick={() => setImportMode('replace')} className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg border text-xs font-semibold ${importMode === 'replace' ? 'bg-rose-500/10 border-rose-500/50 text-rose-300' : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>Replace All</button>}
               </div>
               <button onClick={handleExecuteImport} disabled={parsedMovies.length === 0 || isProcessingCsv} className="w-full sm:w-auto py-2 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:bg-zinc-800 disabled:text-zinc-600 text-zinc-950 font-bold text-xs flex items-center justify-center gap-2"><Upload className="w-3.5 h-3.5" /><span>{isProcessingCsv ? 'Processing...' : `Apply Import (${parsedMovies.length})`}</span></button>
             </div>
@@ -607,7 +648,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div className="bg-[#121520] border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h3 className="font-bold text-base text-zinc-100 flex items-center gap-2"><Upload className="w-4 h-4 text-emerald-400" /><span>Database Synchronization</span></h3>
-              <p className="text-xs text-zinc-400 mt-1">Save changes to the cloud, or pull the latest data from Neon.</p>
+              <p className="text-xs text-zinc-400 mt-1">Save replaces the cloud database with this device's current catalog. Refresh loads the latest saved database.</p>
             </div>
             <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
               <button type="button" onClick={handleManualRefresh} disabled={isRefreshing || sharedCatalogStatus === 'loading'} className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-blue-400/40 bg-blue-400/10 px-4 py-2.5 text-xs font-bold text-blue-300 hover:bg-blue-400/20 disabled:opacity-50">
@@ -615,6 +656,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 {isRefreshing || sharedCatalogStatus === 'loading' ? 'Refreshing...' : 'Refresh from Database'}
               </button>
               <SaveSharedCatalogButton movieCount={movies.length} isLoading={sharedCatalogStatus === 'loading'} onSave={onSaveSharedCatalog} onNotify={showToast} />
+              <button type="button" onClick={() => void handleDeleteAllDatabase()} disabled={isDeletingDatabase || sharedCatalogStatus === 'loading'} className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-rose-500/50 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-300 hover:bg-rose-500/20 disabled:opacity-50">
+                <Trash2 className="h-4 w-4" /> {isDeletingDatabase ? 'Deleting Database...' : 'Delete Entire Database'}
+              </button>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">

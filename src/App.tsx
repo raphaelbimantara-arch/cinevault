@@ -19,7 +19,7 @@ import { ALL_GENRES, INITIAL_MOVIES } from './data/initialMovies';
 import { ActorProfile, applySharedActorProfiles, formatActorAliases, getActorAliases, getActorProfile, getCustomActors, removeCustomActors, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
 import { Check, RotateCcw, Star, Trash2, X } from 'lucide-react';
-import { deleteSharedActors, loadSharedActors, loadSharedCatalog, saveSharedActor, saveSharedActors, saveSharedCatalog } from './utils/sharedCatalog';
+import { clearSharedDatabase, deleteSharedActors, loadSharedActors, loadSharedCatalog, saveSharedActor, saveSharedActors, saveSharedCatalog } from './utils/sharedCatalog';
 import { getMovieGenres } from './utils/movieGenres';
 import { getImageSource } from './utils/googleDriveImage';
 import {
@@ -172,18 +172,38 @@ export default function App() {
     }
   };
 
+  const handleDeleteAllDatabase = async (): Promise<void> => {
+    setSharedCatalogStatus('loading'); setSharedCatalogError('');
+    try {
+      await sharedCatalogSaveQueue.current;
+      await sharedActorSaveQueue.current;
+      await clearSharedDatabase();
+      setMovies([]);
+      moviesRef.current = [];
+      setSelectedMovieIds(new Set());
+      setSelectedMovie(null);
+      removeCustomActors(Object.keys(getCustomActors()));
+      resetMasterData();
+      setActorProfileRevision((revision) => revision + 1);
+      setSharedCatalogStatus('empty');
+    } catch (error) {
+      setSharedCatalogError(error instanceof Error ? error.message : 'Unable to delete database.');
+      setSharedCatalogStatus('error');
+      throw error instanceof Error ? error : new Error('Unknown error');
+    }
+  };
+
   const handleRefreshSharedCatalog = async (): Promise<number> => {
     setSharedCatalogStatus('loading'); setSharedCatalogError('');
     try {
       await sharedCatalogSaveQueue.current; await sharedActorSaveQueue.current;
       const sharedMovies = await loadSharedCatalog();
-      if (sharedMovies.length === 0) throw new Error('The main catalog is empty.');
       const sharedActors = await loadSharedActors();
       setMovies(sharedMovies);
       applySharedActorProfiles(sharedActors);
       setActorProfileRevision((rev) => rev + 1);
       setSelectedMovieIds(new Set());
-      setSharedCatalogStatus('connected');
+      setSharedCatalogStatus(sharedMovies.length > 0 ? 'connected' : 'empty');
       return sharedMovies.length;
     } catch (error) {
       setSharedCatalogError(error instanceof Error ? error.message : 'Unable to refresh.');
@@ -524,35 +544,59 @@ export default function App() {
   const handleImportMovies = (imported: Movie[], mode: 'merge' | 'replace') => {
     if (mode === 'replace') {
       setMovies(imported); setSelectedMovieIds(new Set());
-    } else {
-      setMovies((prev) => {
-        const existingMap = new Map<string, Movie>();
-        prev.forEach((m) => existingMap.set(m.id, m));
-
-        const compositeMap = new Map<string, Movie>();
-        prev.forEach((m) => {
-          const key = `${m.title.toLowerCase().trim()}|${m.year}|${m.studio.toLowerCase().trim()}|${m.minutes}|${m.size.toLowerCase().trim()}`;
-          compositeMap.set(key, m);
-        });
-
-        imported.forEach((m) => {
-          const compositeKey = `${m.title.toLowerCase().trim()}|${m.year}|${m.studio.toLowerCase().trim()}|${m.minutes}|${m.size.toLowerCase().trim()}`;
-
-          if (m.id && existingMap.has(m.id)) {
-            const existing = existingMap.get(m.id)!;
-            existingMap.set(m.id, { ...existing, ...m, id: m.id });
-            compositeMap.set(compositeKey, { ...existing, ...m, id: m.id });
-          } else if (compositeMap.has(compositeKey)) {
-            const existing = compositeMap.get(compositeKey)!;
-            existingMap.set(existing.id, { ...existing, ...m, id: existing.id });
-          } else {
-            existingMap.set(m.id, m);
-            compositeMap.set(compositeKey, m);
-          }
-        });
-        return Array.from(existingMap.values());
-      });
+      return;
     }
+
+    // Merge by normalized title. Existing catalog IDs are retained for matching titles;
+    // unmatched existing movies remain untouched and new titles are appended.
+    const normalizeTitle = (value: string) => value
+      .normalize('NFKC')
+      .trim()
+      .toLocaleLowerCase()
+      .replace(/\s+/g, ' ');
+
+    setMovies((prev) => {
+      const result = [...prev];
+      const indexByTitle = new Map<string, number>();
+      result.forEach((movie, index) => {
+        const key = normalizeTitle(movie.title || '');
+        if (key && !indexByTitle.has(key)) indexByTitle.set(key, index);
+      });
+
+      imported.forEach((incoming, incomingIndex) => {
+        const key = normalizeTitle(incoming.title || '');
+        if (!key) return;
+        const existingIndex = indexByTitle.get(key);
+        if (existingIndex !== undefined) {
+          const existing = result[existingIndex];
+          result[existingIndex] = {
+            ...existing,
+            ...incoming,
+            id: existing.id,
+            title: incoming.title.trim() || existing.title,
+            // Avoid replacing useful existing metadata with parser-generated empty values.
+            genre: incoming.genre?.trim() && incoming.genre !== 'Drama' ? incoming.genre : existing.genre,
+            studio: incoming.studio?.trim() && incoming.studio !== 'Independent Studio' ? incoming.studio : existing.studio,
+            year: incoming.year || existing.year,
+            minutes: incoming.minutes || existing.minutes,
+            size: incoming.size?.trim() && incoming.size !== '4.5 GB' ? incoming.size : existing.size,
+            sizeBytes: incoming.sizeBytes || existing.sizeBytes,
+            resolution: incoming.resolution?.trim() && incoming.resolution !== '1080p HD' ? incoming.resolution : existing.resolution,
+            posterUrl: incoming.posterUrl?.trim() && !incoming.posterUrl.includes('images.unsplash.com/photo-1489599849927-2ee91cede3ba') && !incoming.posterUrl.includes('images.unsplash.com/photo-1514565131-fce0801e5785') && !incoming.posterUrl.includes('images.unsplash.com/photo-1536440136628-849c177e76a1') ? incoming.posterUrl : existing.posterUrl,
+            backdropUrl: incoming.backdropUrl?.trim() ? incoming.backdropUrl : existing.backdropUrl,
+            actors: incoming.actors?.length && !(incoming.actors.length === 1 && incoming.actors[0] === 'Cast') ? incoming.actors : existing.actors,
+            addedDate: incoming.addedDate && incoming.addedDate !== new Date().toISOString().split('T')[0] ? incoming.addedDate : existing.addedDate,
+          };
+        } else {
+          let newId = incoming.id || `excel-${Date.now()}-${incomingIndex}`;
+          if (result.some((movie) => movie.id === newId)) newId = `import-${Date.now()}-${incomingIndex}`;
+          const newMovie = { ...incoming, id: newId };
+          result.push(newMovie);
+          indexByTitle.set(key, result.length - 1);
+        }
+      });
+      return result;
+    });
   };
 
   const handleResetCatalog = () => {
@@ -686,7 +730,7 @@ export default function App() {
           />
         )}
         {activePage === 'settings' && (
-          <SettingsPage movies={movies} sharedCatalogToken={''} sharedCatalogStatus={sharedCatalogStatus} sharedCatalogError={sharedCatalogError} onConnectSharedCatalog={() => {}} onDisconnectSharedCatalog={() => {}} onInitializeSharedCatalog={handleInitializeSharedCatalog} onSaveSharedCatalog={handleSaveSharedCatalog} onRefreshSharedCatalog={handleRefreshSharedCatalog} onImportMovies={handleImportMovies} onDeleteMovie={handleDeleteMovie} onBulkDeleteMovies={handleBulkDeleteMovies} onMergeActors={handleMergeActors} onResetCatalog={handleResetCatalog} onSelectMovie={setSelectedMovie} />
+          <SettingsPage movies={movies} sharedCatalogToken={''} sharedCatalogStatus={sharedCatalogStatus} sharedCatalogError={sharedCatalogError} onConnectSharedCatalog={() => {}} onDisconnectSharedCatalog={() => {}} onInitializeSharedCatalog={handleInitializeSharedCatalog} onSaveSharedCatalog={handleSaveSharedCatalog} onRefreshSharedCatalog={handleRefreshSharedCatalog} onDeleteAllDatabase={handleDeleteAllDatabase} onImportMovies={handleImportMovies} onDeleteMovie={handleDeleteMovie} onBulkDeleteMovies={handleBulkDeleteMovies} onMergeActors={handleMergeActors} onResetCatalog={handleResetCatalog} onSelectMovie={setSelectedMovie} />
         )}
       </main>
       <MovieDetailModal movie={selectedMovie} movies={movieDetailNavigationMovies} onClose={handleCloseMovieDetail} onNavigateMovie={setSelectedMovie} onFilterByAttribute={handleFilterByAttribute} onSelectActor={(actorName) => { setSelectedMovie(null); setSelectedActorName(actorName); }} onUpdateMovie={handleUpdateMovie} onDeleteMovie={handleDeleteMovie} onNotify={showActionNotification} />

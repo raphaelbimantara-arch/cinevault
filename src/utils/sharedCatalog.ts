@@ -6,7 +6,7 @@ const CATALOG_API_URL =
   'https://cinevault-delta-lake.vercel.app/api/movies';
 
 async function requestCatalog(payload: {
-  action: 'load' | 'save' | 'loadActors' | 'saveActor' | 'deleteActors' | 'saveActors';
+  action: 'load' | 'save' | 'loadActors' | 'saveActor' | 'deleteActors' | 'saveActors' | 'clearDatabase';
   movies?: Movie[];
   actor?: ActorProfile;
   oldName?: string;
@@ -56,6 +56,10 @@ export async function saveSharedCatalog(
   serializedPayload?: string,
 ): Promise<void> {
   await requestCatalog({ action: 'save', movies }, serializedPayload);
+}
+
+export async function clearSharedDatabase(): Promise<void> {
+  await requestCatalog({ action: 'clearDatabase' });
 }
 
 export async function loadSharedActors(): Promise<ActorProfile[]> {
