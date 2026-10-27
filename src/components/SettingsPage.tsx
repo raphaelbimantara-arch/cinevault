@@ -179,7 +179,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'csv' | 'duplicates' | 'system'>('csv');
   const [duplicateType, setDuplicateType] = useState<'movies' | 'actors'>('movies');
-  const [duplicateScanRequested, setDuplicateScanRequested] = useState(false);
   const [reviewedDuplicateGroups, setReviewedDuplicateGroups] = useState<Set<string>>(() => {
     try { const stored = localStorage.getItem(REVIEWED_DUPLICATE_GROUPS_KEY); const parsed: unknown = stored ? JSON.parse(stored) : []; return new Set(Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === 'string') : []); } catch { return new Set(); }
   });
@@ -196,7 +195,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [isProcessingCsv, setIsProcessingCsv] = useState(false);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { try { localStorage.setItem(REVIEWED_DUPLICATE_GROUPS_KEY, JSON.stringify([...reviewedDuplicateGroups])); } catch { showToast('error', 'Could not save review.'); } }, 300);
+    const timer = window.setTimeout(() => { try { localStorage.setItem(REVIEWED_DUPLICATE_GROUPS_KEY, JSON.stringify([...reviewedDuplicateGroups])); } catch { showToast('error', 'Could not save review.'); } }, 0);
     return () => window.clearTimeout(timer);
   }, [reviewedDuplicateGroups]);
 
@@ -329,7 +328,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   };
 
   const duplicateGroups: DuplicateGroup[] = useMemo(() => {
-    if (!duplicateScanRequested || activeTab !== 'duplicates') return [];
     const groups: DuplicateGroup[] = []; const processedIds = new Set<string>();
     const normalizeTitle = (str: string) => str.toLowerCase().replace(/^(the|a|an)\s+/i, '').replace(/[^\w\s]/gi, '').replace(/\s+/g, ' ').trim();
     const titleMap = new Map<string, Movie[]>(); movies.forEach((m) => { const key = m.title.trim().toLowerCase(); const list = titleMap.get(key) || []; list.push(m); titleMap.set(key, list); });
@@ -338,10 +336,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     remaining.forEach((m) => { const norm = normalizeTitle(m.title); if (norm.length >= 3) { const list = normMap.get(norm) || []; list.push(m); normMap.set(norm, list); } });
     normMap.forEach((list, norm) => { if (list.length > 1) groups.push({ key: `similar-${norm}`, reason: 'similar-title', movies: list }); });
     return groups;
-  }, [movies, duplicateScanRequested, activeTab]);
+  }, [movies]);
 
   const actorDuplicateGroups: ActorDuplicateGroup[] = useMemo(() => {
-    if (!duplicateScanRequested || activeTab !== 'duplicates') return [];
     const actorMap = new Map<string, ActorDuplicateCandidate>(); const custom = getCustomActors();
     
     // FUNGSI UNTUK MEMBERSIHKAN NAMA DARI KURUNG
@@ -385,7 +382,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     
     const grouped = new Map<number, ActorDuplicateCandidate[]>(); actors.forEach((a, i) => { const r = findRoot(i); const g = grouped.get(r) || []; g.push(a); grouped.set(r, g); });
     return [...grouped.entries()].filter(([, g]) => g.length > 1).map(([r, g]) => { const gr = reasons.get(r) || new Set(); const reason = gr.has('name-or-alias') ? 'name-or-alias' : gr.has('matching-name-parts') ? 'matching-name-parts' : 'similar-spelling'; const sorted = g.sort((a, b) => a.name.localeCompare(b.name)); return { key: sorted.map((a) => normalizePersonName(a.name)).join('|'), reason, actors: sorted }; }).sort((a, b) => a.actors[0].name.localeCompare(b.actors[0].name));
-  }, [movies, duplicateScanRequested, activeTab]);
+  }, [movies]);
 
   const visibleMovieGroups = useMemo(() => duplicateGroups.filter((g) => !reviewedDuplicateGroups.has(`movie:${getMovieDuplicateReviewKey(g)}`)), [duplicateGroups, reviewedDuplicateGroups]);
   const visibleActorGroups = useMemo(() => actorDuplicateGroups.filter((g) => !reviewedDuplicateGroups.has(`actor:${g.key}`)), [actorDuplicateGroups, reviewedDuplicateGroups]);
@@ -519,16 +516,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {activeTab === 'duplicates' && (
         <div className="space-y-5 w-full">
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div><h3 className="text-sm font-semibold text-zinc-100">Duplicate scan</h3><p className="mt-1 text-xs text-zinc-400">Duplicate detection runs only when you request it, so opening Settings stays responsive.</p></div>
-            <button type="button" onClick={() => setDuplicateScanRequested(true)} className="shrink-0 rounded-lg bg-amber-400 px-4 py-2 text-xs font-bold text-zinc-950 hover:bg-amber-300">{duplicateScanRequested ? 'Run Duplicate Check Again' : 'Run Duplicate Check'}</button>
-          </div>
-          {!duplicateScanRequested ? <div className="rounded-2xl border border-dashed border-zinc-800 bg-[#0d0f16]/60 p-8 text-center text-sm text-zinc-400">Duplicate checks have not run yet. Click <strong className="text-zinc-200">Run Duplicate Check</strong> to start.</div> : null}
-          {duplicateScanRequested && <div className="flex w-full rounded-xl border border-zinc-800 bg-[#121520] p-1 sm:w-fit">
+          <div className="flex w-full rounded-xl border border-zinc-800 bg-[#121520] p-1 sm:w-fit">
             <button type="button" onClick={() => setDuplicateType('movies')} className={`flex-1 rounded-lg px-4 py-2 text-xs font-semibold transition-colors sm:flex-none ${duplicateType === 'movies' ? 'bg-amber-400 text-zinc-950' : 'text-zinc-400 hover:text-white'}`}>Movies ({visibleMovieGroups.length})</button>
             <button type="button" onClick={() => setDuplicateType('actors')} className={`flex-1 rounded-lg px-4 py-2 text-xs font-semibold transition-colors sm:flex-none ${duplicateType === 'actors' ? 'bg-amber-400 text-zinc-950' : 'text-zinc-400 hover:text-white'}`}>Actors ({visibleActorGroups.length})</button>
-          </div>}
-          {duplicateScanRequested && (duplicateType === 'movies' ? (
+          </div>
+          {duplicateType === 'movies' ? (
             <>
               <div className="bg-[#121520] border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
                 <div>
@@ -647,7 +639,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </div>
               )}
             </div>
-          ))}
+          )}
         </div>
       )}
 

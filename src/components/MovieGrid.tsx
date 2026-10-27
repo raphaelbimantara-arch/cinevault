@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Film, Star, Check, Building2 } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -43,13 +43,13 @@ const PosterImage = ({ src, alt }: { src: string; alt: string }) => {
       referrerPolicy="no-referrer"
       draggable={false}
       onError={() => setHasError(true)}
-      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+      className="w-full h-full object-cover transition-none"
       loading="lazy"
     />
   );
 };
 
-const MovieGridComponent: React.FC<MovieGridProps> = ({
+export const MovieGrid: React.FC<MovieGridProps> = ({
   movies,
   onSelectMovie,
   selectedMovieIds,
@@ -96,10 +96,25 @@ const MovieGridComponent: React.FC<MovieGridProps> = ({
     }
   };
 
+  const rowHeight = 340;
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(720);
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(event.currentTarget.scrollTop);
+    setViewportHeight(event.currentTarget.clientHeight || 720);
+  }, []);
+  const rowCount = Math.ceil(movies.length / cols);
+  const firstRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 2);
+  const visibleRows = Math.ceil(viewportHeight / rowHeight) + 4;
+  const lastRow = Math.min(rowCount, firstRow + visibleRows);
+  const visibleMovies = useMemo(() => movies.slice(firstRow * cols, lastRow * cols), [movies, firstRow, lastRow, cols]);
+
   return (
-    <div
-      className="grid gap-3 sm:gap-4 select-none"
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+    <div ref={viewportRef} onScroll={handleScroll} className="h-[calc(100vh-190px)] min-h-[360px] overflow-auto select-none">
+      <div
+      className="grid gap-3 sm:gap-4 select-none content-start"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, paddingTop: firstRow * rowHeight, paddingBottom: Math.max(0, rowCount - lastRow) * rowHeight }}
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
       onPointerUp={longPressHandlers.onPointerUp}
@@ -107,7 +122,7 @@ const MovieGridComponent: React.FC<MovieGridProps> = ({
       onContextMenu={longPressHandlers.onContextMenu}
       onClickCapture={longPressHandlers.onClickCapture}
     >
-      {movies.map((movie) => {
+      {visibleMovies.map((movie) => {
         const isSelected = selectedMovieIds.has(movie.id);
         return (
           <div
@@ -116,7 +131,7 @@ const MovieGridComponent: React.FC<MovieGridProps> = ({
             data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
             onClick={(e) => handleMovieClick(e, movie)}
             // PERUBAHAN 1: rounded-xl diganti menjadi rounded-md agar lebih kotak
-            className={`group relative flex flex-col cursor-pointer rounded-sm overflow-hidden bg-[#121520] border transition-all duration-200 select-none ${
+            className={`group relative flex flex-col cursor-pointer rounded-none overflow-hidden bg-[#121520] border transition-all duration-200 select-none ${
               isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
             }`}
           >
@@ -186,9 +201,7 @@ const MovieGridComponent: React.FC<MovieGridProps> = ({
           </div>
         );
       })}
+      </div>
     </div>
   );
 };
-
-// Avoid rerendering the entire movie grid when unrelated navigation/settings state changes.
-export const MovieGrid = React.memo(MovieGridComponent);

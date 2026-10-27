@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { startTransition, useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { startTransition, useState, useEffect, useMemo, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { FilterToolbar } from './components/FilterToolbar';
@@ -97,9 +97,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Debounce full-catalog persistence to avoid blocking the UI during rapid edits.
+    // Debounce catalog persistence so rapid edits and bulk updates do not
+    // serialize the entire catalog on every intermediate render.
     const timer = window.setTimeout(() => {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(movies)); } catch (e) { console.error('Could not cache CineVault catalog locally:', e); }
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(movies)); } catch (e) { console.error(e); }
     }, 700);
     return () => window.clearTimeout(timer);
   }, [movies]);
@@ -427,13 +428,13 @@ export default function App() {
     }
   };
 
-  const handleToggleMovieSelection = useCallback((movieId: string) => {
+  const handleToggleMovieSelection = (movieId: string) => {
     setSelectedMovieIds((prev) => { const next = new Set(prev); if (next.has(movieId)) next.delete(movieId); else next.add(movieId); return next; });
-  }, []);
+  };
 
-  const handleSelectMultipleMovies = useCallback((movieIds: string[]) => {
+  const handleSelectMultipleMovies = (movieIds: string[]) => {
     setSelectedMovieIds((prev) => { const next = new Set(prev); movieIds.forEach((id) => next.add(id)); return next; });
-  }, []);
+  };
 
   const handleDeleteSelectedMovies = () => {
     const idsToDelete = movies.filter((movie) => selectedMovieIds.has(movie.id)).map((movie) => movie.id);
@@ -685,9 +686,9 @@ export default function App() {
           <button type="button" onClick={() => { if (actionNotificationTimer.current !== null) { clearTimeout(actionNotificationTimer.current); actionNotificationTimer.current = null; } setActionNotification(null); }} className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"><X className="h-4 w-4" /></button>
         </div>
       )}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-clip">
+      <main className="flex-1 w-full max-w-none px-3 sm:px-4 py-3 sm:py-4 overflow-x-clip">
         {activePage === 'library' && (
-          <div className="space-y-6">
+          <div className="w-full min-w-0 space-y-2">
             <div className="sticky top-[56px] z-20 -mx-3 space-y-3 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-2 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               <FilterToolbar viewMode={viewMode} setViewMode={setViewMode} gridCols={gridCols} setGridCols={setGridCols} selectedCategory={selectedCategory} genreOptions={availableGenres} setSelectedCategory={setSelectedCategory} selectedAlphabets={selectedAlphabets} onToggleAlphabet={handleToggleAlphabet} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} activeMetadataFilter={activeMetadataFilter} clearActiveMetadataFilter={handleClearMetadataFilter} totalFilteredCount={filteredAndSortedMovies.length} totalCatalogCount={movies.length} />
               {selectedMovieCount > 0 && (
@@ -736,9 +737,9 @@ export default function App() {
       <MovieDetailModal movie={selectedMovie} movies={movieDetailNavigationMovies} onClose={handleCloseMovieDetail} onNavigateMovie={setSelectedMovie} onFilterByAttribute={handleFilterByAttribute} onSelectActor={(actorName) => { setSelectedMovie(null); setSelectedActorName(actorName); }} onUpdateMovie={handleUpdateMovie} onDeleteMovie={handleDeleteMovie} onNotify={showActionNotification} />
       <ActorDetailModal actorName={selectedActorName} actorNames={actorNames} movies={movies} onClose={handleCloseActorDetail} onNavigateActor={setSelectedActorName} onSelectMovie={(movie) => { setSelectedActorName(null); setSelectedMovie(movie); }} onUpdateActor={handleUpdateActor} />
       <footer className="mt-auto py-6 border-t border-zinc-800/60 text-center text-xs text-zinc-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="w-full px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2"><span>CineVault Dark Movie Catalog</span><span aria-hidden="true">·</span><span>{movies.length} Master titles in library</span></div>
-          <button onClick={handleResetCatalog} className="flex items-center gap-1.5 text-zinc-400 hover:text-amber-400 transition-colors"><RotateCcw className="w-3.5 h-3.5" /><span>Reset Demo Library</span></button>
+
         </div>
       </footer>
       <BottomNav activePage={activePage} setActivePage={handleNavigatePage} moviesCount={movies.length} actorsCount={actorsCount} onTriggerAdd={handleTriggerAdd} />

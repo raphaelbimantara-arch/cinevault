@@ -169,7 +169,6 @@ export const KNOWN_ACTORS: Record<string, { dob: string; photoUrl: string }> = {
  * Custom registered actors storage
  */
 const CUSTOM_ACTORS_KEY = 'cinevault_custom_actors_v1';
-const ACTOR_DOB_MIGRATION_KEY = 'cinevault_actor_dob_blank_migration_v1';
 
 export function getCustomActors(): Record<
   string,
@@ -177,19 +176,7 @@ export function getCustomActors(): Record<
 > {
   try {
     const raw = localStorage.getItem(CUSTOM_ACTORS_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-
-    // One-time local migration: clear old auto-filled DOBs already saved in this browser.
-    // DOBs entered or edited after this migration remain intact on later visits.
-    if (!localStorage.getItem(ACTOR_DOB_MIGRATION_KEY)) {
-      for (const profile of Object.values(parsed) as Array<Record<string, unknown>>) {
-        if (profile && typeof profile === 'object') profile.dob = '';
-      }
-      localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(parsed));
-      localStorage.setItem(ACTOR_DOB_MIGRATION_KEY, 'done');
-    }
-    return parsed;
+    if (raw) return JSON.parse(raw);
   } catch (e) {
     console.error('Failed to load custom actors', e);
   }
@@ -317,7 +304,7 @@ export function updateActorStatuses(
 }
 
 /**
- * Helper to get an actor profile. Date of birth stays blank unless the user enters one.
+ * Helper to get or generate an actor profile with picture and date of birth
  */
 export function getActorProfile(name: string): ActorProfile {
   const trimmed = name.trim();
@@ -362,17 +349,31 @@ function createActorProfile(
     return {
       name: trimmed,
       alias: customProfile?.alias,
-      dob: '',
+      dob: KNOWN_ACTORS[trimmed].dob,
       photoUrl: KNOWN_ACTORS[trimmed].photoUrl,
       favorite: customProfile?.favorite,
       reviewed: customProfile?.reviewed,
     };
   }
 
-  // New actors start with an empty DOB. Users may enter one manually later.
+  // Deterministic fallback generator for custom/new actors
+  let hash = 0;
+  for (let i = 0; i < trimmed.length; i++) {
+    hash = (hash << 5) - hash + trimmed.charCodeAt(i);
+    hash |= 0;
+  }
+  const absHash = Math.abs(hash);
+  const year = 1965 + (absHash % 35);
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const month = months[absHash % 12];
+  const day = 1 + (absHash % 28);
+
   return {
     name: trimmed,
-    dob: '',
+    dob: `${month} ${day}, ${year}`,
     photoUrl: '', // Will render stylish initials avatar if empty
   };
 }

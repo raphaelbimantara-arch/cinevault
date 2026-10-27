@@ -243,9 +243,9 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   if (!movie) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto" onClick={onClose}>
+    <div className={isEditing ? "fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto" : "fixed inset-y-0 right-0 z-40 flex justify-end bg-black/20"} onClick={onClose}>
       <div 
-        className={`relative w-full ${isEditing ? 'max-w-[1200px] h-auto' : 'max-w-7xl h-[85vh]'} bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-visible shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150 transition-all`}
+        className={`relative w-full ${isEditing ? 'max-w-[1200px] h-auto' : 'max-w-[460px] h-full'} bg-[#0f121b] border border-zinc-800 ${isEditing ? 'rounded-2xl my-auto' : 'rounded-none'} overflow-visible shadow-2xl text-left animate-in fade-in slide-in-from-right-3 duration-150 transition-all`}
         data-selection-id={movie.id}
         onClick={(e) => e.stopPropagation()}
         onClickCapture={(event) => {
@@ -300,8 +300,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-0 rounded-2xl overflow-hidden h-full">
-          <div className={`${isEditing ? 'md:col-span-3' : 'md:col-span-5'} bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
+        <div className={`grid ${isEditing ? 'grid-cols-1 md:grid-cols-12' : 'grid-cols-1'} gap-0 rounded-none overflow-hidden h-full`}>
+          <div className={`${isEditing ? 'md:col-span-3' : 'col-span-1'} bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
             
             <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
               <img src={getImageSource(movie.posterUrl)} alt={`${movie.title} - Front`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -312,7 +312,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
           </div>
 
-          <div className={`${isEditing ? 'md:col-span-9' : 'md:col-span-7'} p-4 flex flex-col justify-between h-full overflow-y-auto custom-scrollbar`}>
+          <div className={`${isEditing ? 'md:col-span-9' : 'col-span-1'} p-4 flex flex-col justify-between h-full overflow-y-auto custom-scrollbar`}>
             {editSavedToast && (
               <div className="mb-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in duration-150">
                 <Save className="w-3.5 h-3.5 text-emerald-400 shrink-0" />

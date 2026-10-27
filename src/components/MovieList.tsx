@@ -137,7 +137,7 @@ export const MovieList: React.FC<MovieListProps> = ({
       ? 'ascending'
       : sortBy === sortOptions[field].desc ? 'descending' : undefined;
     return (
-      <th className={className} aria-sort={direction}>
+      <th className={`${className} relative`} aria-sort={direction} style={{ resize: 'horizontal', overflow: 'auto', minWidth: 56 }}>
         <button
           type="button"
           onClick={() => onToggleSort(field)}
@@ -212,7 +212,7 @@ export const MovieList: React.FC<MovieListProps> = ({
 
   return (
     <div
-      className="max-h-[calc(100vh-16rem)] min-h-[18rem] overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-800/80 bg-[#121520] shadow-lg"
+      className="h-[calc(100vh-190px)] min-h-[360px] overflow-auto rounded-none border border-zinc-800/80 bg-[#121520] shadow-lg"
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
       onPointerUp={longPressHandlers.onPointerUp}
@@ -220,7 +220,7 @@ export const MovieList: React.FC<MovieListProps> = ({
       onContextMenu={longPressHandlers.onContextMenu}
       onClickCapture={longPressHandlers.onClickCapture}
     >
-      <table className="w-full table-fixed border-collapse text-left">
+      <table className="w-full min-w-[1250px] border-collapse text-left table-auto">
         <thead className="sticky top-0 z-10">
           <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[9px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
             <th
@@ -252,6 +252,8 @@ export const MovieList: React.FC<MovieListProps> = ({
             {renderSortHeader('actors', 'Actor', 'w-[12%] overflow-hidden px-0.5 py-2 sm:w-[13%] sm:px-3')}
             {renderSortHeader('studio', 'Studio', 'w-[12%] overflow-hidden px-0.5 py-2 sm:w-[13%] sm:px-3')}
             {renderSortHeader('genre', 'Genre', 'w-[12%] overflow-hidden px-0.5 py-2 sm:px-3')}
+            <th className="relative px-2 py-2 min-w-[100px]" style={{ resize: 'horizontal', overflow: 'auto', minWidth: 100 }}>Cover Depan</th>
+            <th className="relative px-2 py-2 min-w-[100px]" style={{ resize: 'horizontal', overflow: 'auto', minWidth: 100 }}>Cover Belakang</th>
             <th className="w-[6%] overflow-hidden px-0.5 py-2 text-right sm:px-2">
               {isEditing ? (
                 <div className="inline-flex items-center justify-end gap-0.5">
@@ -455,6 +457,12 @@ export const MovieList: React.FC<MovieListProps> = ({
                       {movie.genre}
                     </span>
                   )}
+                </td>
+                <td className="px-2 py-2 text-[10px] sm:text-xs">
+                  <span className={movie.posterUrl?.trim() ? 'text-emerald-400' : 'text-rose-400'}>{movie.posterUrl?.trim() ? 'Available' : 'Missing'}</span>
+                </td>
+                <td className="px-2 py-2 text-[10px] sm:text-xs">
+                  <span className={movie.backdropUrl?.trim() ? 'text-emerald-400' : 'text-rose-400'}>{movie.backdropUrl?.trim() ? 'Available' : 'Missing'}</span>
                 </td>
                 <td className="overflow-hidden px-0.5 py-2 sm:px-2">
                   {(movie.favorite || movie.reviewed) && (

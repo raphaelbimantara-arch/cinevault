@@ -136,7 +136,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
           {/* View Toggle & Slider */}
           <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
             {/* SLIDER PENGATUR UKURAN */}
-            {viewMode === 'grid' && (
+            {viewMode === 'cover' && (
               <div className="flex items-center gap-2 bg-[#121520] px-2.5 py-1.5 rounded-xl border border-zinc-800">
                 <span className="text-[10px] text-zinc-400 font-mono">Size</span>
                 <input 
