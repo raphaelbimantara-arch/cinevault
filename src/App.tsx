@@ -15,10 +15,10 @@ import { ActorDetailModal } from './components/ActorDetailModal';
 import { ActorsPage } from './components/ActorsPage';
 import { AddMoviePage } from './components/AddMoviePage';
 import { SettingsPage } from './components/SettingsPage';
-import { ALL_GENRES } from './data/initialMovies';
+import { ALL_GENRES, INITIAL_MOVIES } from './data/initialMovies';
 import { ActorProfile, applySharedActorProfiles, formatActorAliases, getActorAliases, getActorProfile, getCustomActors, removeCustomActors, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
-import { Check, Star, Trash2, X } from 'lucide-react';
+import { Check, RotateCcw, Star, Trash2, X } from 'lucide-react';
 import { clearSharedDatabase, deleteSharedActors, loadSharedActors, loadSharedCatalog, saveSharedActor, saveSharedActors, saveSharedCatalog } from './utils/sharedCatalog';
 import { getMovieGenres } from './utils/movieGenres';
 import { getImageSource } from './utils/googleDriveImage';
@@ -63,8 +63,16 @@ function rahJ91ZuNL8Y2px8iYciYeHN8sfSh5eXH8(state: unknown): AppNavigationSnapsh
 }
 
 export default function App() {
-  // The database is the source of truth. Start empty so demo/sample movies never reappear.
-  const [movies, setMovies] = useState<Movie[]>([]);
+  const [movies, setMovies] = useState<Movie[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) { console.error(e); }
+    return INITIAL_MOVIES;
+  });
   const moviesRef = useRef(movies);
   moviesRef.current = movies;
 
@@ -100,11 +108,10 @@ export default function App() {
     loadSharedCatalog()
       .then((sharedMovies) => {
         if (cancelled) return;
-        // Always apply the database result, including an empty catalog after deletion.
-        setMovies(sharedMovies);
-        setSelectedMovieIds(new Set());
-        setSharedCatalogStatus(sharedMovies.length > 0 ? 'connected' : 'empty');
         if (sharedMovies.length > 0) {
+          setMovies(sharedMovies);
+          setSelectedMovieIds(new Set());
+          setSharedCatalogStatus('connected');
           void loadSharedActors()
             .then((sharedActors) => {
               if (cancelled) return;
@@ -588,6 +595,12 @@ export default function App() {
     });
   };
 
+  const handleResetCatalog = () => {
+    if (window.confirm('Reset movie catalog to original default library?')) {
+      setMovies(INITIAL_MOVIES); setSelectedMovieIds(new Set()); localStorage.removeItem(STORAGE_KEY); resetMasterData(); setActiveMetadataFilter(null); setSelectedCategory('All'); setSelectedAlphabets(['All']); setSearchQuery(''); setSortBy('alphabet-asc');
+    }
+  };
+
   const filteredAndSortedMovies = useMemo(() => {
     let result = [...movies];
     if (selectedCategory !== 'All') {
@@ -713,7 +726,7 @@ export default function App() {
           />
         )}
         {activePage === 'settings' && (
-          <SettingsPage movies={movies} sharedCatalogToken={''} sharedCatalogStatus={sharedCatalogStatus} sharedCatalogError={sharedCatalogError} onConnectSharedCatalog={() => {}} onDisconnectSharedCatalog={() => {}} onInitializeSharedCatalog={handleInitializeSharedCatalog} onSaveSharedCatalog={handleSaveSharedCatalog} onRefreshSharedCatalog={handleRefreshSharedCatalog} onDeleteAllDatabase={handleDeleteAllDatabase} onImportMovies={handleImportMovies} onDeleteMovie={handleDeleteMovie} onBulkDeleteMovies={handleBulkDeleteMovies} onMergeActors={handleMergeActors} onSelectMovie={setSelectedMovie} />
+          <SettingsPage movies={movies} sharedCatalogToken={''} sharedCatalogStatus={sharedCatalogStatus} sharedCatalogError={sharedCatalogError} onConnectSharedCatalog={() => {}} onDisconnectSharedCatalog={() => {}} onInitializeSharedCatalog={handleInitializeSharedCatalog} onSaveSharedCatalog={handleSaveSharedCatalog} onRefreshSharedCatalog={handleRefreshSharedCatalog} onDeleteAllDatabase={handleDeleteAllDatabase} onImportMovies={handleImportMovies} onDeleteMovie={handleDeleteMovie} onBulkDeleteMovies={handleBulkDeleteMovies} onMergeActors={handleMergeActors} onResetCatalog={handleResetCatalog} onSelectMovie={setSelectedMovie} />
         )}
       </main>
       <MovieDetailModal movie={selectedMovie} movies={movieDetailNavigationMovies} onClose={handleCloseMovieDetail} onNavigateMovie={setSelectedMovie} onFilterByAttribute={handleFilterByAttribute} onSelectActor={(actorName) => { setSelectedMovie(null); setSelectedActorName(actorName); }} onUpdateMovie={handleUpdateMovie} onDeleteMovie={handleDeleteMovie} onNotify={showActionNotification} />
@@ -721,6 +734,7 @@ export default function App() {
       <footer className="mt-auto py-6 border-t border-zinc-800/60 text-center text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2"><span>CineVault Dark Movie Catalog</span><span aria-hidden="true">·</span><span>{movies.length} Master titles in library</span></div>
+          <button onClick={handleResetCatalog} className="flex items-center gap-1.5 text-zinc-400 hover:text-amber-400 transition-colors"><RotateCcw className="w-3.5 h-3.5" /><span>Reset Demo Library</span></button>
         </div>
       </footer>
       <BottomNav activePage={activePage} setActivePage={handleNavigatePage} moviesCount={movies.length} actorsCount={actorsCount} onTriggerAdd={handleTriggerAdd} />

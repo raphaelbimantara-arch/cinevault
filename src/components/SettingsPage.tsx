@@ -33,6 +33,7 @@ interface SettingsPageProps {
   onBulkDeleteMovies: (movieIds: string[]) => void;
   onMergeActors: (primaryName: string, mergedNames: string[]) => void;
   onUpdateMovie?: (updatedMovie: Movie) => void;
+  onResetCatalog: () => void;
   onSelectMovie: (movie: Movie) => void;
 }
 
@@ -104,7 +105,7 @@ const SaveSharedCatalogButton: React.FC<SaveSharedCatalogButtonProps> = ({
 
   return (
     <button type="button" onClick={() => setConfirming(true)} disabled={isLoading || movieCount === 0} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-xs font-bold text-emerald-300 hover:bg-emerald-400/20 disabled:opacity-50">
-      <Upload className="h-4 w-4" /> {isLoading ? 'Saving...' : 'Save to database'}
+      <Upload className="h-4 w-4" /> {isLoading ? 'Saving...' : 'Save to Database'}
     </button>
   );
 };
@@ -174,7 +175,7 @@ function getActorDuplicateReason(first: ActorDuplicateCandidate, second: ActorDu
 export const SettingsPage: React.FC<SettingsPageProps> = ({
   movies, sharedCatalogToken, sharedCatalogStatus, sharedCatalogError, onConnectSharedCatalog, onDisconnectSharedCatalog,
   onInitializeSharedCatalog, onSaveSharedCatalog, onRefreshSharedCatalog, onImportMovies, onDeleteMovie, onBulkDeleteMovies,
-  onMergeActors, onSelectMovie, onDeleteAllDatabase,
+  onMergeActors, onResetCatalog, onSelectMovie, onDeleteAllDatabase,
 }) => {
   const [activeTab, setActiveTab] = useState<'csv' | 'duplicates' | 'system'>('csv');
   const [duplicateType, setDuplicateType] = useState<'movies' | 'actors'>('movies');
@@ -647,16 +648,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div className="bg-[#121520] border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h3 className="font-bold text-base text-zinc-100 flex items-center gap-2"><Upload className="w-4 h-4 text-emerald-400" /><span>Database Synchronization</span></h3>
-              <p className="text-xs text-zinc-400 mt-1">Download loads the saved database. Save replaces it with this catalog. Delete clears the database permanently.</p>
+              <p className="text-xs text-zinc-400 mt-1">Save replaces the cloud database with this device's current catalog. Refresh loads the latest saved database.</p>
             </div>
             <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
               <button type="button" onClick={handleManualRefresh} disabled={isRefreshing || sharedCatalogStatus === 'loading'} className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-blue-400/40 bg-blue-400/10 px-4 py-2.5 text-xs font-bold text-blue-300 hover:bg-blue-400/20 disabled:opacity-50">
                 <RefreshCw className={`h-4 w-4 ${isRefreshing || sharedCatalogStatus === 'loading' ? 'animate-spin' : ''}`} />
-                {isRefreshing || sharedCatalogStatus === 'loading' ? 'Downloading...' : 'Download from Database'}
+                {isRefreshing || sharedCatalogStatus === 'loading' ? 'Refreshing...' : 'Refresh from Database'}
               </button>
               <SaveSharedCatalogButton movieCount={movies.length} isLoading={sharedCatalogStatus === 'loading'} onSave={onSaveSharedCatalog} onNotify={showToast} />
               <button type="button" onClick={() => void handleDeleteAllDatabase()} disabled={isDeletingDatabase || sharedCatalogStatus === 'loading'} className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-rose-500/50 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-300 hover:bg-rose-500/20 disabled:opacity-50">
-                <Trash2 className="h-4 w-4" /> {isDeletingDatabase ? 'Deleting...' : 'Delete Database'}
+                <Trash2 className="h-4 w-4" /> {isDeletingDatabase ? 'Deleting Database...' : 'Delete Entire Database'}
               </button>
             </div>
           </div>

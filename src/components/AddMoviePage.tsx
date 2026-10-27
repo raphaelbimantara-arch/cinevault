@@ -87,7 +87,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
 
   // ACTOR FORM STATE
   const [actorName, setActorName] = useState('');
-  const [actorDob, setActorDob] = useState('June 15, 1985');
+  const [actorDob, setActorDob] = useState('');
   const [actorPhotoUrl, setActorPhotoUrl] = useState('');
   const [actorSuccess, setActorSuccess] = useState(false);
 
@@ -174,7 +174,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
 
     const profile: ActorProfile = {
       name: actorName.trim(),
-      dob: actorDob.trim() || 'January 1, 1980',
+      dob: actorDob.trim(),
       photoUrl: getImageSource(actorPhotoUrl),
     };
 
