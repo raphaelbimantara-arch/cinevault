@@ -56,28 +56,28 @@ export default {
           await client.query('BEGIN');
           // Replace the complete movie catalog atomically. If any row fails, rollback preserves the previous catalog.
           await client.query('TRUNCATE TABLE movies RESTART IDENTITY CASCADE');
+          // Assign every row a unique numeric ID before inserting. This prevents sequence
+          // collisions when explicit IDs and auto-generated IDs would otherwise mix.
           const usedIds = new Set();
+          let nextAvailableId = 1;
           for (const m of body.movies) {
             const candidateId = String(m.id ?? '').trim();
-            const numericId = /^\d+$/.test(candidateId) && Number(candidateId) > 0 && Number.isSafeInteger(Number(candidateId)) && !usedIds.has(Number(candidateId))
+            let numericId = /^\d+$/.test(candidateId) && Number(candidateId) > 0 && Number.isSafeInteger(Number(candidateId))
               ? Number(candidateId) : null;
-            if (numericId !== null) usedIds.add(numericId);
+            if (numericId === null || usedIds.has(numericId)) {
+              while (usedIds.has(nextAvailableId)) nextAvailableId++;
+              numericId = nextAvailableId++;
+            }
+            usedIds.add(numericId);
             const safeYear = parseInt(String(m.year ?? '').replace(/[^0-9]/g, ''), 10) || 0;
             const safeMinutes = parseInt(String(m.minutes ?? '').replace(/[^0-9]/g, ''), 10) || 0;
             const safeSizeBytes = Math.round(Number(String(m.sizeBytes ?? '').replace(/[^0-9]/g, ''))) || 0;
             const values = [m.title || 'Untitled', safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, Boolean(m.favorite), Boolean(m.reviewed), Boolean(m.uncensored), m.addedDate || null, JSON.stringify(Array.isArray(m.actors) ? m.actors : [])];
-            if (numericId !== null) {
-              await client.query(
-                `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
-                [numericId, ...values]
-              );
-            } else {
-              await client.query(
-                `INSERT INTO movies (title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, values
-              );
-            }
+            await client.query(
+              `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+              [numericId, ...values]
+            );
           }
           // Some existing deployments store movie IDs as TEXT, while fresh schemas use SERIAL/INTEGER.
           // Only adjust a sequence when one exists, and cast the maximum ID explicitly to BIGINT.
