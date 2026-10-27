@@ -394,7 +394,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
     if (namesToDelete.length === 0) return;
     if (!window.confirm(`Delete ${namesToDelete.length} selected actor(s) from the directory and movie credits? This cannot be undone.`)) return;
     onDeleteActors(namesToDelete);
-    onNotify(`${namesToDelete.length} aktor berhasil dihapus.`);
+    onNotify(`${namesToDelete.length} actor(s) deleted successfully.`);
     setSelectedActorNames(new Set());
   };
 
@@ -416,13 +416,13 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       onActorProfilesChanged?.(selectedNames);
       setActorStatusRevision((revision) => revision + 1);
       const message = alreadyMarked.length > 0
-          ? `${newlyMarkedCount} aktor ditandai ${label}; ${alreadyMarked.length} sudah ${label}.`
-          : `${newlyMarkedCount} aktor ditandai ${label}.`;
+          ? `${newlyMarkedCount} actor(s) marked as ${label}; ${alreadyMarked.length} already had ${label}.`
+          : `${newlyMarkedCount} actor(s) marked as ${label}.`;
       onNotify(
         message,
         alreadyMarked.length > 0
           ? {
-              label: field === 'favorite' ? 'Keluarkan dari favorite' : 'Hapus tanda review',
+              label: field === 'favorite' ? 'Remove from favorites' : 'Remove review status',
               onClick: () => handleRemoveSelectedActorStatus(field, alreadyMarked),
             }
           : undefined
@@ -430,7 +430,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       setSelectedActorNames(new Set());
     } catch (error) {
       console.error('Failed to update selected actor statuses:', error);
-      onNotify('Status aktor tidak dapat disimpan. Silakan coba lagi.');
+      onNotify('Actor status could not be saved. Please try again.');
     }
   };
 
@@ -442,11 +442,11 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       );
       onActorProfilesChanged?.(actorNames);
       setActorStatusRevision((revision) => revision + 1);
-      onNotify(`${actorNames.length} aktor dikeluarkan dari ${field === 'favorite' ? 'favorite' : 'review'}.`);
+      onNotify(`${actorNames.length} actor(s) removed from ${field === 'favorite' ? 'favorites' : 'review'}.`);
       setSelectedActorNames(new Set());
     } catch (error) {
       console.error('Failed to remove selected actor statuses:', error);
-      onNotify('Status aktor tidak dapat dihapus. Silakan coba lagi.');
+      onNotify('Actor status could not be removed. Please try again.');
     }
   };
 

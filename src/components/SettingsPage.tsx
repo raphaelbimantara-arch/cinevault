@@ -11,7 +11,7 @@ import { getActorAliases, getCustomActors, KNOWN_ACTORS } from '../data/actorsDa
 const formatStorageSize = (sizeInMB: number) => {
   if (isNaN(sizeInMB) || sizeInMB <= 0) return '0.00 GB';
   const sizeInGB = sizeInMB / 1000;
-  return new Intl.NumberFormat('id-ID', {
+  return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: sizeInGB < 1000 ? 2 : 0,
     maximumFractionDigits: sizeInGB < 1000 ? 2 : 0,
   }).format(sizeInGB) + ' GB';
@@ -307,7 +307,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         if (!csvText.trim()) throw new Error('Sheet Excel kosong.');
         processRawCsvText(csvText);
       }).catch((error) => {
-        setParseErrors(['Gagal membaca Excel: ' + (error instanceof Error ? error.message : String(error))]);
+        setParseErrors(['Failed to read Excel file: ' + (error instanceof Error ? error.message : String(error))]);
         setParsedMovies([]); setRawPreviewData([]); setIsProcessingCsv(false);
       });
       return;
@@ -428,13 +428,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const [isDeletingDatabase, setIsDeletingDatabase] = useState(false);
   const handleDeleteAllDatabase = async () => {
-    const confirmed = window.confirm('PERINGATAN: Semua data film dan profil aktor di database cloud CineVault akan dihapus permanen. Tindakan ini tidak dapat dibatalkan. Lanjutkan?');
+    const confirmed = window.confirm('WARNING: All movies and actor profiles in the CineVault cloud database will be permanently deleted. This action cannot be undone. Continue?');
     if (!confirmed) return;
-    const typed = window.prompt('Ketik HAPUS SEMUA untuk mengonfirmasi penghapusan seluruh database:');
-    if (typed !== 'HAPUS SEMUA') { showToast('info', 'Penghapusan dibatalkan.'); return; }
+    const typed = window.prompt('Type DELETE ALL to confirm deletion of the entire database:');
+    if (typed !== 'DELETE ALL') { showToast('info', 'Deletion canceled.'); return; }
     setIsDeletingDatabase(true);
-    try { await onDeleteAllDatabase(); showToast('success', 'Seluruh database CineVault berhasil dihapus.'); }
-    catch (error) { showToast('error', error instanceof Error ? error.message : 'Gagal menghapus database.'); }
+    try { await onDeleteAllDatabase(); showToast('success', 'The entire CineVault database was deleted successfully.'); }
+    catch (error) { showToast('error', error instanceof Error ? error.message : 'Failed to delete the database.'); }
     finally { setIsDeletingDatabase(false); }
   };
 
@@ -491,7 +491,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <label htmlFor="csv-file-picker" className="flex-1 border-2 border-dashed border-zinc-700 hover:border-amber-400 rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-center cursor-pointer transition-colors bg-zinc-900/40 hover:bg-zinc-900/80"><FileSpreadsheet className="w-6 h-6 text-amber-400" /><span className="text-xs font-semibold text-zinc-200 truncate max-w-full">{csvFile ? csvFile.name : 'Choose CSV or Excel file (.csv, .xlsx, .xls)'}</span></label>
               {csvFile && (<button onClick={handleCancelUpload} className="px-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" title="Cancel upload"><X className="w-5 h-5" /></button>)}
             </div>
-            {selectedFileType === 'excel' && <p className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-200">Mode Excel: judul film digunakan untuk mencocokkan data. Film yang cocok diperbarui, film baru ditambahkan, dan film lain tidak dihapus.</p>}
+            {selectedFileType === 'excel' && <p className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-200">Excel mode: movie titles are used to match records. Matching movies are updated, new movies are added, and other movies are kept.</p>}
             {rawPreviewData.length > 0 && (
               <div className="mt-4 border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900">
                 <div className="px-3 py-2 border-b border-zinc-800 flex justify-between items-center bg-[#151926]"><span className="text-[10px] font-bold text-zinc-300 uppercase">Data Preview (First 5 rows)</span><span className="text-[10px] text-emerald-400 font-mono">{parsedMovies.length} rows parsed</span></div>

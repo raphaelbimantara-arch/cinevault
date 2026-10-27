@@ -79,7 +79,16 @@ export default {
               );
             }
           }
-          await client.query(`SELECT setval(pg_get_serial_sequence('movies', 'id'), COALESCE((SELECT MAX(id) FROM movies), 1), EXISTS(SELECT 1 FROM movies))`);
+          // Some existing deployments store movie IDs as TEXT, while fresh schemas use SERIAL/INTEGER.
+          // Only adjust a sequence when one exists, and cast the maximum ID explicitly to BIGINT.
+          const sequenceResult = await client.query("SELECT pg_get_serial_sequence('movies', 'id') AS sequence_name");
+          const sequenceName = sequenceResult.rows[0]?.sequence_name;
+          if (sequenceName) {
+            const maxIdResult = await client.query("SELECT MAX(NULLIF(id::text, '')::bigint) AS max_id, COUNT(*)::int AS row_count FROM movies");
+            const maxId = Number(maxIdResult.rows[0]?.max_id) || 1;
+            const hasRows = Number(maxIdResult.rows[0]?.row_count) > 0;
+            await client.query('SELECT setval($1::regclass, $2::bigint, $3::boolean)', [sequenceName, maxId, hasRows]);
+          }
           await client.query('COMMIT');
           return jsonResponse({ message: 'Movie database replaced successfully.', count: body.movies.length }, 200, headers);
         } catch (error) {
