@@ -49,7 +49,7 @@ const PosterImage = ({ src, alt }: { src: string; alt: string }) => {
   );
 };
 
-export const MovieGrid: React.FC<MovieGridProps> = ({
+const MovieGridComponent: React.FC<MovieGridProps> = ({
   movies,
   onSelectMovie,
   selectedMovieIds,
@@ -189,3 +189,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     </div>
   );
 };
+
+// Avoid rerendering the entire movie grid when unrelated navigation/settings state changes.
+export const MovieGrid = React.memo(MovieGridComponent);

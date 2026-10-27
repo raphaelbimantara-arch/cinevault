@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { startTransition, useState, useEffect, useMemo, useRef } from 'react';
+import React, { startTransition, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { FilterToolbar } from './components/FilterToolbar';
@@ -97,7 +97,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(movies)); } catch (e) { console.error(e); }
+    // Debounce full-catalog persistence to avoid blocking the UI during rapid edits.
+    const timer = window.setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(movies)); } catch (e) { console.error('Could not cache CineVault catalog locally:', e); }
+    }, 700);
+    return () => window.clearTimeout(timer);
   }, [movies]);
 
   useEffect(() => {
@@ -423,13 +427,13 @@ export default function App() {
     }
   };
 
-  const handleToggleMovieSelection = (movieId: string) => {
+  const handleToggleMovieSelection = useCallback((movieId: string) => {
     setSelectedMovieIds((prev) => { const next = new Set(prev); if (next.has(movieId)) next.delete(movieId); else next.add(movieId); return next; });
-  };
+  }, []);
 
-  const handleSelectMultipleMovies = (movieIds: string[]) => {
+  const handleSelectMultipleMovies = useCallback((movieIds: string[]) => {
     setSelectedMovieIds((prev) => { const next = new Set(prev); movieIds.forEach((id) => next.add(id)); return next; });
-  };
+  }, []);
 
   const handleDeleteSelectedMovies = () => {
     const idsToDelete = movies.filter((movie) => selectedMovieIds.has(movie.id)).map((movie) => movie.id);
