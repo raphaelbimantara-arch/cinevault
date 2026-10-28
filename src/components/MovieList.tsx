@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, Film, Pencil, Save, Star, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Movie, SortOption } from '../types';
@@ -78,6 +78,98 @@ export const MovieList: React.FC<MovieListProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, MovieEditDraft>>({});
+  const tableRef = useRef<HTMLTableElement>(null);
+  const resizeDragRef = useRef<{ column: string; startX: number; startWidth: number } | null>(null);
+  const columnIds = ['title', 'year', 'size', 'minutes', 'resolution', 'actors', 'studio', 'genre', 'frontCover', 'backCover', 'actions'] as const;
+  const defaultColumnRatios: Record<(typeof columnIds)[number], number> = {
+    title: 0.14, year: 0.06, size: 0.09, minutes: 0.06, resolution: 0.08,
+    actors: 0.14, studio: 0.14, genre: 0.10, frontCover: 0.08, backCover: 0.08, actions: 0.03,
+  };
+
+  // Resize is intentionally kept outside React state: pointer movement updates CSS variables only.
+  const setColumnWidth = useCallback((columnId: string, width: number) => {
+    const table = tableRef.current;
+    if (!table) return;
+    const safeWidth = Math.max(42, Math.min(900, Math.round(width)));
+    table.style.setProperty(`--col-${columnId}`, `${safeWidth}px`);
+    const total = columnIds.reduce((sum, id) => {
+      const raw = getComputedStyle(table).getPropertyValue(`--col-${id}`).trim();
+      return sum + (raw.endsWith('px') ? parseFloat(raw) : 0);
+    }, 0);
+    table.style.setProperty('--table-total-width', `${total}px`);
+  }, []);
+
+  const startColumnResize = useCallback((event: React.PointerEvent<HTMLDivElement>, columnId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const table = tableRef.current;
+    if (!table) return;
+    const col = table.querySelector<HTMLTableColElement>(`col[data-column="${columnId}"]`);
+    const startWidth = col?.getBoundingClientRect().width || 100;
+    resizeDragRef.current = { column: columnId, startX: event.clientX, startWidth };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const table = tableRef.current;
+    if (!table) return;
+    const saved: Record<string, number> = {};
+    try {
+      Object.assign(saved, JSON.parse(localStorage.getItem('cinevault-list-column-widths-v1') || '{}'));
+    } catch { /* Ignore malformed preferences. */ }
+    const availableWidth = table.parentElement?.clientWidth || window.innerWidth;
+    columnIds.forEach((id) => {
+      const initial = typeof saved[id] === 'number' && saved[id] >= 42
+        ? saved[id]
+        : Math.max(42, Math.round(availableWidth * defaultColumnRatios[id]));
+      table.style.setProperty(`--col-${id}`, `${initial}px`);
+    });
+    const updateTotal = () => {
+      const total = columnIds.reduce((sum, id) => sum + parseFloat(getComputedStyle(table).getPropertyValue(`--col-${id}`)) || sum, 0);
+      table.style.setProperty('--table-total-width', `${total}px`);
+    };
+    updateTotal();
+    const onPointerMove = (event: PointerEvent) => {
+      const drag = resizeDragRef.current;
+      if (!drag) return;
+      setColumnWidth(drag.column, drag.startWidth + event.clientX - drag.startX);
+    };
+    const onPointerUp = () => {
+      if (!resizeDragRef.current) return;
+      resizeDragRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      const widths: Record<string, number> = {};
+      columnIds.forEach((id) => {
+        widths[id] = Math.round(parseFloat(getComputedStyle(table).getPropertyValue(`--col-${id}`)) || 100);
+      });
+      try { localStorage.setItem('cinevault-list-column-widths-v1', JSON.stringify(widths)); } catch { /* Storage may be unavailable. */ }
+    };
+    document.addEventListener('pointermove', onPointerMove, { passive: true });
+    document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointercancel', onPointerUp);
+    return () => {
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointercancel', onPointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [setColumnWidth]);
+
+  const resizeHandle = (columnId: string) => (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${columnId} column`}
+      onPointerDown={(event) => startColumnResize(event, columnId)}
+      onClick={(event) => event.stopPropagation()}
+      className="absolute right-0 top-0 z-20 h-full w-[7px] cursor-col-resize touch-none bg-transparent hover:bg-amber-400/70 active:bg-amber-400"
+      style={{ transform: 'translateX(3px)' }}
+    />
+  );
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
   const inputClassName = 'w-full min-w-0 rounded border border-zinc-700 bg-zinc-950 px-0.5 py-1 text-[8px] text-zinc-100 focus:border-amber-400 focus:outline-none sm:px-1.5 sm:text-xs';
   const resolutionOptions = [...new Set(
@@ -137,7 +229,8 @@ export const MovieList: React.FC<MovieListProps> = ({
       ? 'ascending'
       : sortBy === sortOptions[field].desc ? 'descending' : undefined;
     return (
-      <th className={`${className} relative`} aria-sort={direction} style={{ resize: 'horizontal', overflow: 'auto', minWidth: 56 }}>
+      <th data-column-header={field} className={`${className} relative`} aria-sort={direction}>
+        {resizeHandle(field === 'minutes' ? 'minutes' : field)}
         <button
           type="button"
           onClick={() => onToggleSort(field)}
@@ -220,17 +313,26 @@ export const MovieList: React.FC<MovieListProps> = ({
       onContextMenu={longPressHandlers.onContextMenu}
       onClickCapture={longPressHandlers.onClickCapture}
     >
-      <table className="w-full min-w-0 table-fixed border-collapse text-left">
+      <table
+        ref={tableRef}
+        className="cinevault-resizable-table min-w-0 table-fixed border-collapse text-left"
+        style={{ width: 'max(100%, var(--table-total-width, 100%))', minWidth: '100%', tableLayout: 'fixed' }}
+      >
+        <colgroup>
+          {columnIds.map((id) => <col key={id} data-column={id} style={{ width: `var(--col-${id}, 100px)` }} />)}
+        </colgroup>
         <thead className="sticky top-0 z-10">
           <tr className="border-b border-zinc-800 bg-[#0d0f16] text-xs font-semibold uppercase tracking-wide text-zinc-300 sm:text-sm">
             <th
-              className="w-[14%] overflow-hidden px-1 py-2"
+              data-column-header="title"
+              className="relative overflow-hidden px-1 py-2"
               aria-sort={
                 sortBy === sortOptions.title.asc
                   ? 'ascending'
                   : sortBy === sortOptions.title.desc ? 'descending' : undefined
               }
             >
+              {resizeHandle('title')}
               <button
                 type="button"
                 onClick={() => onToggleSort('title')}
@@ -240,21 +342,21 @@ export const MovieList: React.FC<MovieListProps> = ({
                 Title
               </button>
             </th>
-            {renderSortHeader('year', 'Year', 'w-[6%] overflow-hidden px-1 py-2 text-center')}
-            {renderSortHeader('size', 'Size', 'w-[9%] overflow-hidden px-1 py-2 text-right')}
-            {renderSortHeader('minutes', 'Min', 'w-[6%] overflow-hidden px-1 py-2 text-right')}
+            {renderSortHeader('year', 'Year', 'overflow-hidden px-1 py-2 text-center')}
+            {renderSortHeader('size', 'Size', 'overflow-hidden px-1 py-2 text-right')}
+            {renderSortHeader('minutes', 'Min', 'overflow-hidden px-1 py-2 text-right')}
             {renderSortHeader(
               'resolution',
               'Resolution',
-              'w-[8%] overflow-hidden px-1 py-2 text-center',
+              'overflow-hidden px-1 py-2 text-center',
               'Res.',
             )}
-            {renderSortHeader('actors', 'Actor', 'w-[14%] overflow-hidden px-1 py-2')}
-            {renderSortHeader('studio', 'Studio', 'w-[14%] overflow-hidden px-1 py-2')}
-            {renderSortHeader('genre', 'Genre', 'w-[10%] overflow-hidden px-1 py-2')}
-            <th className="relative px-1 py-2 min-w-0" style={{ resize: 'horizontal', overflow: 'hidden', minWidth: 55 }}>Cover Depan</th>
-            <th className="relative px-1 py-2 min-w-0" style={{ resize: 'horizontal', overflow: 'hidden', minWidth: 55 }}>Cover Belakang</th>
-            <th className="w-[6%] overflow-hidden px-0.5 py-2 text-right sm:px-2">
+            {renderSortHeader('actors', 'Actor', 'overflow-hidden px-1 py-2')}
+            {renderSortHeader('studio', 'Studio', 'overflow-hidden px-1 py-2')}
+            {renderSortHeader('genre', 'Genre', 'overflow-hidden px-1 py-2')}
+            <th data-column-header="frontCover" className="relative overflow-hidden px-1 py-2">{resizeHandle('frontCover')}Cover Depan</th>
+            <th data-column-header="backCover" className="relative overflow-hidden px-1 py-2">{resizeHandle('backCover')}Cover Belakang</th>
+            <th data-column-header="actions" className="relative overflow-hidden px-0.5 py-2 text-right sm:px-2">{resizeHandle('actions')}
               {isEditing ? (
                 <div className="inline-flex items-center justify-end gap-0.5">
                   <button
@@ -305,7 +407,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                   if (selectionMode) onToggleMovieSelection(movie.id);
                   else onSelectMovie(movie);
                 }}
-                className={`group cursor-pointer transition-colors hover:bg-[#181d2c] ${isEditing ? 'bg-[#181d2c]' : ''}`}
+                className={`group cursor-pointer transition-colors hover:bg-[#181d2c] ${isEditing ? 'bg-[#181d2c]' : ''}`} style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 36px' }}
               >
                 <td className="overflow-hidden px-0.5 py-2 sm:px-3">
                   <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
