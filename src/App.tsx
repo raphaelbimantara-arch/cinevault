@@ -228,6 +228,7 @@ export default function App() {
   const navigationSnapshotRef = useRef<AppNavigationSnapshot | null>(null);
   const skipNavigationPushRef = useRef(false);
   const closingOverlayWithHistoryRef = useRef(false);
+  const replaceActorHistoryOnNextChangeRef = useRef(false);
 
   useEffect(() => {
     const initialSnapshot: AppNavigationSnapshot = { page: 'library', movieId: null, actorName: null };
@@ -262,6 +263,13 @@ export default function App() {
       return;
     }
     if (previous && previous.page === snapshot.page && previous.movieId === snapshot.movieId && previous.actorName === snapshot.actorName) return;
+    if (replaceActorHistoryOnNextChangeRef.current && previous?.actorName && snapshot.actorName && previous.page === snapshot.page && previous.movieId === snapshot.movieId) {
+      replaceActorHistoryOnNextChangeRef.current = false;
+      window.history.replaceState({ cinevaultSnapshot: snapshot }, '');
+      navigationSnapshotRef.current = snapshot;
+      return;
+    }
+    replaceActorHistoryOnNextChangeRef.current = false;
     window.history.pushState({ cinevaultSnapshot: snapshot }, '');
     navigationSnapshotRef.current = snapshot;
   }, [activePage, selectedMovie?.id, selectedActorName]);
@@ -487,6 +495,7 @@ export default function App() {
         }
         return m;
       }));
+      replaceActorHistoryOnNextChangeRef.current = true;
       setSelectedActorName(newTrimmed);
     }
   };
