@@ -8,6 +8,7 @@ interface MovieGridProps {
   movies: Movie[];
   onSelectMovie: (movie: Movie) => void;
   selectedMovieIds: Set<string>;
+  activeMovieId?: string | null;
   onToggleMovieSelection: (movieId: string) => void;
   onSelectMultipleMovies?: (movieIds: string[]) => void;
   selectionMode: boolean;
@@ -53,6 +54,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   movies,
   onSelectMovie,
   selectedMovieIds,
+  activeMovieId,
   onToggleMovieSelection,
   onSelectMultipleMovies,
   selectionMode,
@@ -130,25 +132,36 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
 
   const renderCard = (movie: Movie) => {
     const isSelected = selectedMovieIds.has(movie.id);
+    const isActive = activeMovieId === movie.id;
     return (
       <div
         key={movie.id}
         data-selection-id={movie.id}
         data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
         onClick={(e) => handleMovieClick(e, movie)}
-        className={`group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden border bg-[#121520] select-none ${isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'}`}
+        aria-label={`${movie.title}, ${movie.year}, ${movie.resolution || 'resolution not set'}`}
+        className={`group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden border select-none transition-colors duration-100 ${isActive ? 'border-[#59b4df] bg-[#5bb2dc] ring-1 ring-inset ring-[#59b4df]' : isSelected ? 'border-sky-400 bg-[#243746] ring-1 ring-inset ring-sky-400/50' : 'border-[#303030] bg-[#111111] hover:border-[#5a5a5a]'}`}
       >
-        <div className="relative w-full shrink-0 overflow-hidden bg-[#090a0d] pointer-events-none" style={{ height: posterHeight }}>
+        <div className={`relative w-full shrink-0 overflow-hidden pointer-events-none ${isActive ? 'bg-[#cfcfcf]' : 'bg-[#080808]'}`} style={{ height: posterHeight }}>
           <PosterImage src={getImageSource(movie.posterUrl)} alt={movie.title} />
-          {selectionMode && <div className="absolute left-2 top-2 z-10"><div className={`flex h-5 w-5 items-center justify-center border shadow-sm ${isSelected ? 'border-amber-400 bg-amber-400' : 'border-white/50 bg-black/50'}`}>{isSelected && <Check className="h-3.5 w-3.5 text-black" />}</div></div>}
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-1 bg-[#121520] p-1.5 pointer-events-none">
-          <div className="flex min-w-0 items-start justify-between gap-1">
-            <div className="min-w-0"><h3 className="line-clamp-1 text-[11px] font-bold leading-tight text-zinc-100 group-hover:text-amber-400 sm:text-xs" title={movie.title}>{movie.title}</h3>{movie.uncensored && <span className="text-[8px] font-bold uppercase tracking-wide text-rose-500">Uncensored</span>}</div>
-            <div className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-zinc-700/70">{movie.favorite && <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />}</div>
+          <div className="absolute bottom-2 left-2 z-10 flex h-5 w-5 items-center justify-center text-white/90 drop-shadow-md">
+            {selectionMode ? (
+              <span className={`flex h-4 w-4 items-center justify-center border ${isSelected ? 'border-sky-300 bg-sky-400 text-black' : 'border-white/80 bg-black/25'}`}>{isSelected && <Check className="h-3 w-3" />}</span>
+            ) : <Check className="h-5 w-5" strokeWidth={2.5} />}
           </div>
-          <div className="mt-auto flex min-w-0 items-center justify-between gap-1 text-[9px] text-zinc-400 sm:text-[10px]"><span>{movie.year}</span><span className="truncate">{movie.resolution || ''}</span></div>
-          <div className="flex min-w-0 items-center justify-between gap-1 text-[9px] text-zinc-400 sm:text-[10px]"><span className="truncate">{movie.minutes}m · {formatStorageSize(Number(movie.sizeBytes) || 0)}</span><span className="max-w-[45%] truncate text-zinc-500">{movie.studio}</span></div>
+          {movie.favorite && <Star className="absolute right-2 top-2 z-10 h-4 w-4 fill-amber-400 text-amber-400 drop-shadow-md" />}
+        </div>
+        <div className={`flex min-h-0 flex-1 flex-col gap-1 px-1.5 py-1.5 pointer-events-none ${isActive ? 'bg-[#5bb2dc] text-white' : 'bg-[#111111]'}`}>
+          <div className="min-w-0">
+            <h3 className={`line-clamp-1 text-[11px] font-extrabold leading-tight sm:text-xs ${isActive ? 'text-white' : 'text-[#dedede] group-hover:text-sky-300'}`} title={movie.title}>{movie.title}</h3>
+            {movie.uncensored && <span className={`text-[8px] font-bold uppercase tracking-wide ${isActive ? 'text-white/90' : 'text-rose-400'}`}>Uncensored</span>}
+          </div>
+          <div className={`mt-auto flex min-w-0 items-center justify-between gap-1 text-[9px] font-semibold sm:text-[10px] ${isActive ? 'text-white' : 'text-[#a7a7a7]'}`}>
+            <span className="truncate">{movie.resolution || '—'}</span><span>{movie.year || '—'}</span>
+          </div>
+          <div className={`flex min-w-0 items-center justify-between gap-1 text-[9px] sm:text-[10px] ${isActive ? 'text-white/90' : 'text-[#777777]'}`}>
+            <span className="truncate">{movie.minutes ? `${movie.minutes}m` : '—'}</span><span className="max-w-[55%] truncate">{movie.studio || ''}</span>
+          </div>
         </div>
       </div>
     );
@@ -162,7 +175,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
       style={{ scrollbarWidth: 'auto', scrollbarColor: '#71717a #18181b' }}
     >
       <div style={{ height: firstRow * rowHeight }} aria-hidden="true" />
-      <div className="flex flex-col gap-2 px-0.5">
+      <div className="flex flex-col gap-2 px-0.5 pb-1">
         {visibleRowsData.map((row, rowIndex) => (
           <div key={firstRow + rowIndex} className="grid min-w-0 gap-2" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, height: rowHeight }}
             onPointerDown={longPressHandlers.onPointerDown}

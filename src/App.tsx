@@ -703,7 +703,7 @@ export default function App() {
             </div>
             <div className={`flex min-h-0 flex-1 overflow-hidden ${selectedMovie ? 'pr-[300px]' : ''}`}>
               {viewMode === 'grid' ? (
-                <MovieGrid movies={filteredAndSortedMovies} onSelectMovie={setSelectedMovie} selectedMovieIds={selectedMovieIds} onToggleMovieSelection={handleToggleMovieSelection} onSelectMultipleMovies={handleSelectMultipleMovies} selectionMode={selectedMovieCount > 0} cols={gridCols} />
+                <MovieGrid movies={filteredAndSortedMovies} onSelectMovie={setSelectedMovie} selectedMovieIds={selectedMovieIds} activeMovieId={selectedMovie?.id ?? null} onToggleMovieSelection={handleToggleMovieSelection} onSelectMultipleMovies={handleSelectMultipleMovies} selectionMode={selectedMovieCount > 0} cols={gridCols} />
               ) : viewMode === 'list' ? (
                 <MovieList movies={filteredAndSortedMovies} catalogMovies={movies} onSelectMovie={setSelectedMovie} onUpdateMovie={handleUpdateMovieFromList} selectedMovieIds={selectedMovieIds} onToggleMovieSelection={handleToggleMovieSelection} selectionMode={selectedMovieCount > 0} sortBy={sortBy} onToggleSort={handleToggleListSort} />
               ) : (
