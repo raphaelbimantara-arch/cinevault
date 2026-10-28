@@ -15,6 +15,7 @@ interface ActorDetailModalProps {
   onNavigateActor: (actorName: string) => void;
   onSelectMovie: (movie: Movie) => void;
   onUpdateActor?: (oldName: string, updatedProfile: ActorProfile) => void;
+  embedded?: boolean;
 }
 
 export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
@@ -25,6 +26,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   onNavigateActor,
   onSelectMovie,
   onUpdateActor,
+  embedded = false,
 }) => {
   const [zoomedPhotoUrl, setZoomedPhotoUrl] = useState<string | null>(null);
   const [displayLimit, setDisplayLimit] = useState<number | 'all'>('all');
@@ -240,11 +242,11 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center p-2.5 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto"
-      onClick={onClose}
+      className={embedded ? "relative flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-zinc-800 bg-[#0b0d13]" : "fixed inset-0 z-40 flex items-center justify-center p-2.5 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto"}
+      onClick={embedded ? undefined : onClose}
     >
       <div
-        className="relative w-full max-w-2xl bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150"
+        className={embedded ? "relative flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-[#0f121b] text-left" : "relative w-full max-w-2xl bg-[#0f121b] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl my-auto text-left animate-in fade-in zoom-in-95 duration-150"}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={swipeHandlers.onPointerDown}
         onPointerUp={swipeHandlers.onPointerUp}
@@ -272,7 +274,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
           </div>
 
           {/* Modal Content */}
-          <div className="p-4 sm:p-8">
+          <div className={embedded ? "p-3 sm:p-4" : "p-4 sm:p-8"}>
 
             {/* Success Toast */}
             {editSavedToast && (

@@ -38,7 +38,11 @@ export type SortOption =
   | 'studio-desc'
   | 'studio-asc'
   | 'genre-desc'
-  | 'genre-asc';
+  | 'genre-asc'
+  | 'poster-missing-first'
+  | 'poster-available-first'
+  | 'backdrop-missing-first'
+  | 'backdrop-available-first';
 
 export interface ActiveFilter {
   type: 'genre' | 'studio' | 'year' | 'minutes' | 'size' | 'resolution' | 'actor' | 'alphabet' | 'search';

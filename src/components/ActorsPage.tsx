@@ -6,6 +6,7 @@ import { formatActorDob, getActorAge, getActorBirthYear, getActorDobSortValue, n
 import { ActorDobFields } from './ActorDobFields';
 import { getImageSource } from '../utils/googleDriveImage';
 import { useLongPress } from '../utils/useLongPress';
+import { ActorDetailModal } from './ActorDetailModal';
 
 interface ActorsPageProps {
   movies: Movie[];
@@ -13,6 +14,7 @@ interface ActorsPageProps {
   actorProfileRevision?: number;
   keyboardAlphabetEnabled?: boolean;
   onOpenActorDetail: (actorName: string) => void;
+  onSelectMovie?: (movie: Movie) => void;
   onDeleteActors: (actorNames: string[]) => void;
   onNotify: (message: string, action?: { label: string; onClick: () => void }) => void;
   onTriggerAddActor?: () => void;
@@ -74,7 +76,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   viewMode,
   actorProfileRevision = 0,
   keyboardAlphabetEnabled = true,
-  onOpenActorDetail,
+  onSelectMovie,
   onDeleteActors,
   onNotify,
   onTriggerAddActor,
@@ -104,6 +106,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
     const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up, { once: true });
   };
+  const [selectedDetailActor, setSelectedDetailActor] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [actorSort, setActorSort] = useState<ActorSortOption>('name');
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
@@ -514,7 +517,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="flex min-w-0 items-stretch gap-3">
+    <div className={`min-w-0 flex-1 space-y-5 ${selectedDetailActor ? 'hidden md:block' : 'block'}`}>
       <div className="sticky top-[56px] z-20 -mx-3 space-y-2 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-2 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
       {/* Top Page Header */}
       <div className={`flex justify-between border-b border-zinc-800 pb-2 ${
@@ -868,7 +872,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     onClick={() => {
                       if (isEditingList) return;
                       if (selectionMode) handleToggleActorSelection(actor.name);
-                      else onOpenActorDetail(actor.name);
+                      else setSelectedDetailActor(actor.name);
                     }}
                     className={`group cursor-pointer transition-colors hover:bg-[#181d2c] ${isEditingList ? 'bg-[#181d2c]' : ''}`}
                   >
@@ -971,7 +975,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               aria-label={`Open ${actor.name}`}
               onClick={() => selectionMode
                 ? handleToggleActorSelection(actor.name)
-                : onOpenActorDetail(actor.name)}
+                : setSelectedDetailActor(actor.name)}
               className={`relative min-w-0 overflow-hidden border border-zinc-800/90 bg-[#121520] hover:border-amber-500/40 hover:bg-[#151926] transition-all hover:shadow-xl cursor-pointer group ${
                 actorViewMode === 'cover'
                   ? 'rounded-xl p-1.5 sm:p-2'
@@ -1038,6 +1042,24 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           No actors found {!selectedAlphabets.includes('All') && selectedAlphabets.length > 0 ? `starting with "${[...selectedAlphabets].sort().join(', ')}"` : ''} {search ? `matching "${search}"` : ''}.
         </div>
       )}
+    </div>
+    {selectedDetailActor && (
+      <aside className="fixed inset-x-0 bottom-[72px] top-[112px] z-30 md:sticky md:top-[120px] md:h-[calc(100vh-145px)] md:w-[360px] md:min-w-[320px] md:flex-none">
+        <ActorDetailModal
+          embedded
+          actorName={selectedDetailActor}
+          actorNames={actorStats.map((actor) => actor.name)}
+          movies={movies}
+          onClose={() => setSelectedDetailActor(null)}
+          onNavigateActor={setSelectedDetailActor}
+          onSelectMovie={(movie) => { setSelectedDetailActor(null); onSelectMovie?.(movie); }}
+          onUpdateActor={(oldName, updatedProfile) => {
+            onUpdateActor(oldName, updatedProfile);
+            if (oldName !== updatedProfile.name) setSelectedDetailActor(updatedProfile.name);
+          }}
+        />
+      </aside>
+    )}
     </div>
   );
 };

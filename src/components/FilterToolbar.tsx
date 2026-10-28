@@ -112,6 +112,10 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
               <option value="studio-desc" className="bg-[#121520]">Studio (Z-A)</option>
               <option value="genre-asc" className="bg-[#121520]">Genre (A-Z)</option>
               <option value="genre-desc" className="bg-[#121520]">Genre (Z-A)</option>
+              <option value="poster-missing-first" className="bg-[#121520]">Front Cover (Missing First)</option>
+              <option value="poster-available-first" className="bg-[#121520]">Front Cover (Available First)</option>
+              <option value="backdrop-missing-first" className="bg-[#121520]">Back Cover (Missing First)</option>
+              <option value="backdrop-available-first" className="bg-[#121520]">Back Cover (Available First)</option>
             </select>
           </div>
 

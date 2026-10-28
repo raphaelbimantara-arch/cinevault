@@ -481,7 +481,13 @@ export default function App() {
     setMovies((prev) => prev.map((movie) => (movie.id === updatedMovie.id ? updatedMovie : movie)));
   };
 
-  const handleToggleListSort = (field: 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio' | 'genre') => {
+  const handleToggleListSort = (field: 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio' | 'genre' | 'frontCover' | 'backCover') => {
+    if (field === 'frontCover' || field === 'backCover') {
+      const missing = field === 'frontCover' ? 'poster-missing-first' : 'backdrop-missing-first';
+      const available = field === 'frontCover' ? 'poster-available-first' : 'backdrop-available-first';
+      setSortBy((current) => current === missing ? available : missing);
+      return;
+    }
     const options = { title: ['alphabet-asc', 'alphabet-desc'], year: ['year-asc', 'year-desc'], size: ['size-asc', 'size-desc'], minutes: ['minutes-asc', 'minutes-desc'], resolution: ['quality-asc', 'quality-desc'], actors: ['actor-asc', 'actor-desc'], studio: ['studio-asc', 'studio-desc'], genre: ['genre-asc', 'genre-desc'] } as const;
     const [ascending, descending] = options[field]; setSortBy((current) => current === ascending ? descending : ascending);
   };
@@ -654,6 +660,10 @@ export default function App() {
         case 'quality-desc': return (b.resolution || '').localeCompare(a.resolution || ''); case 'quality-asc': return (a.resolution || '').localeCompare(b.resolution || '');
         case 'studio-desc': return b.studio.localeCompare(a.studio, undefined, { numeric: true }); case 'studio-asc': return a.studio.localeCompare(b.studio, undefined, { numeric: true });
         case 'genre-desc': return b.genre.localeCompare(a.genre, undefined, { numeric: true }); case 'genre-asc': return a.genre.localeCompare(b.genre, undefined, { numeric: true });
+        case 'poster-missing-first': return Number(Boolean(a.posterUrl?.trim())) - Number(Boolean(b.posterUrl?.trim()));
+        case 'poster-available-first': return Number(Boolean(b.posterUrl?.trim())) - Number(Boolean(a.posterUrl?.trim()));
+        case 'backdrop-missing-first': return Number(Boolean(a.backdropUrl?.trim())) - Number(Boolean(b.backdropUrl?.trim()));
+        case 'backdrop-available-first': return Number(Boolean(b.backdropUrl?.trim())) - Number(Boolean(a.backdropUrl?.trim()));
         default: return a.title.localeCompare(b.title);
       }
     });
@@ -722,7 +732,7 @@ export default function App() {
           </div>
         )}
         {activePage === 'actors' && (
-          <ActorsPage movies={movies} viewMode={viewMode} actorProfileRevision={actorProfileRevision} keyboardAlphabetEnabled={!selectedActorName && !selectedMovie} onOpenActorDetail={(name) => setSelectedActorName(name)} onDeleteActors={handleDeleteActors} onNotify={showActionNotification} onTriggerAddActor={() => handleTriggerAdd('actor')} onUpdateActor={(oldName, updatedProfile) => { handleUpdateActor(oldName, updatedProfile); setSelectedActorName(null); }} onActorProfilesChanged={(actorNames) => { if (sharedCatalogStatus !== 'connected') return; enqueueSharedActorUpdate(async () => { for (const actorName of actorNames) { await saveSharedActor(getActorProfile(actorName)); } }); }} />
+          <ActorsPage movies={movies} viewMode={viewMode} actorProfileRevision={actorProfileRevision} keyboardAlphabetEnabled={!selectedActorName && !selectedMovie} onOpenActorDetail={(name) => setSelectedActorName(name)} onSelectMovie={(movie) => setSelectedMovie(movie)} onDeleteActors={handleDeleteActors} onNotify={showActionNotification} onTriggerAddActor={() => handleTriggerAdd('actor')} onUpdateActor={(oldName, updatedProfile) => { handleUpdateActor(oldName, updatedProfile); setSelectedActorName(null); }} onActorProfilesChanged={(actorNames) => { if (sharedCatalogStatus !== 'connected') return; enqueueSharedActorUpdate(async () => { for (const actorName of actorNames) { await saveSharedActor(getActorProfile(actorName)); } }); }} />
         )}
         {activePage === 'add' && (
           <AddMoviePage
