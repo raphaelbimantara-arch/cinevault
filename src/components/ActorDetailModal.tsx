@@ -400,7 +400,6 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                         className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
                         placeholder="Enter debut film title (optional)"
                       />
-                      <p className="mt-1 text-[11px] text-zinc-500">Leave blank to keep the title empty. If a date of birth is saved, the earliest film in your catalog is shown automatically.</p>
                     </div>
 
                     {/* Photo URL */}
