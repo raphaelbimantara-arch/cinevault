@@ -10,6 +10,7 @@ async function requestCatalog(payload: {
   movies?: Movie[];
   actor?: ActorProfile;
   oldName?: string;
+  updateDob?: boolean;
   actors?: ActorProfile[];
   names?: string[];
 }, serializedPayload?: string): Promise<{
@@ -77,8 +78,9 @@ export async function saveSharedActors(actors: ActorProfile[]): Promise<void> {
 export async function saveSharedActor(
   actor: ActorProfile,
   oldName?: string,
+  updateDob = false,
 ): Promise<void> {
-  await requestCatalog({ action: 'saveActor', actor, oldName });
+  await requestCatalog({ action: 'saveActor', actor, oldName, updateDob });
 }
 
 export async function deleteSharedActors(names: string[]): Promise<void> {

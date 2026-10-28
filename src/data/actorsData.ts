@@ -28,139 +28,139 @@ export function formatActorAliases(aliases: string[]): string | undefined {
 
 export const KNOWN_ACTORS: Record<string, { dob: string; photoUrl: string }> = {
   'Victor Lynch': {
-    dob: 'April 14, 1974',
+    dob: '',
     photoUrl: actorVictor,
   },
   'Elena Rostova': {
-    dob: 'September 22, 1986',
+    dob: '',
     photoUrl: actorElena,
   },
   'Marcus Aurel': {
-    dob: 'January 18, 1982',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop',
   },
   'Eliza Reed': {
-    dob: 'July 8, 1989',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop',
   },
   'Robert Stone': {
-    dob: 'March 3, 1968',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=600&auto=format&fit=crop',
   },
   'Ryan Gosling': {
-    dob: 'November 12, 1980',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=600&auto=format&fit=crop',
   },
   'Harrison Ford': {
-    dob: 'July 13, 1942',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=600&auto=format&fit=crop',
   },
   'Ana de Armas': {
-    dob: 'April 30, 1988',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=600&auto=format&fit=crop',
   },
   'Timothée Chalamet': {
-    dob: 'December 27, 1995',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=600&auto=format&fit=crop',
   },
   'Zendaya': {
-    dob: 'September 1, 1996',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=600&auto=format&fit=crop',
   },
   'Rebecca Ferguson': {
-    dob: 'October 19, 1983',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=600&auto=format&fit=crop',
   },
   'Matthew McConaughey': {
-    dob: 'November 4, 1969',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=600&auto=format&fit=crop',
   },
   'Anne Hathaway': {
-    dob: 'November 12, 1982',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1548142813-c348350df52b?q=80&w=600&auto=format&fit=crop',
   },
   'Jessica Chastain': {
-    dob: 'March 24, 1977',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?q=80&w=600&auto=format&fit=crop',
   },
   'Cillian Murphy': {
-    dob: 'May 25, 1976',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?q=80&w=600&auto=format&fit=crop',
   },
   'Emily Blunt': {
-    dob: 'February 23, 1983',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?q=80&w=600&auto=format&fit=crop',
   },
   'Robert Downey Jr.': {
-    dob: 'April 4, 1965',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=600&auto=format&fit=crop',
   },
   'John Travolta': {
-    dob: 'February 18, 1954',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?q=80&w=600&auto=format&fit=crop',
   },
   'Uma Thurman': {
-    dob: 'April 29, 1970',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=600&auto=format&fit=crop',
   },
   'Samuel L. Jackson': {
-    dob: 'December 21, 1948',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?q=80&w=600&auto=format&fit=crop',
   },
   'Christian Bale': {
-    dob: 'January 30, 1974',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=600&auto=format&fit=crop',
   },
   'Heath Ledger': {
-    dob: 'April 4, 1979',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1463453091185-61582044d556?q=80&w=600&auto=format&fit=crop',
   },
   'Aaron Eckhart': {
-    dob: 'March 12, 1968',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1496345875659-11f7dd282d1d?q=80&w=600&auto=format&fit=crop',
   },
   'Michelle Yeoh': {
-    dob: 'August 6, 1962',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=600&auto=format&fit=crop',
   },
   'Stephanie Hsu': {
-    dob: 'November 25, 1990',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=600&auto=format&fit=crop',
   },
   'Ke Huy Quan': {
-    dob: 'August 20, 1971',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop',
   },
   'Miles Teller': {
-    dob: 'February 20, 1987',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=600&auto=format&fit=crop',
   },
   'J.K. Simmons': {
-    dob: 'January 9, 1955',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=600&auto=format&fit=crop',
   },
   'Song Kang-ho': {
-    dob: 'January 17, 1967',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?q=80&w=600&auto=format&fit=crop',
   },
   'Ralph Fiennes': {
-    dob: 'December 22, 1962',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=600&auto=format&fit=crop',
   },
   'Saoirse Ronan': {
-    dob: 'April 12, 1994',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop',
   },
   'Cailee Spaeny': {
-    dob: 'July 24, 1998',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=600&auto=format&fit=crop',
   },
   'Anya Volkov': {
-    dob: 'May 16, 1991',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=600&auto=format&fit=crop',
   },
   'Liam Connor': {
-    dob: 'October 5, 1985',
+    dob: '',
     photoUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=600&auto=format&fit=crop',
   },
 };
@@ -169,6 +169,24 @@ export const KNOWN_ACTORS: Record<string, { dob: string; photoUrl: string }> = {
  * Custom registered actors storage
  */
 const CUSTOM_ACTORS_KEY = 'cinevault_custom_actors_v1';
+const ACTOR_DOB_LOCAL_MIGRATION_KEY = 'cinevault_actor_dob_blank_migration_v2';
+
+function clearLegacyLocalActorDobsOnce(): void {
+  try {
+    if (localStorage.getItem(ACTOR_DOB_LOCAL_MIGRATION_KEY) === 'done') return;
+    const raw = localStorage.getItem(CUSTOM_ACTORS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Record<string, { dob?: string; [key: string]: unknown }>;
+      Object.keys(parsed).forEach((name) => { parsed[name].dob = ''; });
+      localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(parsed));
+    }
+    localStorage.setItem(ACTOR_DOB_LOCAL_MIGRATION_KEY, 'done');
+  } catch (error) {
+    console.error('Failed to clear legacy actor DOB values:', error);
+  }
+}
+
+clearLegacyLocalActorDobsOnce();
 
 export function getCustomActors(): Record<
   string,
@@ -356,24 +374,10 @@ function createActorProfile(
     };
   }
 
-  // Deterministic fallback generator for custom/new actors
-  let hash = 0;
-  for (let i = 0; i < trimmed.length; i++) {
-    hash = (hash << 5) - hash + trimmed.charCodeAt(i);
-    hash |= 0;
-  }
-  const absHash = Math.abs(hash);
-  const year = 1965 + (absHash % 35);
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  const month = months[absHash % 12];
-  const day = 1 + (absHash % 28);
-
+  // Do not infer or generate dates of birth. New actors start with an empty DOB.
   return {
     name: trimmed,
-    dob: `${month} ${day}, ${year}`,
+    dob: '',
     photoUrl: '', // Will render stylish initials avatar if empty
   };
 }

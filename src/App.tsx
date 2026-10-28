@@ -478,7 +478,7 @@ export default function App() {
 
   const handleUpdateActor = (oldName: string, updatedProfile: ActorProfile) => {
     updateActorProfile(oldName, updatedProfile); setActorProfileRevision((revision) => revision + 1);
-    if (sharedCatalogStatus === 'connected') enqueueSharedActorUpdate(() => saveSharedActor(updatedProfile, oldName));
+    if (sharedCatalogStatus === 'connected') enqueueSharedActorUpdate(() => saveSharedActor(updatedProfile, oldName, true));
     const oldTrimmed = oldName.trim(); const newTrimmed = updatedProfile.name.trim();
     if (oldTrimmed !== newTrimmed) {
       setMovies((prev) => prev.map((m) => {

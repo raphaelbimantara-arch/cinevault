@@ -1,3 +1,3 @@
--- Run this ONCE in the Neon/PostgreSQL SQL Editor to clear current actor dates of birth.
--- It does not delete actors or alter any other actor fields.
+-- Run ONCE in the Neon/PostgreSQL SQL Editor to clear existing actor dates of birth.
+-- This does not delete actors or modify any other fields.
 UPDATE actors SET dob = NULL WHERE dob IS NOT NULL;

@@ -1,9 +1,23 @@
-# Actor Date of Birth Change
+# Actor Date of Birth (DoB) Fix
 
-This update makes the Date of Birth field blank by default for new actors and stops CineVault from generating sample DOBs for known or newly added actors. Users can still enter a DOB manually; the existing `saveActors` API persists that value.
+This revision makes actor DOB blank by default. It removes hard-coded sample DOBs and the generated DOB fallback. New actors created through movie uploads, manual entry, or other app flows start with an empty DOB.
 
-## Clear DOB values already in the shared database
+## One-time database cleanup (required)
 
-The code cannot directly change the hosted Neon database until the API is deployed and the migration is run. Open the Neon SQL Editor for the database used by CineVault, run the contents of `database/clear_actor_dobs_once.sql` exactly once, then deploy this project. The query only sets `actors.dob` to `NULL`; it does not delete actors or other data.
+Open the Neon/PostgreSQL SQL Editor for the database used by CineVault and run `database/clear_actor_dobs_once.sql` once:
 
-The browser also performs a one-time local migration that clears previously stored actor DOB values in localStorage. After that migration, DOBs manually entered by the user are retained.
+```sql
+UPDATE actors SET dob = NULL WHERE dob IS NOT NULL;
+```
+
+This clears only existing actor DOB values. It does not delete actors or alter their other fields. Deploy the updated API and frontend after running the query.
+
+## Persistence rules
+
+- Refreshing or loading the shared catalog does not generate DOBs.
+- Adding a movie/actor or syncing a full actor snapshot cannot overwrite an existing saved DOB.
+- A DOB can be changed only by editing an actor profile and saving it; that deliberate save uses `updateDob: true`.
+- Full actor sync no longer truncates the actors table, so it cannot accidentally erase actor records or their saved DOBs.
+- The browser clears legacy local DOBs once, then preserves later manually saved values.
+
+Note: any separate Google Apps Script / Google Sheets integration must follow the same rule if it is still used by your deployment. This ZIP's active API uses PostgreSQL/Neon.

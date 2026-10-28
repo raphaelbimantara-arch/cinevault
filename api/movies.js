@@ -127,14 +127,21 @@ export default {
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
-          // A full save replaces the actor snapshot; individual edits remain upserts.
-          if (body.action === 'saveActors') await client.query('TRUNCATE TABLE actors RESTART IDENTITY CASCADE');
+          // Actor sync is deliberately non-destructive. Imports and full snapshots must not
+          // erase existing DOBs; only a deliberate single-actor edit (updateDob: true) may change it.
           for (const a of actorsToSave) {
             if (!a || !String(a.name || '').trim()) continue;
+            const allowDobUpdate = body.action === 'saveActor' && body.updateDob === true;
             await client.query(
               `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count) VALUES ($1, $2, $3, $4, $5, $6, $7)
-               ON CONFLICT (name) DO UPDATE SET alias = EXCLUDED.alias, dob = EXCLUDED.dob, photo_url = EXCLUDED.photo_url, favorite = EXCLUDED.favorite, reviewed = EXCLUDED.reviewed, movie_count = EXCLUDED.movie_count`,
-              [a.name.trim(), a.alias || null, a.dob || null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), Number(a.movieCount) || 0]
+               ON CONFLICT (name) DO UPDATE SET
+                 alias = EXCLUDED.alias,
+                 dob = CASE WHEN $8::boolean THEN EXCLUDED.dob ELSE actors.dob END,
+                 photo_url = EXCLUDED.photo_url,
+                 favorite = EXCLUDED.favorite,
+                 reviewed = EXCLUDED.reviewed,
+                 movie_count = EXCLUDED.movie_count`,
+              [a.name.trim(), a.alias || null, allowDobUpdate ? (a.dob || null) : null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), Number(a.movieCount) || 0, allowDobUpdate]
             );
           }
           await client.query('COMMIT');
