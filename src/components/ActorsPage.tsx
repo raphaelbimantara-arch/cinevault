@@ -1022,7 +1022,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                   <div className={`min-w-0 ${actorViewMode === 'cover' ? 'w-full pt-1 text-center' : 'flex-1'}`}>
                     <div className="flex min-w-0 items-center justify-between gap-1">
                       <h3 className={`min-w-0 truncate font-semibold text-zinc-100 transition-colors group-hover:text-amber-400 ${
-                        actorViewMode === 'cover' ? 'text-[11px] sm:text-xs leading-snug tracking-normal' : 'text-sm sm:text-base'
+                        actorViewMode === 'cover' ? 'text-xs sm:text-sm leading-snug tracking-normal' : 'text-base sm:text-lg'
                       }`}>
                         {actor.name}{actorViewMode === 'grid' && ` (${actor.movies.length})`}
                       </h3>
