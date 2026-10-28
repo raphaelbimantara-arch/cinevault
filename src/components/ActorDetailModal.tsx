@@ -69,15 +69,36 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, zoomedPhotoUrl]);
 
-  // Find all movies in the catalog starring this actor, sorted alphabetically by title
+  // Put the manually selected debut movie first when it matches a catalog title.
+  // Otherwise sort by earliest known release year; ties and missing years use title A–Z.
+  const savedDebutMovieTitle = actorName
+    ? (getActorProfile(actorName).debutMovieTitle || '').trim()
+    : '';
   const actorMovies = useMemo(() => {
     if (!actorName) return [];
+
+    const titleCompare = (a: Movie, b: Movie) =>
+      a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+    const isValidYear = (movie: Movie) => Number.isFinite(movie.year) && movie.year > 0;
+
     return movies
       .filter((m) =>
         m.actors.some((a) => a.toLowerCase().trim() === actorName.toLowerCase().trim())
       )
-      .sort((a, b) => a.title.localeCompare(b.title));
-  }, [movies, actorName]);
+      .sort((a, b) => {
+        const aIsManualDebut = savedDebutMovieTitle !== '' &&
+          a.title.trim().toLowerCase() === savedDebutMovieTitle.toLowerCase();
+        const bIsManualDebut = savedDebutMovieTitle !== '' &&
+          b.title.trim().toLowerCase() === savedDebutMovieTitle.toLowerCase();
+        if (aIsManualDebut !== bIsManualDebut) return aIsManualDebut ? -1 : 1;
+
+        const aHasYear = isValidYear(a);
+        const bHasYear = isValidYear(b);
+        if (aHasYear && bHasYear && a.year !== b.year) return a.year - b.year;
+        if (aHasYear !== bHasYear) return aHasYear ? -1 : 1;
+        return titleCompare(a, b);
+      });
+  }, [movies, actorName, savedDebutMovieTitle]);
 
   // Movies sliced by user-chosen display limit (10, 25, or 'all')
   const displayedMovies = useMemo(() => {
