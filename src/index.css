@@ -3,7 +3,7 @@
 @layer base {
   :root {
     --font-heading: 'Outfit', sans-serif;
-    --font-sans: 'Plus Jakarta Sans', sans-serif;
+    --font-sans: 'Inter', Arial, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
   }
 
