@@ -268,7 +268,11 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         onContextMenu={longPressHandlers.onContextMenu}
         style={{ touchAction: 'pan-y' }}
       >
-        
+        {!isEditing && (
+          <button type="button" onClick={(event) => { event.stopPropagation(); onClose(); }} className="absolute right-3 top-3 z-[60] flex h-9 w-9 items-center justify-center rounded-md border border-zinc-700 bg-black/75 text-zinc-200 shadow-lg hover:bg-amber-400 hover:text-black" title="Close movie details" aria-label="Close movie details">
+            <X className="h-5 w-5" />
+          </button>
+        )}
         {
             movieIndex > 0 && (
               <button 

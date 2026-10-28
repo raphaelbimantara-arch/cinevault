@@ -111,7 +111,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   const visibleMovies = useMemo(() => movies.slice(firstRow * cols, lastRow * cols), [movies, firstRow, lastRow, cols]);
 
   return (
-    <div ref={viewportRef} onScroll={handleScroll} className="h-[calc(100vh-190px)] min-h-[360px] overflow-auto select-none">
+    <div ref={viewportRef} onScroll={handleScroll} className="h-[calc(100vh-190px)] min-h-[360px] overflow-x-hidden overflow-y-scroll select-none">
       <div
       className="grid gap-3 sm:gap-4 select-none content-start"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, paddingTop: firstRow * rowHeight, paddingBottom: Math.max(0, rowCount - lastRow) * rowHeight }}

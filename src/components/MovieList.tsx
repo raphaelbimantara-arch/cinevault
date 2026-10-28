@@ -212,7 +212,7 @@ export const MovieList: React.FC<MovieListProps> = ({
 
   return (
     <div
-      className="h-[calc(100vh-190px)] min-h-[360px] overflow-auto rounded-none border border-zinc-800/80 bg-[#121520] shadow-lg"
+      className="h-[calc(100vh-190px)] min-h-[360px] w-full min-w-0 overflow-x-hidden overflow-y-auto rounded-none border border-zinc-800/80 bg-[#121520] shadow-lg"
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
       onPointerUp={longPressHandlers.onPointerUp}
@@ -220,11 +220,11 @@ export const MovieList: React.FC<MovieListProps> = ({
       onContextMenu={longPressHandlers.onContextMenu}
       onClickCapture={longPressHandlers.onClickCapture}
     >
-      <table className="w-full min-w-[1250px] border-collapse text-left table-auto">
+      <table className="w-full min-w-0 table-fixed border-collapse text-left">
         <thead className="sticky top-0 z-10">
-          <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[9px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
+          <tr className="border-b border-zinc-800 bg-[#0d0f16] text-xs font-semibold uppercase tracking-wide text-zinc-300 sm:text-sm">
             <th
-              className="w-[15%] overflow-hidden px-0.5 py-2 sm:w-[19%] sm:px-3"
+              className="w-[14%] overflow-hidden px-1 py-2"
               aria-sort={
                 sortBy === sortOptions.title.asc
                   ? 'ascending'
@@ -240,20 +240,20 @@ export const MovieList: React.FC<MovieListProps> = ({
                 Title
               </button>
             </th>
-            {renderSortHeader('year', 'Year', 'w-[7%] overflow-hidden px-0.5 py-2 text-center sm:w-[8%]')}
-            {renderSortHeader('size', 'Size', 'w-[16%] overflow-hidden px-0.5 py-2 text-right sm:w-[10%]')}
-            {renderSortHeader('minutes', 'Min', 'w-[9%] overflow-hidden px-0.5 py-2 text-right sm:w-[7%]')}
+            {renderSortHeader('year', 'Year', 'w-[6%] overflow-hidden px-1 py-2 text-center')}
+            {renderSortHeader('size', 'Size', 'w-[9%] overflow-hidden px-1 py-2 text-right')}
+            {renderSortHeader('minutes', 'Min', 'w-[6%] overflow-hidden px-1 py-2 text-right')}
             {renderSortHeader(
               'resolution',
               'Resolution',
-              'w-[10%] overflow-hidden px-0.5 py-2 text-center sm:w-[12%]',
+              'w-[8%] overflow-hidden px-1 py-2 text-center',
               'Res.',
             )}
-            {renderSortHeader('actors', 'Actor', 'w-[12%] overflow-hidden px-0.5 py-2 sm:w-[13%] sm:px-3')}
-            {renderSortHeader('studio', 'Studio', 'w-[12%] overflow-hidden px-0.5 py-2 sm:w-[13%] sm:px-3')}
-            {renderSortHeader('genre', 'Genre', 'w-[12%] overflow-hidden px-0.5 py-2 sm:px-3')}
-            <th className="relative px-2 py-2 min-w-[100px]" style={{ resize: 'horizontal', overflow: 'auto', minWidth: 100 }}>Cover Depan</th>
-            <th className="relative px-2 py-2 min-w-[100px]" style={{ resize: 'horizontal', overflow: 'auto', minWidth: 100 }}>Cover Belakang</th>
+            {renderSortHeader('actors', 'Actor', 'w-[14%] overflow-hidden px-1 py-2')}
+            {renderSortHeader('studio', 'Studio', 'w-[14%] overflow-hidden px-1 py-2')}
+            {renderSortHeader('genre', 'Genre', 'w-[10%] overflow-hidden px-1 py-2')}
+            <th className="relative px-1 py-2 min-w-0" style={{ resize: 'horizontal', overflow: 'hidden', minWidth: 55 }}>Cover Depan</th>
+            <th className="relative px-1 py-2 min-w-0" style={{ resize: 'horizontal', overflow: 'hidden', minWidth: 55 }}>Cover Belakang</th>
             <th className="w-[6%] overflow-hidden px-0.5 py-2 text-right sm:px-2">
               {isEditing ? (
                 <div className="inline-flex items-center justify-end gap-0.5">
@@ -340,7 +340,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     )}
                   </div>
                 </td>
-                <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:text-xs">
+                <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-xs text-zinc-200 sm:text-sm">
                   {isEditing && draft ? (
                     <input
                       aria-label={`Edit year for ${movie.title}`}
@@ -358,7 +358,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     />
                   ) : movie.year}
                 </td>
-                <td className="overflow-hidden whitespace-nowrap px-0.5 py-2 text-right font-mono text-[8px] text-zinc-300 sm:text-xs">
+                <td className="overflow-hidden whitespace-nowrap px-0.5 py-2 text-right font-mono text-xs text-zinc-200 sm:text-sm">
                   {isEditing && draft ? (
                     <div className="flex items-center justify-end gap-0.5">
                       <input
@@ -375,7 +375,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     </div>
                   ) : <span className="inline-block whitespace-nowrap">{formatStorageSize(Number(movie.sizeBytes) || 0)}</span>}
                 </td>
-                <td className="overflow-hidden whitespace-nowrap px-0.5 py-2 text-right font-mono text-[8px] text-zinc-300 sm:text-xs">
+                <td className="overflow-hidden whitespace-nowrap px-0.5 py-2 text-right font-mono text-xs text-zinc-200 sm:text-sm">
                   {isEditing && draft ? (
                     <input
                       aria-label={`Edit duration for ${movie.title}`}
@@ -392,7 +392,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     />
                   ) : `${movie.minutes}m`}
                 </td>
-                <td className={`px-0.5 py-2 text-center text-[8px] text-zinc-300 sm:text-xs ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
+                <td className={`px-0.5 py-2 text-center text-xs text-zinc-200 sm:text-sm ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
                   {isEditing && draft ? (
                     <AutocompleteInput
                       ariaLabel={`Edit resolution for ${movie.title}`}
@@ -408,7 +408,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     </span>
                   )}
                 </td>
-                <td className={`px-0.5 py-2 text-[8px] text-zinc-300 sm:px-3 sm:text-xs ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
+                <td className={`px-0.5 py-2 text-xs text-zinc-200 sm:px-2 sm:text-sm ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
                   {isEditing && draft ? (
                     <AutocompleteInput
                       ariaLabel={`Edit actors for ${movie.title}`}
@@ -425,7 +425,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     </span>
                   )}
                 </td>
-                <td className={`px-0.5 py-2 text-[8px] text-zinc-300 sm:px-3 sm:text-xs ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
+                <td className={`px-0.5 py-2 text-xs text-zinc-200 sm:px-2 sm:text-sm ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
                   {isEditing && draft ? (
                     <AutocompleteInput
                       ariaLabel={`Edit studio for ${movie.title}`}
@@ -441,7 +441,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     </span>
                   )}
                 </td>
-                <td className={`px-0.5 py-2 text-[8px] text-zinc-300 sm:px-3 sm:text-xs ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
+                <td className={`px-0.5 py-2 text-xs text-zinc-200 sm:px-2 sm:text-sm ${isEditing ? 'relative z-20 overflow-visible' : 'overflow-hidden'}`}>
                   {isEditing && draft ? (
                     <AutocompleteInput
                       ariaLabel={`Edit genre for ${movie.title}`}
@@ -458,10 +458,10 @@ export const MovieList: React.FC<MovieListProps> = ({
                     </span>
                   )}
                 </td>
-                <td className="px-2 py-2 text-[10px] sm:text-xs">
+                <td className="px-2 py-2 text-xs sm:text-sm">
                   <span className={movie.posterUrl?.trim() ? 'text-emerald-400' : 'text-rose-400'}>{movie.posterUrl?.trim() ? 'Available' : 'Missing'}</span>
                 </td>
-                <td className="px-2 py-2 text-[10px] sm:text-xs">
+                <td className="px-2 py-2 text-xs sm:text-sm">
                   <span className={movie.backdropUrl?.trim() ? 'text-emerald-400' : 'text-rose-400'}>{movie.backdropUrl?.trim() ? 'Available' : 'Missing'}</span>
                 </td>
                 <td className="overflow-hidden px-0.5 py-2 sm:px-2">
@@ -628,7 +628,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectOption(option)}
               onMouseEnter={() => setActiveIndex(index)}
-              className={`block w-full truncate px-2 py-1 text-left text-[10px] sm:text-xs ${activeIndex === index ? 'bg-zinc-800 text-white' : 'text-zinc-200 hover:bg-zinc-800'}`}
+              className={`block w-full truncate px-2 py-1 text-left text-xs sm:text-sm ${activeIndex === index ? 'bg-zinc-800 text-white' : 'text-zinc-200 hover:bg-zinc-800'}`}
               title={option.label}
             >
               {option.label}
