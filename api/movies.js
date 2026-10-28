@@ -7,6 +7,22 @@ function jsonResponse(value, status, headers) {
   return new Response(JSON.stringify(value), { status, headers: { ...Object.fromEntries(headers), 'Content-Type': 'application/json' } });
 }
 
+async function refreshActorMovieCounts(db) {
+  // movie_count is derived from the current movie catalog, not trusted from stale client profiles.
+  await db.query(`
+    UPDATE actors AS a
+    SET movie_count = COALESCE((
+      SELECT COUNT(DISTINCT m.id)::int
+      FROM movies AS m
+      CROSS JOIN LATERAL jsonb_array_elements_text(
+        CASE WHEN jsonb_typeof(m.actors) = 'array' THEN m.actors ELSE '[]'::jsonb END
+      ) AS credit(actor_name)
+      WHERE lower(trim(credit.actor_name)) = lower(trim(a.name))
+        AND trim(credit.actor_name) <> ''
+    ), 0)
+  `);
+}
+
 export default {
   async fetch(request) {
     const origin = request.headers.get('origin');
@@ -28,6 +44,7 @@ export default {
 
     try {
       if (body.action === 'load') {
+        await pool.query("ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors JSONB NOT NULL DEFAULT '[]'::jsonb");
         const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
         const formatted = result.rows.map(row => ({
           id: row.id.toString(), title: row.title || 'Untitled', year: Number(row.year) || 0,
@@ -42,6 +59,7 @@ export default {
 
       if (body.action === 'loadActors') {
         await pool.query('ALTER TABLE actors ADD COLUMN IF NOT EXISTS debut_movie_title TEXT');
+        await refreshActorMovieCounts(pool);
         const result = await pool.query('SELECT * FROM actors ORDER BY name ASC');
         const formatted = result.rows.map(row => ({
           name: row.name, alias: row.alias || '', dob: row.dob ? row.dob.toISOString().split('T')[0] : '',
@@ -51,6 +69,7 @@ export default {
       }
 
       if (body.action === 'save') {
+        await pool.query("ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors JSONB NOT NULL DEFAULT '[]'::jsonb");
         if (!Array.isArray(body.movies)) return jsonResponse({ error: 'Movies must be array.' }, 400, headers);
         const client = await pool.connect();
         try {
@@ -90,6 +109,7 @@ export default {
             const hasRows = Number(maxIdResult.rows[0]?.row_count) > 0;
             await client.query('SELECT setval($1::regclass, $2::bigint, $3::boolean)', [sequenceName, maxId, hasRows]);
           }
+          await refreshActorMovieCounts(client);
           await client.query('COMMIT');
           return jsonResponse({ message: 'Movie database replaced successfully.', count: body.movies.length }, 200, headers);
         } catch (error) {
@@ -134,19 +154,27 @@ export default {
           for (const a of actorsToSave) {
             if (!a || !String(a.name || '').trim()) continue;
             const allowDobUpdate = body.action === 'saveActor' && body.updateDob === true;
-            await client.query(
-              `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count, debut_movie_title) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-               ON CONFLICT (name) DO UPDATE SET
-                 alias = EXCLUDED.alias,
-                 dob = CASE WHEN $9::boolean THEN EXCLUDED.dob ELSE actors.dob END,
-                 photo_url = EXCLUDED.photo_url,
-                 favorite = EXCLUDED.favorite,
-                 reviewed = EXCLUDED.reviewed,
-                 movie_count = EXCLUDED.movie_count,
-                 debut_movie_title = EXCLUDED.debut_movie_title`,
-              [a.name.trim(), a.alias || null, allowDobUpdate ? (a.dob || null) : null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), Number(a.movieCount) || 0, String(a.debutMovieTitle || '').trim() || null, allowDobUpdate]
+            const actorName = a.name.trim();
+            const updateResult = await client.query(
+              `UPDATE actors SET
+                 alias = $2,
+                 dob = CASE WHEN $8::boolean THEN $3::date ELSE dob END,
+                 photo_url = $4,
+                 favorite = $5,
+                 reviewed = $6,
+                 debut_movie_title = $7
+               WHERE lower(trim(name)) = lower(trim($1))`,
+              [actorName, a.alias || null, allowDobUpdate ? (a.dob || null) : null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), String(a.debutMovieTitle || '').trim() || null, allowDobUpdate]
             );
+            if (updateResult.rowCount === 0) {
+              await client.query(
+                `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count, debut_movie_title)
+                 VALUES ($1, $2, $3, $4, $5, $6, 0, $7)`,
+                [actorName, a.alias || null, allowDobUpdate ? (a.dob || null) : null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), String(a.debutMovieTitle || '').trim() || null]
+              );
+            }
           }
+          await refreshActorMovieCounts(client);
           await client.query('COMMIT');
           return jsonResponse({ message: 'Actors saved.', count: actorsToSave.length }, 200, headers);
         } catch (error) {

@@ -14,8 +14,12 @@ CREATE TABLE IF NOT EXISTS movies (
     favorite BOOLEAN DEFAULT FALSE,
     reviewed BOOLEAN DEFAULT FALSE,
     uncensored BOOLEAN DEFAULT FALSE,
-    added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    actors JSONB NOT NULL DEFAULT '[]'::jsonb
 );
+
+-- Upgrade existing installations that were created before movie actor credits were stored.
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 -- Tabel untuk Aktor
 CREATE TABLE IF NOT EXISTS actors (
