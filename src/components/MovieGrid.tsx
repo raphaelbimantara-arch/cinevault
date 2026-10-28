@@ -8,7 +8,6 @@ interface MovieGridProps {
   movies: Movie[];
   onSelectMovie: (movie: Movie) => void;
   selectedMovieIds: Set<string>;
-  activeMovieId?: string | null;
   onToggleMovieSelection: (movieId: string) => void;
   onSelectMultipleMovies?: (movieIds: string[]) => void;
   selectionMode: boolean;
@@ -44,7 +43,7 @@ const PosterImage = ({ src, alt }: { src: string; alt: string }) => {
       referrerPolicy="no-referrer"
       draggable={false}
       onError={() => setHasError(true)}
-      className="w-full h-full object-contain transition-none"
+      className="w-full h-full object-cover transition-none"
       loading="lazy"
     />
   );
@@ -54,7 +53,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   movies,
   onSelectMovie,
   selectedMovieIds,
-  activeMovieId,
   onToggleMovieSelection,
   onSelectMultipleMovies,
   selectionMode,
@@ -72,54 +70,22 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     );
   }
 
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const [scrollTop, setScrollTop] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState(560);
-
-  React.useEffect(() => {
-    const element = viewportRef.current;
-    if (!element) return;
-    const updateSize = () => {
-      setViewportHeight(element.clientHeight || 560);
-    };
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(event.currentTarget.scrollTop);
-  }, []);
-
-  // Two complete rows are the design target. Poster height is derived from the
-  // real viewport, leaving room for title/meta beneath each image.
-  const gap = 8;
-  const rowHeight = Math.max(150, Math.floor((viewportHeight - gap) / 2));
-  const posterHeight = Math.max(82, rowHeight - 70);
-  const rowCount = Math.ceil(movies.length / cols);
-  const firstRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1);
-  const visibleRows = Math.ceil(viewportHeight / rowHeight) + 2;
-  const lastRow = Math.min(rowCount, firstRow + visibleRows);
-  const visibleRowsData = useMemo(() => {
-    const rows: Movie[][] = [];
-    for (let row = firstRow; row < lastRow; row++) {
-      rows.push(movies.slice(row * cols, Math.min((row + 1) * cols, movies.length)));
-    }
-    return rows;
-  }, [movies, firstRow, lastRow, cols]);
-
   const handleMovieClick = (e: React.MouseEvent, movie: Movie) => {
     if (selectionMode) {
       if (e.shiftKey && lastSelectedIdRef.current) {
         const lastIndex = movies.findIndex((m) => m.id === lastSelectedIdRef.current);
         const currentIndex = movies.findIndex((m) => m.id === movie.id);
+
         if (lastIndex !== -1 && currentIndex !== -1) {
           const start = Math.min(lastIndex, currentIndex);
           const end = Math.max(lastIndex, currentIndex);
           const rangeIds = movies.slice(start, end + 1).map((m) => m.id);
-          if (onSelectMultipleMovies) onSelectMultipleMovies(rangeIds);
-          else rangeIds.forEach((id) => onToggleMovieSelection(id));
+          
+          if (onSelectMultipleMovies) {
+            onSelectMultipleMovies(rangeIds);
+          } else {
+            rangeIds.forEach((id) => onToggleMovieSelection(id));
+          }
         }
       } else {
         onToggleMovieSelection(movie.id);
@@ -130,66 +96,112 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     }
   };
 
-  const renderCard = (movie: Movie) => {
-    const isSelected = selectedMovieIds.has(movie.id);
-    const isActive = activeMovieId === movie.id;
-    return (
-      <div
-        key={movie.id}
-        data-selection-id={movie.id}
-        data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
-        onClick={(e) => handleMovieClick(e, movie)}
-        aria-label={`${movie.title}, ${movie.year}, ${movie.resolution || 'resolution not set'}`}
-        className={`group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden border select-none transition-colors duration-100 ${isActive ? 'border-[#59b4df] bg-[#5bb2dc] ring-1 ring-inset ring-[#59b4df]' : isSelected ? 'border-sky-400 bg-[#243746] ring-1 ring-inset ring-sky-400/50' : 'border-[#303030] bg-[#111111] hover:border-[#5a5a5a]'}`}
-      >
-        <div className={`relative w-full shrink-0 overflow-hidden pointer-events-none ${isActive ? 'bg-[#cfcfcf]' : 'bg-[#080808]'}`} style={{ height: posterHeight }}>
-          <PosterImage src={getImageSource(movie.posterUrl)} alt={movie.title} />
-          <div className="absolute bottom-2 left-2 z-10 flex h-5 w-5 items-center justify-center text-white/90 drop-shadow-md">
-            {selectionMode ? (
-              <span className={`flex h-4 w-4 items-center justify-center border ${isSelected ? 'border-sky-300 bg-sky-400 text-black' : 'border-white/80 bg-black/25'}`}>{isSelected && <Check className="h-3 w-3" />}</span>
-            ) : <Check className="h-5 w-5" strokeWidth={2.5} />}
-          </div>
-          {movie.favorite && <Star className="absolute right-2 top-2 z-10 h-4 w-4 fill-amber-400 text-amber-400 drop-shadow-md" />}
-        </div>
-        <div className={`flex min-h-0 flex-1 flex-col gap-1 px-1.5 py-1.5 pointer-events-none ${isActive ? 'bg-[#5bb2dc] text-white' : 'bg-[#111111]'}`}>
-          <div className="min-w-0">
-            <h3 className={`line-clamp-1 text-[11px] font-extrabold leading-tight sm:text-xs ${isActive ? 'text-white' : 'text-[#dedede] group-hover:text-sky-300'}`} title={movie.title}>{movie.title}</h3>
-            {movie.uncensored && <span className={`text-[8px] font-bold uppercase tracking-wide ${isActive ? 'text-white/90' : 'text-rose-400'}`}>Uncensored</span>}
-          </div>
-          <div className={`mt-auto flex min-w-0 items-center justify-between gap-1 text-[9px] font-semibold sm:text-[10px] ${isActive ? 'text-white' : 'text-[#a7a7a7]'}`}>
-            <span className="truncate">{movie.resolution || '—'}</span><span>{movie.year || '—'}</span>
-          </div>
-          <div className={`flex min-w-0 items-center justify-between gap-1 text-[9px] sm:text-[10px] ${isActive ? 'text-white/90' : 'text-[#777777]'}`}>
-            <span className="truncate">{movie.minutes ? `${movie.minutes}m` : '—'}</span><span className="max-w-[55%] truncate">{movie.studio || ''}</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const rowHeight = 340;
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(720);
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(event.currentTarget.scrollTop);
+    setViewportHeight(event.currentTarget.clientHeight || 720);
+  }, []);
+  const rowCount = Math.ceil(movies.length / cols);
+  const firstRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 2);
+  const visibleRows = Math.ceil(viewportHeight / rowHeight) + 4;
+  const lastRow = Math.min(rowCount, firstRow + visibleRows);
+  const visibleMovies = useMemo(() => movies.slice(firstRow * cols, lastRow * cols), [movies, firstRow, lastRow, cols]);
 
   return (
-    <div
-      ref={viewportRef}
-      onScroll={handleScroll}
-      className="cv-grid-scroll h-full min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain select-none"
-      style={{ scrollbarWidth: 'auto', scrollbarColor: '#71717a #18181b' }}
+    <div ref={viewportRef} onScroll={handleScroll} className="h-[calc(100vh-190px)] min-h-[360px] overflow-x-hidden overflow-y-scroll select-none">
+      <div
+      className="grid gap-3 sm:gap-4 select-none content-start"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, paddingTop: firstRow * rowHeight, paddingBottom: Math.max(0, rowCount - lastRow) * rowHeight }}
+      onPointerDown={longPressHandlers.onPointerDown}
+      onPointerMove={longPressHandlers.onPointerMove}
+      onPointerUp={longPressHandlers.onPointerUp}
+      onPointerCancel={longPressHandlers.onPointerCancel}
+      onContextMenu={longPressHandlers.onContextMenu}
+      onClickCapture={longPressHandlers.onClickCapture}
     >
-      <div style={{ height: firstRow * rowHeight }} aria-hidden="true" />
-      <div className="flex flex-col gap-2 px-0.5 pb-1">
-        {visibleRowsData.map((row, rowIndex) => (
-          <div key={firstRow + rowIndex} className="grid min-w-0 gap-2" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, height: rowHeight }}
-            onPointerDown={longPressHandlers.onPointerDown}
-            onPointerMove={longPressHandlers.onPointerMove}
-            onPointerUp={longPressHandlers.onPointerUp}
-            onPointerCancel={longPressHandlers.onPointerCancel}
-            onContextMenu={longPressHandlers.onContextMenu}
-            onClickCapture={longPressHandlers.onClickCapture}
+      {visibleMovies.map((movie) => {
+        const isSelected = selectedMovieIds.has(movie.id);
+        return (
+          <div
+            key={movie.id}
+            data-selection-id={movie.id}
+            data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
+            onClick={(e) => handleMovieClick(e, movie)}
+            // PERUBAHAN 1: rounded-xl diganti menjadi rounded-md agar lebih kotak
+            className={`group relative flex flex-col cursor-pointer rounded-none overflow-hidden bg-[#121520] border transition-all duration-200 select-none ${
+              isSelected ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-600'
+            }`}
           >
-            {row.map(renderCard)}
+            {/* Area Poster */}
+            <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0 pointer-events-none">
+              
+              {/* PERUBAHAN 2: Menggunakan komponen PosterImage untuk fallback */}
+              <PosterImage 
+                src={getImageSource(movie.posterUrl)} 
+                alt={movie.title} 
+              />
+              
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+
+              {selectionMode && (
+                <div className="absolute top-2 left-2 z-10">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shadow-sm ${isSelected ? 'bg-amber-400 border-amber-400' : 'bg-black/50 border-white/50'}`}>
+                    {isSelected && <Check className="w-3.5 h-3.5 text-black" />}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Area Info */}
+            <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520] pointer-events-none">
+              
+              <div className="flex items-start justify-between gap-1.5">
+                <div className="flex flex-col gap-0.5">
+                  <h3 
+                    className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors" 
+                    title={movie.title}
+                  >
+                    {movie.title}
+                  </h3>
+                  {movie.uncensored && (
+                    <span className="text-[8px] font-bold text-rose-500 uppercase tracking-wider">
+                      Uncensored
+                    </span>
+                  )}
+                </div>
+
+                <div className="shrink-0 mt-0.5">
+                  {movie.favorite ? (
+                    <div className="w-3.5 h-3.5 rounded-full bg-zinc-700 flex items-center justify-center">
+                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                    </div>
+                  ) : (
+                    <div className="w-3.5 h-3.5 rounded-full border border-zinc-700/50 flex items-center justify-center">
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[8px] sm:text-[10px] text-zinc-400 font-mono">
+                <span>{movie.year}</span>
+                <span aria-hidden="true">·</span>
+                <span>{movie.minutes}m</span>
+                <span aria-hidden="true">·</span>
+                <span className="text-zinc-300">{formatStorageSize(Number(movie.sizeBytes) || 0)}</span>
+              </div>
+              
+              <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-zinc-500 truncate mt-0.5">
+                <Building2 className="w-3 h-3 shrink-0" />
+                <span className="truncate">{movie.studio}</span>
+              </div>
+            </div>
           </div>
-        ))}
+        );
+      })}
       </div>
-      <div style={{ height: Math.max(0, rowCount - lastRow) * rowHeight }} aria-hidden="true" />
     </div>
   );
 };

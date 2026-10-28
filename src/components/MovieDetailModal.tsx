@@ -245,7 +245,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   return (
     <div className={isEditing ? "fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6 pb-20 sm:pb-24 bg-black/85 backdrop-blur-md overflow-y-auto" : "fixed inset-y-0 right-0 z-40 flex justify-end bg-black/20"} onClick={onClose}>
       <div 
-        className={`relative w-full ${isEditing ? 'max-w-[1200px] h-auto' : 'max-w-[300px] h-full'} bg-[#0f121b] border border-zinc-800 ${isEditing ? 'rounded-2xl my-auto' : 'rounded-none'} overflow-visible shadow-2xl text-left animate-in fade-in slide-in-from-right-3 duration-150 transition-all`}
+        className={`relative w-full ${isEditing ? 'max-w-[1200px] h-auto' : 'max-w-[460px] h-full'} bg-[#0f121b] border border-zinc-800 ${isEditing ? 'rounded-2xl my-auto' : 'rounded-none'} overflow-visible shadow-2xl text-left animate-in fade-in slide-in-from-right-3 duration-150 transition-all`}
         data-selection-id={movie.id}
         onClick={(e) => e.stopPropagation()}
         onClickCapture={(event) => {
