@@ -233,11 +233,30 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
         .map((name) => {
           const profile = getActorProfile(name);
+          // Match ActorDetailModal: use a manually saved debut title when present;
+          // otherwise, when DOB is set, infer the earliest released film in this catalog.
+          const actorMovies = movies
+            .filter((movie) => movie.actors.some(
+              (actor) => actor.toLowerCase().trim() === name.toLowerCase().trim()
+            ))
+            .sort((a, b) => {
+              const aHasYear = Number.isFinite(a.year) && a.year > 0;
+              const bHasYear = Number.isFinite(b.year) && b.year > 0;
+              if (aHasYear && bHasYear && a.year !== b.year) return a.year - b.year;
+              if (aHasYear !== bHasYear) return aHasYear ? -1 : 1;
+              return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+            });
+          const firstReleasedMovie = actorMovies.find(
+            (movie) => Number.isFinite(movie.year) && movie.year > 0
+          );
+          const debutMovieTitle = profile.debutMovieTitle?.trim()
+            || (profile.dob && firstReleasedMovie ? firstReleasedMovie.title : '');
+
           return [
             profile.name || name,
             getActorAliases(profile.alias).join('; '),
             profile.dob || '',
-            profile.debutMovieTitle || '',
+            debutMovieTitle,
             profile.photoUrl || '',
           ];
         });
