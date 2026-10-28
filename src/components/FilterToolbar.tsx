@@ -5,7 +5,8 @@ import {
   GalleryHorizontal,
   Search, 
   X, 
-  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   FilterX,
   ChevronDown,
   ChevronUp,
@@ -88,35 +89,76 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
 
         {/* Controls Row: Sort on the left, categories on the right */}
         <div className="flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
-          {/* Sort dropdown on the left */}
-          <div className="flex items-center gap-1 bg-[#121520] border border-zinc-800 rounded-xl px-2 sm:px-2.5 py-1.5 shrink-0">
-            <ArrowUpDown className="w-3 h-3 text-amber-400 shrink-0" />
+          {/* Compact sort field selector + separate direction toggle */}
+          <div className="flex items-center gap-1 rounded-xl border border-zinc-800 bg-[#121520] px-2 py-1.5 shrink-0">
             <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer max-w-[100px] sm:max-w-none"
+              aria-label="Sort field"
+              value={(() => {
+                const map: Record<string, string> = {
+                  'alphabet-asc':'title','alphabet-desc':'title','year-asc':'year','year-desc':'year',
+                  'minutes-asc':'duration','minutes-desc':'duration','quality-asc':'quality','quality-desc':'quality',
+                  'size-asc':'size','size-desc':'size','actor-asc':'actor','actor-desc':'actor',
+                  'studio-asc':'studio','studio-desc':'studio','genre-asc':'genre','genre-desc':'genre',
+                  'date-added-asc':'dateAdded','date-added-desc':'dateAdded','date-modified-asc':'dateModified','date-modified-desc':'dateModified',
+                  'poster-missing-first':'frontCover','poster-available-first':'frontCover','backdrop-missing-first':'backCover','backdrop-available-first':'backCover'
+                };
+                return map[sortBy] || 'title';
+              })()}
+              onChange={(e) => {
+                const field = e.target.value;
+                const currentDesc = ['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','poster-available-first','backdrop-available-first'].includes(sortBy);
+                const pairs: Record<string, [SortOption, SortOption]> = {
+                  title:['alphabet-asc','alphabet-desc'], year:['year-asc','year-desc'], duration:['minutes-asc','minutes-desc'],
+                  quality:['quality-asc','quality-desc'], size:['size-asc','size-desc'], actor:['actor-asc','actor-desc'],
+                  studio:['studio-asc','studio-desc'], genre:['genre-asc','genre-desc'], dateAdded:['date-added-asc','date-added-desc'],
+                  dateModified:['date-modified-asc','date-modified-desc'], frontCover:['poster-missing-first','poster-available-first'],
+                  backCover:['backdrop-missing-first','backdrop-available-first']
+                };
+                const pair = pairs[field];
+                if (pair) setSortBy(pair[currentDesc ? 1 : 0]);
+              }}
+              className="max-w-[130px] cursor-pointer bg-transparent text-xs text-zinc-200 focus:outline-none sm:max-w-none"
             >
-              <option value="alphabet-asc" className="bg-[#121520]">Title (A-Z)</option>
-              <option value="alphabet-desc" className="bg-[#121520]">Title (Z-A)</option>
-              <option value="year-desc" className="bg-[#121520]">Year (Newest)</option>
-              <option value="year-asc" className="bg-[#121520]">Year (Oldest)</option>
-              <option value="minutes-desc" className="bg-[#121520]">Duration (Longest)</option>
-              <option value="minutes-asc" className="bg-[#121520]">Duration (Shortest)</option>
-              <option value="quality-desc" className="bg-[#121520]">Quality (Highest)</option>
-              <option value="quality-asc" className="bg-[#121520]">Quality (Lowest)</option>
-              <option value="size-desc" className="bg-[#121520]">Size (Largest)</option>
-              <option value="size-asc" className="bg-[#121520]">Size (Smallest)</option>
-              <option value="actor-asc" className="bg-[#121520]">Actor (A-Z)</option>
-              <option value="actor-desc" className="bg-[#121520]">Actor (Z-A)</option>
-              <option value="studio-asc" className="bg-[#121520]">Studio (A-Z)</option>
-              <option value="studio-desc" className="bg-[#121520]">Studio (Z-A)</option>
-              <option value="genre-asc" className="bg-[#121520]">Genre (A-Z)</option>
-              <option value="genre-desc" className="bg-[#121520]">Genre (Z-A)</option>
-              <option value="poster-missing-first" className="bg-[#121520]">Front Cover (Missing First)</option>
-              <option value="poster-available-first" className="bg-[#121520]">Front Cover (Available First)</option>
-              <option value="backdrop-missing-first" className="bg-[#121520]">Back Cover (Missing First)</option>
-              <option value="backdrop-available-first" className="bg-[#121520]">Back Cover (Available First)</option>
+              <option value="title" className="bg-[#121520]">Title</option>
+              <option value="year" className="bg-[#121520]">Year</option>
+              <option value="dateAdded" className="bg-[#121520]">Date Added</option>
+              <option value="dateModified" className="bg-[#121520]">Date Modified</option>
+              <option value="duration" className="bg-[#121520]">Duration</option>
+              <option value="quality" className="bg-[#121520]">Quality</option>
+              <option value="size" className="bg-[#121520]">Size</option>
+              <option value="actor" className="bg-[#121520]">Actor</option>
+              <option value="studio" className="bg-[#121520]">Studio</option>
+              <option value="genre" className="bg-[#121520]">Genre</option>
+              <option value="frontCover" className="bg-[#121520]">Front Cover</option>
+              <option value="backCover" className="bg-[#121520]">Back Cover</option>
             </select>
+            <button
+              type="button"
+              aria-label={['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','poster-available-first','backdrop-available-first'].includes(sortBy) ? 'Descending sort; click for ascending' : 'Ascending sort; click for descending'}
+              title={['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','poster-available-first','backdrop-available-first'].includes(sortBy) ? 'Descending' : 'Ascending'}
+              onClick={() => {
+                const pairs: Record<string, [SortOption, SortOption]> = {
+                  'alphabet-asc':['alphabet-asc','alphabet-desc'],'alphabet-desc':['alphabet-asc','alphabet-desc'],
+                  'year-asc':['year-asc','year-desc'],'year-desc':['year-asc','year-desc'],
+                  'minutes-asc':['minutes-asc','minutes-desc'],'minutes-desc':['minutes-asc','minutes-desc'],
+                  'quality-asc':['quality-asc','quality-desc'],'quality-desc':['quality-asc','quality-desc'],
+                  'size-asc':['size-asc','size-desc'],'size-desc':['size-asc','size-desc'],
+                  'actor-asc':['actor-asc','actor-desc'],'actor-desc':['actor-asc','actor-desc'],
+                  'studio-asc':['studio-asc','studio-desc'],'studio-desc':['studio-asc','studio-desc'],
+                  'genre-asc':['genre-asc','genre-desc'],'genre-desc':['genre-asc','genre-desc'],
+                  'date-added-asc':['date-added-asc','date-added-desc'],'date-added-desc':['date-added-asc','date-added-desc'],
+                  'date-modified-asc':['date-modified-asc','date-modified-desc'],'date-modified-desc':['date-modified-asc','date-modified-desc'],
+                  'poster-missing-first':['poster-missing-first','poster-available-first'],'poster-available-first':['poster-missing-first','poster-available-first'],
+                  'backdrop-missing-first':['backdrop-missing-first','backdrop-available-first'],'backdrop-available-first':['backdrop-missing-first','backdrop-available-first']
+                };
+                const pair = pairs[sortBy];
+                if (pair) setSortBy(sortBy === pair[0] ? pair[1] : pair[0]);
+              }}
+              className="rounded-md p-1 text-zinc-300 hover:bg-zinc-800 hover:text-amber-300"
+            >
+              {['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','poster-available-first','backdrop-available-first'].includes(sortBy)
+                ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+            </button>
           </div>
 
           {/* Categories on the right */}

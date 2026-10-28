@@ -555,32 +555,52 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           : 'flex w-auto shrink-0 items-center gap-1'}>
           {actorViewMode === 'grid' && (
           <div className="col-span-2 flex min-w-0 items-center gap-1 rounded-xl border border-zinc-800 bg-[#121520] px-2 py-1.5 sm:col-span-1">
-            <ArrowUpDown className="h-3 w-3 text-amber-400 shrink-0" />
             <select
-              value={actorSort}
-              onChange={(event) => setActorSort(event.target.value as ActorSortOption)}
-              aria-label="Sort actors"
+              value={actorSort.replace(/-(asc|desc)$/, '')}
+              onChange={(event) => {
+                const field = event.target.value;
+                const defaults: Record<string, ActorSortOption> = {
+                  name: 'name', alias: 'alias', dob: 'dob-asc', movies: 'movies-desc', age: 'age-desc',
+                  'debut-age': 'debut-age-asc', size: 'size-desc', duration: 'duration-desc',
+                  uncensored: 'uncensored-desc', 'date-added': 'date-added-desc', 'date-modified': 'date-modified-desc'
+                };
+                setActorSort(defaults[field] || 'name');
+              }}
+              aria-label="Sort actors by field"
               className="w-full min-w-0 cursor-pointer bg-transparent text-xs text-zinc-200 focus:outline-none sm:max-w-[125px]"
             >
-              <option value="name" className="bg-[#121520]">Name (A–Z)</option>
-              <option value="name-desc" className="bg-[#121520]">Name (Z–A)</option>
-              <option value="date-added-desc" className="bg-[#121520]">Date Added (Newest)</option>
-              <option value="date-added-asc" className="bg-[#121520]">Date Added (Oldest)</option>
-              <option value="date-modified-desc" className="bg-[#121520]">Date Modified (Newest)</option>
-              <option value="date-modified-asc" className="bg-[#121520]">Date Modified (Oldest)</option>
-              <option value="alias" className="bg-[#121520]">Alias (A–Z)</option>
-              <option value="alias-desc" className="bg-[#121520]">Alias (Z–A)</option>
-              <option value="movies-desc" className="bg-[#121520]">Movies (Most)</option>
-              <option value="movies-asc" className="bg-[#121520]">Movies (Fewest)</option>
-              <option value="age-desc" className="bg-[#121520]">Age (Oldest)</option>
-              <option value="age-asc" className="bg-[#121520]">Age (Youngest)</option>
-              <option value="debut-age-asc" className="bg-[#121520]">Debut age (Youngest)</option>
-              <option value="debut-age-desc" className="bg-[#121520]">Debut age (Oldest)</option>
-              <option value="size-desc" className="bg-[#121520]">Size (Largest)</option>
-              <option value="size-asc" className="bg-[#121520]">Size (Smallest)</option>
-              <option value="duration-desc" className="bg-[#121520]">Duration (Longest)</option>
-              <option value="duration-asc" className="bg-[#121520]">Duration (Shortest)</option>
+              <option value="name" className="bg-[#121520]">Name</option>
+              <option value="alias" className="bg-[#121520]">Alias</option>
+              <option value="dob" className="bg-[#121520]">DOB</option>
+              <option value="age" className="bg-[#121520]">Age</option>
+              <option value="debut-age" className="bg-[#121520]">Debut Age</option>
+              <option value="movies" className="bg-[#121520]">Movies</option>
+              <option value="size" className="bg-[#121520]">Size</option>
+              <option value="duration" className="bg-[#121520]">Duration</option>
+              <option value="uncensored" className="bg-[#121520]">Uncensored</option>
+              <option value="date-added" className="bg-[#121520]">Date Added</option>
+              <option value="date-modified" className="bg-[#121520]">Date Modified</option>
             </select>
+            <button
+              type="button"
+              aria-label={actorSort.endsWith('-desc') ? 'Descending sort; click for ascending' : 'Ascending sort; click for descending'}
+              title={actorSort.endsWith('-desc') ? 'Descending' : 'Ascending'}
+              onClick={() => {
+                const pairs: Partial<Record<ActorSortOption, ActorSortOption>> = {
+                  name:'name-desc','name-desc':'name', alias:'alias-desc','alias-desc':'alias',
+                  'dob-asc':'dob-desc','dob-desc':'dob-asc', 'movies-asc':'movies-desc','movies-desc':'movies-asc',
+                  'age-asc':'age-desc','age-desc':'age-asc', 'debut-age-asc':'debut-age-desc','debut-age-desc':'debut-age-asc',
+                  'size-asc':'size-desc','size-desc':'size-asc', 'duration-asc':'duration-desc','duration-desc':'duration-asc',
+                  'uncensored-asc':'uncensored-desc','uncensored-desc':'uncensored-asc',
+                  'date-added-asc':'date-added-desc','date-added-desc':'date-added-asc',
+                  'date-modified-asc':'date-modified-desc','date-modified-desc':'date-modified-asc'
+                };
+                setActorSort(pairs[actorSort] || 'name-desc');
+              }}
+              className="rounded-md p-1 text-zinc-300 hover:bg-zinc-800 hover:text-amber-300"
+            >
+              {actorSort.endsWith('-desc') ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+            </button>
           </div>
           )}
           {actorViewMode === 'list' && (
