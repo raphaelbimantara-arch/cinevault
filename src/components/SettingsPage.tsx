@@ -7,7 +7,7 @@ import {
 import { Movie } from '../types';
 import { ActorProfile } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
-import { getActorAliases, getCustomActors, KNOWN_ACTORS } from '../data/actorsData';
+import { getActorAliases, getActorProfile, getCustomActors, KNOWN_ACTORS } from '../data/actorsData';
 
 const formatStorageSize = (sizeInMB: number) => {
   if (isNaN(sizeInMB) || sizeInMB <= 0) return '0.00 GB';
@@ -214,6 +214,41 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const handleCancelUpload = () => {
     setCsvFile(null); setSelectedFileType(null); setParsedMovies([]); setRawPreviewData([]); setParseErrors([]); setParseNotes([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleExportActorsExcel = () => {
+    try {
+      const customActors = getCustomActors();
+      const actorNames = new Map<string, string>();
+      movies.forEach((movie) => movie.actors.forEach((name) => {
+        const cleanName = String(name || '').trim();
+        if (cleanName) actorNames.set(cleanName.toLocaleLowerCase(), cleanName);
+      }));
+      Object.keys(KNOWN_ACTORS).forEach((name) => actorNames.set(name.toLocaleLowerCase(), name));
+      Object.keys(customActors).forEach((name) => actorNames.set(name.toLocaleLowerCase(), name));
+
+      const headers = ['Name', 'Aliases', 'Date of Birth', 'Debut Movie Title', 'Photo URL'];
+      const rows = [...actorNames.values()]
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+        .map((name) => {
+          const profile = getActorProfile(name);
+          return [
+            profile.name || name,
+            getActorAliases(profile.alias).join('; '),
+            profile.dob || '',
+            profile.debutMovieTitle || '',
+            profile.photoUrl || '',
+          ];
+        });
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      worksheet['!cols'] = [{ wch: 28 }, { wch: 34 }, { wch: 18 }, { wch: 28 }, { wch: 55 }];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Actors');
+      XLSX.writeFile(workbook, `cinevault_actor_details_${new Date().toISOString().split('T')[0]}.xlsx`);
+      showToast('success', `Successfully exported ${rows.length} actor profiles.`);
+    } catch (error) {
+      showToast('error', 'Failed to export actor details.');
+    }
   };
 
   const handleExportCsv = () => {
@@ -610,6 +645,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0"><Upload className="w-5 h-5" /></div>
             <div><h3 className="font-bold text-base text-zinc-100">Import or Update Actor Details</h3><p className="text-xs text-zinc-400">Upload an Excel spreadsheet to add or update actor profiles.</p></div>
+          </div>
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
+            <div className="flex items-center gap-2"><Download className="w-4 h-4 text-emerald-300" /><div><h4 className="text-sm font-semibold text-zinc-100">Export Actor Details</h4><p className="text-xs text-zinc-400">Download actor profiles using the same Excel columns as Actor Import.</p></div></div>
+            <button type="button" onClick={handleExportActorsExcel} className="w-full py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2"><Download className="w-4 h-4" /><span>Download Actor Details (.xlsx)</span></button>
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-3 text-xs text-zinc-300 space-y-1">
             <p><strong className="text-amber-300">Required column:</strong> Name</p>
