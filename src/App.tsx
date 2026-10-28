@@ -401,7 +401,9 @@ export default function App() {
   const handleClearMetadataFilter = () => { setActiveMetadataFilter(null); };
 
   const handleAddMovie = (newMovie: Movie) => {
-    setMovies((prev) => [newMovie, ...prev]); setActivePage('library'); setSortBy('alphabet-asc'); setActiveMetadataFilter(null);
+    const now = new Date().toISOString();
+    const timestampedMovie = { ...newMovie, addedDate: newMovie.addedDate || now, modifiedDate: newMovie.modifiedDate || now };
+    setMovies((prev) => [timestampedMovie, ...prev]); setActivePage('library'); setSortBy('alphabet-asc'); setActiveMetadataFilter(null);
   };
 
   const handleDeleteMovie = async (id: string) => {
@@ -459,7 +461,7 @@ export default function App() {
     const selectedMovies = movies.filter((movie) => selectedMovieIds.has(movie.id));
     const alreadyMarked = selectedMovies.filter((movie) => movie[field] === true).map((movie) => movie.id);
     const newlyMarkedCount = selectedMovies.length - alreadyMarked.length;
-    setMovies((prev) => prev.map((movie) => selectedMovieIds.has(movie.id) ? { ...movie, ...updates } : movie));
+    setMovies((prev) => prev.map((movie) => selectedMovieIds.has(movie.id) ? { ...movie, ...updates, modifiedDate: new Date().toISOString() } : movie));
     const message = alreadyMarked.length > 0 ? `${newlyMarkedCount} movies marked as ${label}; ${alreadyMarked.length} were already ${label}.` : `${newlyMarkedCount} movies marked as ${label}.`;
     showActionNotification(message, alreadyMarked.length > 0 ? { label: field === 'favorite' ? 'Remove from favorites' : 'Remove review mark', onClick: () => handleRemoveSelectedMovieStatus(field, alreadyMarked) } : undefined);
   };
@@ -468,27 +470,33 @@ export default function App() {
     const ids = new Set(movieIds);
     setMovies((prev) => prev.map((movie) => {
       if (!ids.has(movie.id)) return movie;
-      return field === 'favorite' ? { ...movie, favorite: false } : { ...movie, reviewed: false };
+      return field === 'favorite' ? { ...movie, favorite: false, modifiedDate: new Date().toISOString() } : { ...movie, reviewed: false, modifiedDate: new Date().toISOString() };
     }));
     showActionNotification(`${movieIds.length} movies removed from ${field === 'favorite' ? 'favorites' : 'review'}.`);
   };
 
   const handleUpdateMovie = (updatedMovie: Movie) => {
-    setMovies((prev) => prev.map((m) => (m.id === updatedMovie.id ? updatedMovie : m))); setSelectedMovie(updatedMovie);
+    const now = new Date().toISOString();
+    const current = moviesRef.current.find((movie) => movie.id === updatedMovie.id);
+    const savedMovie = { ...updatedMovie, addedDate: current?.addedDate || updatedMovie.addedDate || '', modifiedDate: now };
+    setMovies((prev) => prev.map((m) => (m.id === savedMovie.id ? savedMovie : m))); setSelectedMovie(savedMovie);
   };
 
   const handleUpdateMovieFromList = (updatedMovie: Movie) => {
-    setMovies((prev) => prev.map((movie) => (movie.id === updatedMovie.id ? updatedMovie : movie)));
+    const now = new Date().toISOString();
+    const current = moviesRef.current.find((movie) => movie.id === updatedMovie.id);
+    const savedMovie = { ...updatedMovie, addedDate: current?.addedDate || updatedMovie.addedDate || '', modifiedDate: now };
+    setMovies((prev) => prev.map((movie) => (movie.id === savedMovie.id ? savedMovie : movie)));
   };
 
-  const handleToggleListSort = (field: 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio' | 'genre' | 'frontCover' | 'backCover') => {
+  const handleToggleListSort = (field: 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio' | 'genre' | 'frontCover' | 'backCover' | 'dateAdded' | 'dateModified') => {
     if (field === 'frontCover' || field === 'backCover') {
       const missing = field === 'frontCover' ? 'poster-missing-first' : 'backdrop-missing-first';
       const available = field === 'frontCover' ? 'poster-available-first' : 'backdrop-available-first';
       setSortBy((current) => current === missing ? available : missing);
       return;
     }
-    const options = { title: ['alphabet-asc', 'alphabet-desc'], year: ['year-asc', 'year-desc'], size: ['size-asc', 'size-desc'], minutes: ['minutes-asc', 'minutes-desc'], resolution: ['quality-asc', 'quality-desc'], actors: ['actor-asc', 'actor-desc'], studio: ['studio-asc', 'studio-desc'], genre: ['genre-asc', 'genre-desc'] } as const;
+    const options = { title: ['alphabet-asc', 'alphabet-desc'], year: ['year-asc', 'year-desc'], size: ['size-asc', 'size-desc'], minutes: ['minutes-asc', 'minutes-desc'], resolution: ['quality-asc', 'quality-desc'], actors: ['actor-asc', 'actor-desc'], studio: ['studio-asc', 'studio-desc'], genre: ['genre-asc', 'genre-desc'], dateAdded: ['date-added-asc', 'date-added-desc'], dateModified: ['date-modified-asc', 'date-modified-desc'] } as const;
     const [ascending, descending] = options[field]; setSortBy((current) => current === ascending ? descending : ascending);
   };
 
@@ -499,7 +507,7 @@ export default function App() {
     if (oldTrimmed !== newTrimmed) {
       setMovies((prev) => prev.map((m) => {
         if (m.actors.some((a) => a.trim().toLowerCase() === oldTrimmed.toLowerCase())) {
-          return { ...m, actors: m.actors.map((a) => a.trim().toLowerCase() === oldTrimmed.toLowerCase() ? newTrimmed : a) };
+          return { ...m, actors: m.actors.map((a) => a.trim().toLowerCase() === oldTrimmed.toLowerCase() ? newTrimmed : a), modifiedDate: new Date().toISOString() };
         }
         return m;
       }));
@@ -603,12 +611,14 @@ export default function App() {
             posterUrl: incoming.posterUrl?.trim() && !incoming.posterUrl.includes('images.unsplash.com/photo-1489599849927-2ee91cede3ba') && !incoming.posterUrl.includes('images.unsplash.com/photo-1514565131-fce0801e5785') && !incoming.posterUrl.includes('images.unsplash.com/photo-1536440136628-849c177e76a1') ? incoming.posterUrl : existing.posterUrl,
             backdropUrl: incoming.backdropUrl?.trim() ? incoming.backdropUrl : existing.backdropUrl,
             actors: incoming.actors?.length && !(incoming.actors.length === 1 && incoming.actors[0] === 'Cast') ? incoming.actors : existing.actors,
-            addedDate: incoming.addedDate && incoming.addedDate !== new Date().toISOString().split('T')[0] ? incoming.addedDate : existing.addedDate,
+            addedDate: existing.addedDate || (incoming.addedDate && incoming.addedDate !== new Date().toISOString().split('T')[0] ? incoming.addedDate : ''),
+            modifiedDate: new Date().toISOString(),
           };
         } else {
           let newId = incoming.id || `excel-${Date.now()}-${incomingIndex}`;
           if (result.some((movie) => movie.id === newId)) newId = `import-${Date.now()}-${incomingIndex}`;
-          const newMovie = { ...incoming, id: newId };
+          const now = new Date().toISOString();
+          const newMovie = { ...incoming, id: newId, addedDate: incoming.addedDate || now, modifiedDate: incoming.modifiedDate || now };
           result.push(newMovie);
           indexByTitle.set(key, result.length - 1);
         }
@@ -664,6 +674,10 @@ export default function App() {
         case 'poster-available-first': return Number(Boolean(b.posterUrl?.trim())) - Number(Boolean(a.posterUrl?.trim()));
         case 'backdrop-missing-first': return Number(Boolean(a.backdropUrl?.trim())) - Number(Boolean(b.backdropUrl?.trim()));
         case 'backdrop-available-first': return Number(Boolean(b.backdropUrl?.trim())) - Number(Boolean(a.backdropUrl?.trim()));
+        case 'date-added-asc': return !a.addedDate ? (!b.addedDate ? a.title.localeCompare(b.title) : 1) : !b.addedDate ? -1 : a.addedDate.localeCompare(b.addedDate) || a.title.localeCompare(b.title);
+        case 'date-added-desc': return !a.addedDate ? (!b.addedDate ? a.title.localeCompare(b.title) : 1) : !b.addedDate ? -1 : b.addedDate.localeCompare(a.addedDate) || a.title.localeCompare(b.title);
+        case 'date-modified-asc': return !a.modifiedDate ? (!b.modifiedDate ? a.title.localeCompare(b.title) : 1) : !b.modifiedDate ? -1 : a.modifiedDate.localeCompare(b.modifiedDate) || a.title.localeCompare(b.title);
+        case 'date-modified-desc': return !a.modifiedDate ? (!b.modifiedDate ? a.title.localeCompare(b.title) : 1) : !b.modifiedDate ? -1 : b.modifiedDate.localeCompare(a.modifiedDate) || a.title.localeCompare(b.title);
         default: return a.title.localeCompare(b.title);
       }
     });

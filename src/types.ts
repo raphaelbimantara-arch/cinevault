@@ -16,6 +16,7 @@ export interface Movie {
   reviewed?: boolean;
   uncensored?: boolean;
   addedDate?: string;
+  modifiedDate?: string;
 }
 
 export type ViewMode = 'grid' | 'list' | 'cover';
@@ -42,7 +43,11 @@ export type SortOption =
   | 'poster-missing-first'
   | 'poster-available-first'
   | 'backdrop-missing-first'
-  | 'backdrop-available-first';
+  | 'backdrop-available-first'
+  | 'date-added-asc'
+  | 'date-added-desc'
+  | 'date-modified-asc'
+  | 'date-modified-desc';
 
 export interface ActiveFilter {
   type: 'genre' | 'studio' | 'year' | 'minutes' | 'size' | 'resolution' | 'actor' | 'alphabet' | 'search';

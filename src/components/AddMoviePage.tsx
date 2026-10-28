@@ -156,7 +156,8 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
       resolution,
       posterUrl: finalPoster,
       actors: actorsList.length > 0 ? actorsList : ['Lead Actor'],
-      addedDate: new Date().toISOString().split('T')[0],
+      addedDate: new Date().toISOString(),
+      modifiedDate: new Date().toISOString(),
     };
 
     // Register into master data

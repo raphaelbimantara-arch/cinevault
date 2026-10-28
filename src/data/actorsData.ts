@@ -9,6 +9,8 @@ export interface ActorProfile {
   photoUrl: string;
   favorite?: boolean;
   reviewed?: boolean;
+  dateAdded?: string;
+  dateModified?: string;
 }
 
 export function getActorAliases(alias?: string): string[] {
@@ -191,7 +193,7 @@ clearLegacyLocalActorDobsOnce();
 
 export function getCustomActors(): Record<
   string,
-  { alias?: string; dob: string; debutMovieTitle?: string; photoUrl: string; favorite?: boolean; reviewed?: boolean }
+  { alias?: string; dob: string; debutMovieTitle?: string; photoUrl: string; favorite?: boolean; reviewed?: boolean; dateAdded?: string; dateModified?: string }
 > {
   try {
     const raw = localStorage.getItem(CUSTOM_ACTORS_KEY);
@@ -220,6 +222,8 @@ export function applySharedActorProfiles(profiles: ActorProfile[]): void {
         photoUrl: profile.photoUrl || '',
         favorite: profile.favorite,
         reviewed: profile.reviewed,
+        dateAdded: current[existingName || name]?.dateAdded || profile.dateAdded || '',
+        dateModified: current[existingName || name]?.dateModified || profile.dateModified || '',
       };
       currentNames.set(name.toLowerCase(), name);
     });
@@ -233,13 +237,18 @@ export function applySharedActorProfiles(profiles: ActorProfile[]): void {
 export function registerCustomActor(profile: ActorProfile): void {
   try {
     const current = getCustomActors();
-    current[profile.name.trim()] = {
+    const name = profile.name.trim();
+    const previous = current[name];
+    const now = new Date().toISOString();
+    current[name] = {
       alias: profile.alias?.trim() || undefined,
       dob: profile.dob,
       debutMovieTitle: profile.debutMovieTitle || '',
       photoUrl: profile.photoUrl,
       favorite: profile.favorite,
       reviewed: profile.reviewed,
+      dateAdded: previous?.dateAdded || now,
+      dateModified: now,
     };
     localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(current));
   } catch (e) {
@@ -290,6 +299,8 @@ export function updateActorProfile(oldName: string, updatedProfile: ActorProfile
       photoUrl: updatedProfile.photoUrl,
       favorite: updatedProfile.favorite ?? previousProfile.favorite,
       reviewed: updatedProfile.reviewed ?? previousProfile.reviewed,
+      dateAdded: (existingName ? current[existingName]?.dateAdded : undefined) || updatedProfile.dateAdded || (existingName ? previousProfile.dateAdded : new Date().toISOString()) || '',
+      dateModified: new Date().toISOString(),
     };
 
     localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(current));
@@ -317,6 +328,8 @@ export function updateActorStatuses(
         photoUrl: profile.photoUrl,
         favorite: updates.favorite ?? profile.favorite,
         reviewed: updates.reviewed ?? profile.reviewed,
+        dateAdded: profile.dateAdded || '',
+        dateModified: new Date().toISOString(),
       };
     });
     localStorage.setItem(CUSTOM_ACTORS_KEY, JSON.stringify(current));
@@ -366,6 +379,8 @@ function createActorProfile(
       photoUrl: customProfile.photoUrl,
       favorite: customProfile.favorite,
       reviewed: customProfile.reviewed,
+      dateAdded: customProfile.dateAdded || '',
+      dateModified: customProfile.dateModified || '',
     };
   }
 
@@ -378,6 +393,8 @@ function createActorProfile(
       photoUrl: KNOWN_ACTORS[trimmed].photoUrl,
       favorite: customProfile?.favorite,
       reviewed: customProfile?.reviewed,
+      dateAdded: customProfile?.dateAdded || '',
+      dateModified: customProfile?.dateModified || '',
     };
   }
 
@@ -387,5 +404,7 @@ function createActorProfile(
     dob: '',
     debutMovieTitle: '',
     photoUrl: '', // Will render stylish initials avatar if empty
+    dateAdded: '',
+    dateModified: '',
   };
 }

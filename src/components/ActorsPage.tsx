@@ -37,9 +37,11 @@ interface ActorStat {
   photoUrl: string;
   favorite: boolean;
   reviewed: boolean;
+  dateAdded: string;
+  dateModified: string;
 }
 
-type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'dob-asc' | 'dob-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'debut-age-asc' | 'debut-age-desc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc' | 'uncensored-asc' | 'uncensored-desc';
+type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'dob-asc' | 'dob-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'debut-age-asc' | 'debut-age-desc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc' | 'uncensored-asc' | 'uncensored-desc' | 'date-added-asc' | 'date-added-desc' | 'date-modified-asc' | 'date-modified-desc';
 type ActorEditDraft = { name: string; dob: string };
 
 const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = ({
@@ -88,8 +90,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   });
   const actorTableRef = useRef<HTMLTableElement | null>(null);
   const [actorColumnWidths, setActorColumnWidths] = useState<number[]>(() => {
-    const defaults = [22, 13, 7, 9, 17, 8, 14, 6, 4];
-    try { const saved = JSON.parse(localStorage.getItem('cinevault-actor-column-widths-v1') || 'null'); return Array.isArray(saved) && saved.length === 9 ? saved : defaults; } catch { return defaults; }
+    const defaults = [18, 10, 6, 8, 13, 7, 6, 7, 5, 10, 10];
+    try { const saved = JSON.parse(localStorage.getItem('cinevault-actor-column-widths-v1') || 'null'); return Array.isArray(saved) && saved.length === 11 ? saved : defaults; } catch { return defaults; }
   });
   const resizeActorColumn = (index: number, event: React.PointerEvent<HTMLSpanElement>) => {
     event.preventDefault(); event.stopPropagation();
@@ -245,6 +247,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         photoUrl: profile.photoUrl,
         favorite: profile.favorite === true,
         reviewed: profile.reviewed === true,
+        dateAdded: profile.dateAdded || '',
+        dateModified: profile.dateModified || '',
       });
     });
 
@@ -280,6 +284,18 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
     }
 
     return [...result].sort((a, b) => {
+      if (actorSort === 'date-added-asc' || actorSort === 'date-added-desc') {
+        const order = actorSort === 'date-added-asc' ? 1 : -1;
+        if (!a.dateAdded) return b.dateAdded ? 1 : a.name.localeCompare(b.name);
+        if (!b.dateAdded) return -1;
+        return order * a.dateAdded.localeCompare(b.dateAdded) || a.name.localeCompare(b.name);
+      }
+      if (actorSort === 'date-modified-asc' || actorSort === 'date-modified-desc') {
+        const order = actorSort === 'date-modified-asc' ? 1 : -1;
+        if (!a.dateModified) return b.dateModified ? 1 : a.name.localeCompare(b.name);
+        if (!b.dateModified) return -1;
+        return order * a.dateModified.localeCompare(b.dateModified) || a.name.localeCompare(b.name);
+      }
       if (actorSort === 'movies-desc') {
         return b.movies.length - a.movies.length || a.name.localeCompare(b.name);
       }
@@ -548,6 +564,10 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             >
               <option value="name" className="bg-[#121520]">Name (A–Z)</option>
               <option value="name-desc" className="bg-[#121520]">Name (Z–A)</option>
+              <option value="date-added-desc" className="bg-[#121520]">Date Added (Newest)</option>
+              <option value="date-added-asc" className="bg-[#121520]">Date Added (Oldest)</option>
+              <option value="date-modified-desc" className="bg-[#121520]">Date Modified (Newest)</option>
+              <option value="date-modified-asc" className="bg-[#121520]">Date Modified (Oldest)</option>
               <option value="alias" className="bg-[#121520]">Alias (A–Z)</option>
               <option value="alias-desc" className="bg-[#121520]">Alias (Z–A)</option>
               <option value="movies-desc" className="bg-[#121520]">Movies (Most)</option>
@@ -854,6 +874,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     Uncen
                   </button>
                 </th>
+                <th className="relative px-0.5 py-2 text-center"><button type="button" disabled={isEditingList} onClick={() => toggleActorSort('date-added-asc', 'date-added-desc')} className="w-full text-center disabled:cursor-default">Date Added</button><span onPointerDown={(e) => resizeActorColumn(9, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
+                <th className="relative px-0.5 py-2 text-center"><button type="button" disabled={isEditingList} onClick={() => toggleActorSort('date-modified-asc', 'date-modified-desc')} className="w-full text-center disabled:cursor-default">Date Modified</button><span onPointerDown={(e) => resizeActorColumn(10, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/70">
@@ -929,6 +951,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.uncensoredMovies} uncensored movies`}>
                       {actor.uncensoredMovies}
                     </td>
+                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-1 sm:text-xs" title={actor.dateAdded || 'Date added unavailable'}>{actor.dateAdded ? new Date(actor.dateAdded).toLocaleDateString() : '—'}</td>
+                    <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[7px] text-zinc-300 sm:px-1 sm:text-xs" title={actor.dateModified || 'Date modified unavailable'}>{actor.dateModified ? new Date(actor.dateModified).toLocaleDateString() : '—'}</td>
                   </tr>
                 );
               })}
