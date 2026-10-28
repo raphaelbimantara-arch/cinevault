@@ -218,14 +218,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const handleExportActorsExcel = () => {
     try {
-      const customActors = getCustomActors();
+      // Export only actor names actually used by movies in the application.
+      // Normalize Unicode, whitespace, and letter case to prevent duplicate rows.
       const actorNames = new Map<string, string>();
       movies.forEach((movie) => movie.actors.forEach((name) => {
-        const cleanName = String(name || '').trim();
-        if (cleanName) actorNames.set(cleanName.toLocaleLowerCase(), cleanName);
+        const cleanName = String(name || '').normalize('NFKC').trim().replace(/\s+/g, ' ');
+        if (!cleanName) return;
+        const normalizedKey = cleanName.toLocaleLowerCase();
+        if (!actorNames.has(normalizedKey)) actorNames.set(normalizedKey, cleanName);
       }));
-      Object.keys(KNOWN_ACTORS).forEach((name) => actorNames.set(name.toLocaleLowerCase(), name));
-      Object.keys(customActors).forEach((name) => actorNames.set(name.toLocaleLowerCase(), name));
 
       const headers = ['Name', 'Aliases', 'Date of Birth', 'Debut Movie Title', 'Photo URL'];
       const rows = [...actorNames.values()]
