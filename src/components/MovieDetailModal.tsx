@@ -269,9 +269,16 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         style={{ touchAction: 'pan-y' }}
       >
         {!isEditing && (
-          <button type="button" onClick={(event) => { event.stopPropagation(); onClose(); }} className="absolute right-3 top-3 z-[60] flex h-9 w-9 items-center justify-center rounded-md border border-zinc-700 bg-black/75 text-zinc-200 shadow-lg hover:bg-amber-400 hover:text-black" title="Close movie details" aria-label="Close movie details">
-            <X className="h-5 w-5" />
-          </button>
+          <div className="absolute right-3 top-3 z-[60] flex items-center gap-2">
+            {onUpdateMovie && (
+              <button type="button" onClick={(event) => { event.stopPropagation(); setIsEditing(true); }} className="flex h-9 w-9 items-center justify-center rounded-md border border-zinc-700 bg-black/75 text-zinc-200 shadow-lg hover:border-amber-400 hover:bg-amber-400 hover:text-black" title="Edit movie details" aria-label="Edit movie details">
+                <Edit3 className="h-4 w-4" />
+              </button>
+            )}
+            <button type="button" onClick={(event) => { event.stopPropagation(); onClose(); }} className="flex h-9 w-9 items-center justify-center rounded-md border border-zinc-700 bg-black/75 text-zinc-200 shadow-lg hover:bg-amber-400 hover:text-black" title="Close movie details" aria-label="Close movie details">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         )}
         {
             movieIndex > 0 && (
@@ -491,12 +498,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
               </div>
             </div>
 
-            <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-end gap-2">
-              {onUpdateMovie && (
-                <button type="button" onClick={() => setIsEditing(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-zinc-950" title="Edit movie details" aria-label="Edit movie details"><Edit3 className="h-4 w-4" /></button>
-              )}
-              <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white" title="Close movie details" aria-label="Close movie details"><X className="h-4 w-4" /></button>
-            </div>
+
           </>
             )}
           </div>

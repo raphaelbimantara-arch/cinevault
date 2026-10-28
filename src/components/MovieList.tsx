@@ -5,6 +5,7 @@ import { Movie, SortOption } from '../types';
 import { useLongPress } from '../utils/useLongPress';
 import { getMovieGenres } from '../utils/movieGenres';
 import { getActorAliases, getActorProfile } from '../data/actorsData';
+import { getImageSource } from '../utils/googleDriveImage';
 
 type ListSortField = 'title' | 'year' | 'size' | 'minutes' | 'resolution' | 'actors' | 'studio' | 'genre';
 
@@ -78,6 +79,7 @@ export const MovieList: React.FC<MovieListProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, MovieEditDraft>>({});
+  const [coverLoadStatus, setCoverLoadStatus] = useState<Record<string, 'loaded' | 'failed'>>({});
   const tableRef = useRef<HTMLTableElement>(null);
   const resizeDragRef = useRef<{ column: string; startX: number; startWidth: number } | null>(null);
   const columnIds = ['title', 'year', 'size', 'minutes', 'resolution', 'actors', 'studio', 'genre', 'frontCover', 'backCover', 'actions'] as const;
@@ -561,10 +563,30 @@ export const MovieList: React.FC<MovieListProps> = ({
                   )}
                 </td>
                 <td className="px-2 py-2 text-xs sm:text-sm">
-                  <span className={movie.posterUrl?.trim() ? 'text-emerald-400' : 'text-rose-400'}>{movie.posterUrl?.trim() ? 'Available' : 'Missing'}</span>
+                  {(() => {
+                    const url = movie.posterUrl?.trim() || '';
+                    const statusKey = `${movie.id}:poster:${url}`;
+                    const status = !url ? 'Missing' : coverLoadStatus[statusKey] === 'loaded' ? 'Available' : coverLoadStatus[statusKey] === 'failed' ? 'Missing' : 'Checking';
+                    return (
+                      <>
+                        {url && <img key={statusKey} src={getImageSource(url)} alt="" loading="lazy" referrerPolicy="no-referrer" className="pointer-events-none absolute h-px w-px opacity-0" onLoad={() => setCoverLoadStatus((current) => current[statusKey] === 'loaded' ? current : { ...current, [statusKey]: 'loaded' })} onError={() => setCoverLoadStatus((current) => current[statusKey] === 'failed' ? current : { ...current, [statusKey]: 'failed' })} />}
+                        <span className={status === 'Available' ? 'text-emerald-400' : status === 'Checking' ? 'text-amber-300' : 'text-rose-400'}>{status}</span>
+                      </>
+                    );
+                  })()}
                 </td>
                 <td className="px-2 py-2 text-xs sm:text-sm">
-                  <span className={movie.backdropUrl?.trim() ? 'text-emerald-400' : 'text-rose-400'}>{movie.backdropUrl?.trim() ? 'Available' : 'Missing'}</span>
+                  {(() => {
+                    const url = movie.backdropUrl?.trim() || '';
+                    const statusKey = `${movie.id}:backdrop:${url}`;
+                    const status = !url ? 'Missing' : coverLoadStatus[statusKey] === 'loaded' ? 'Available' : coverLoadStatus[statusKey] === 'failed' ? 'Missing' : 'Checking';
+                    return (
+                      <>
+                        {url && <img key={statusKey} src={getImageSource(url)} alt="" loading="lazy" referrerPolicy="no-referrer" className="pointer-events-none absolute h-px w-px opacity-0" onLoad={() => setCoverLoadStatus((current) => current[statusKey] === 'loaded' ? current : { ...current, [statusKey]: 'loaded' })} onError={() => setCoverLoadStatus((current) => current[statusKey] === 'failed' ? current : { ...current, [statusKey]: 'failed' })} />}
+                        <span className={status === 'Available' ? 'text-emerald-400' : status === 'Checking' ? 'text-amber-300' : 'text-rose-400'}>{status}</span>
+                      </>
+                    );
+                  })()}
                 </td>
                 <td className="overflow-hidden px-0.5 py-2 sm:px-2">
                   {(movie.favorite || movie.reviewed) && (
