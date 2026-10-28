@@ -165,8 +165,10 @@ export default function App() {
     try {
       await sharedCatalogSaveQueue.current;
       await saveSharedCatalog(movieSnapshot, undefined, onUploadProgress);
+      onUploadProgress?.(98);
       enqueueSharedActorUpdate(() => saveSharedActors(actorSnapshot));
       await sharedActorSaveQueue.current;
+      onUploadProgress?.(99);
       setSharedCatalogStatus('connected');
       return movieSnapshot.length;
     } catch (error) {

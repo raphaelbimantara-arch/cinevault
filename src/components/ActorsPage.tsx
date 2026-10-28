@@ -1,4 +1,4 @@
-import React, { startTransition, useEffect, useState, useMemo } from 'react';
+import React, { startTransition, useEffect, useState, useMemo, useRef } from 'react';
 import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, ArrowUpDown, Star, Check, ChevronDown, ChevronUp, Pencil, Save, Undo2 } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
 import { ActorProfile, getActorProfiles, getActorProfile, updateActorStatuses } from '../data/actorsData';
@@ -81,7 +81,29 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   onUpdateActor,
   onActorProfilesChanged,
 }) => {
-  const [actorViewMode, setActorViewMode] = useState<ViewMode>(viewMode);
+  const [actorViewMode, setActorViewMode] = useState<ViewMode>(() => {
+    try { return (localStorage.getItem('cinevault-actor-view-mode-v1') as ViewMode) || 'list'; } catch { return 'list'; }
+  });
+  const actorTableRef = useRef<HTMLTableElement | null>(null);
+  const [actorColumnWidths, setActorColumnWidths] = useState<number[]>(() => {
+    const defaults = [22, 13, 7, 9, 17, 8, 14, 6, 4];
+    try { const saved = JSON.parse(localStorage.getItem('cinevault-actor-column-widths-v1') || 'null'); return Array.isArray(saved) && saved.length === 9 ? saved : defaults; } catch { return defaults; }
+  });
+  const resizeActorColumn = (index: number, event: React.PointerEvent<HTMLSpanElement>) => {
+    event.preventDefault(); event.stopPropagation();
+    const table = actorTableRef.current; if (!table || index >= actorColumnWidths.length - 1) return;
+    const startX = event.clientX; const tableWidth = table.getBoundingClientRect().width;
+    const initial = actorColumnWidths; const startLeft = initial[index]; const startRight = initial[index + 1];
+    const move = (e: PointerEvent) => {
+      const delta = ((e.clientX - startX) / tableWidth) * 100;
+      const left = Math.max(4, Math.min(startLeft + startRight - 4, startLeft + delta));
+      const next = [...initial]; next[index] = left; next[index + 1] = startLeft + startRight - left;
+      setActorColumnWidths(next);
+      try { localStorage.setItem('cinevault-actor-column-widths-v1', JSON.stringify(next)); } catch {}
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up, { once: true });
+  };
   const [search, setSearch] = useState('');
   const [actorSort, setActorSort] = useState<ActorSortOption>('name');
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
@@ -121,6 +143,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
     setSelectedActorNames((prev) => new Set(prev).add(name));
   }, !selectionMode);
   const setActorView = (mode: ViewMode) => {
+    try { localStorage.setItem('cinevault-actor-view-mode-v1', mode); } catch { /* Storage may be unavailable. */ }
     if (mode !== 'grid') {
       setSearch('');
       setActorSort('name');
@@ -742,19 +765,20 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           onContextMenu={isEditingList ? undefined : longPressHandlers.onContextMenu}
           onClickCapture={isEditingList ? undefined : longPressHandlers.onClickCapture}
         >
-          <table className="w-full table-fixed border-collapse text-left">
+          <table ref={actorTableRef} className="w-full table-fixed border-collapse text-left">
+            <colgroup>{actorColumnWidths.map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup>
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-zinc-800 bg-[#0d0f16] text-[8px] font-semibold uppercase tracking-wide text-zinc-400 sm:text-[10px]">
-                <th className={`${isEditingList ? 'w-[20%] sm:w-[20%]' : 'w-[26%] sm:w-[22%]'} px-1 py-2 sm:px-3`}>
+                <th className="relative px-1 py-2 sm:px-3">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('name', 'name-desc')} className="w-full text-left disabled:cursor-default">Actor</button>
-                </th>
-                <th className={`${isEditingList ? 'w-[23%] sm:w-[23%]' : 'w-[20%] sm:w-[13%]'} px-0.5 py-2 text-center sm:px-2`}>
+                <span onPointerDown={(e) => resizeActorColumn(0, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
+                <th className="relative px-0.5 py-2 text-center sm:px-2">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('dob-asc', 'dob-desc')} className="w-full text-center disabled:cursor-default">DOB</button>
-                </th>
-                <th className="w-[6%] px-0.5 py-2 text-center sm:w-[7%] sm:px-1">
+                <span onPointerDown={(e) => resizeActorColumn(1, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
+                <th className="relative px-0.5 py-2 text-center sm:px-1">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('age-asc', 'age-desc')} className="w-full text-center disabled:cursor-default">Age</button>
-                </th>
-                <th className={`${isEditingList ? 'w-[8%] sm:w-[8%]' : 'w-[8%] sm:w-[9%]'} px-0.5 py-2 text-center sm:px-1`}>
+                <span onPointerDown={(e) => resizeActorColumn(2, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
+                <th className="relative px-0.5 py-2 text-center sm:px-1">
                   <button
                     type="button"
                     disabled={isEditingList}
@@ -764,16 +788,16 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                   >
                     Debut Age
                   </button>
-                </th>
-                <th className="w-[17%] px-0.5 py-2 text-center sm:px-1">Debut</th>
-                <th className="w-[8%] px-0.5 py-2 text-center sm:px-1">Size</th>
-                <th className={`${isEditingList ? 'w-[10%] sm:w-[13%]' : 'w-[10%] sm:w-[14%]'} px-0.5 py-2 text-center sm:px-2`}>
+                <span onPointerDown={(e) => resizeActorColumn(3, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
+                <th className="relative px-0.5 py-2 text-center sm:px-1">Debut<span onPointerDown={(e) => resizeActorColumn(4, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
+                <th className="relative px-0.5 py-2 text-center sm:px-1">Size<span onPointerDown={(e) => resizeActorColumn(5, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
+                <th className="relative px-0.5 py-2 text-center sm:px-2">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('duration-asc', 'duration-desc')} className="w-full text-center disabled:cursor-default">Min</button>
-                </th>
-                <th className={`${isEditingList ? 'w-[12%] sm:w-[10%]' : 'w-[11%] sm:w-[13%]'} px-0.5 py-2 text-center sm:px-2`}>
+                <span onPointerDown={(e) => resizeActorColumn(6, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
+                <th className="relative px-0.5 py-2 text-center sm:px-2">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('movies-asc', 'movies-desc')} className="w-full text-center disabled:cursor-default">Movies</button>
-                </th>
-                <th className={`${isEditingList ? 'w-[10%] sm:w-[8%]' : 'w-[8%] sm:w-[10%]'} px-0.5 py-2 text-center normal-case sm:px-1`}>
+                <span onPointerDown={(e) => resizeActorColumn(7, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
+                <th className="relative px-0.5 py-2 text-center normal-case sm:px-1">
                   <button
                     type="button"
                     disabled={isEditingList}

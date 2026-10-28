@@ -84,7 +84,8 @@ const SaveSharedCatalogButton: React.FC<SaveSharedCatalogButtonProps> = ({
     setSaving(true);
     setUploadProgress(0);
     try {
-      const count = await onSave(setUploadProgress);
+      const count = await onSave((percent) => setUploadProgress(Math.min(99, percent)));
+      setUploadProgress(100);
       onNotify('success', `${count} movies successfully saved to the database.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save database.';
@@ -101,7 +102,7 @@ const SaveSharedCatalogButton: React.FC<SaveSharedCatalogButtonProps> = ({
         <p className="text-xs text-zinc-200">Replace the shared database with all {movieCount} movies from this device?</p>
         {saving && (
           <div className="space-y-1.5" role="status" aria-live="polite">
-            <div className="flex items-center justify-between text-[11px] text-zinc-300"><span>Uploading catalog data...</span><strong className="font-mono text-emerald-300">{uploadProgress}%</strong></div>
+            <div className="flex items-center justify-between text-[11px] text-zinc-300"><span>Saving movies and syncing actor profiles...</span><strong className="font-mono text-emerald-300">{uploadProgress}%</strong></div>
             <div className="h-2 overflow-hidden rounded-full bg-zinc-800"><div className="h-full rounded-full bg-emerald-400 transition-[width] duration-150" style={{ width: `${uploadProgress}%` }} /></div>
           </div>
         )}

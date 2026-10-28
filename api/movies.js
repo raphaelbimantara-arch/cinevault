@@ -71,53 +71,75 @@ export default {
       if (body.action === 'save') {
         await pool.query("ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors JSONB NOT NULL DEFAULT '[]'::jsonb");
         if (!Array.isArray(body.movies)) return jsonResponse({ error: 'Movies must be array.' }, 400, headers);
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
-          // Replace the complete movie catalog atomically. If any row fails, rollback preserves the previous catalog.
-          await client.query('TRUNCATE TABLE movies RESTART IDENTITY CASCADE');
-          const usedIds = new Set();
-          for (const m of body.movies) {
-            const candidateId = String(m.id ?? '').trim();
-            const numericId = /^\d+$/.test(candidateId) && Number(candidateId) > 0 && Number.isSafeInteger(Number(candidateId)) && !usedIds.has(Number(candidateId))
-              ? Number(candidateId) : null;
-            if (numericId !== null) usedIds.add(numericId);
-            const safeYear = parseInt(String(m.year ?? '').replace(/[^0-9]/g, ''), 10) || 0;
-            const safeMinutes = parseInt(String(m.minutes ?? '').replace(/[^0-9]/g, ''), 10) || 0;
-            const safeSizeBytes = Math.round(Number(String(m.sizeBytes ?? '').replace(/[^0-9]/g, ''))) || 0;
-            const values = [m.title || 'Untitled', safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, Boolean(m.favorite), Boolean(m.reviewed), Boolean(m.uncensored), m.addedDate || null, JSON.stringify(Array.isArray(m.actors) ? m.actors : [])];
-            if (numericId !== null) {
-              await client.query(
-                `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
-                [numericId, ...values]
-              );
-            } else {
-              await client.query(
-                `INSERT INTO movies (title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, values
-              );
-            }
+
+        // Stream server-side progress as newline-delimited JSON so the client reports
+        // actual database work rather than upload progress alone.
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            const emit = (value) => controller.enqueue(encoder.encode(`${JSON.stringify(value)}\n`));
+            (async () => {
+              const client = await pool.connect();
+              try {
+                const total = body.movies.length;
+                emit({ type: 'progress', phase: 'Preparing database transaction', percent: 2, completed: 0, total });
+                await client.query('BEGIN');
+                await client.query('TRUNCATE TABLE movies RESTART IDENTITY CASCADE');
+                const usedIds = new Set();
+                for (let i = 0; i < total; i++) {
+                  const m = body.movies[i];
+                  const candidateId = String(m.id ?? '').trim();
+                  const numericId = /^\d+$/.test(candidateId) && Number(candidateId) > 0 && Number.isSafeInteger(Number(candidateId)) && !usedIds.has(Number(candidateId))
+                    ? Number(candidateId) : null;
+                  if (numericId !== null) usedIds.add(numericId);
+                  const safeYear = parseInt(String(m.year ?? '').replace(/[^0-9]/g, ''), 10) || 0;
+                  const safeMinutes = parseInt(String(m.minutes ?? '').replace(/[^0-9]/g, ''), 10) || 0;
+                  const safeSizeBytes = Math.round(Number(String(m.sizeBytes ?? '').replace(/[^0-9]/g, ''))) || 0;
+                  const values = [m.title || 'Untitled', safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, Boolean(m.favorite), Boolean(m.reviewed), Boolean(m.uncensored), m.addedDate || null, JSON.stringify(Array.isArray(m.actors) ? m.actors : [])];
+                  if (numericId !== null) {
+                    await client.query(
+                      `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+                      [numericId, ...values]
+                    );
+                  } else {
+                    await client.query(
+                      `INSERT INTO movies (title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, values
+                    );
+                  }
+                  // Reserve the final portion for sequence maintenance and actor-count refresh.
+                  const percent = total ? Math.min(88, 3 + Math.floor(((i + 1) / total) * 85)) : 88;
+                  emit({ type: 'progress', phase: 'Saving movies to database', percent, completed: i + 1, total });
+                }
+                emit({ type: 'progress', phase: 'Updating database sequence', percent: 90, completed: total, total });
+                const sequenceResult = await client.query("SELECT pg_get_serial_sequence('movies', 'id') AS sequence_name");
+                const sequenceName = sequenceResult.rows[0]?.sequence_name;
+                if (sequenceName) {
+                  const maxIdResult = await client.query("SELECT MAX(NULLIF(id::text, '')::bigint) AS max_id, COUNT(*)::int AS row_count FROM movies");
+                  const maxId = Number(maxIdResult.rows[0]?.max_id) || 1;
+                  const hasRows = Number(maxIdResult.rows[0]?.row_count) > 0;
+                  await client.query('SELECT setval($1::regclass, $2::bigint, $3::boolean)', [sequenceName, maxId, hasRows]);
+                }
+                emit({ type: 'progress', phase: 'Synchronizing actor movie counts', percent: 94, completed: total, total });
+                await refreshActorMovieCounts(client);
+                emit({ type: 'progress', phase: 'Committing database transaction', percent: 97, completed: total, total });
+                await client.query('COMMIT');
+                emit({ type: 'complete', message: 'Movie database replaced successfully.', count: total });
+              } catch (error) {
+                try { await client.query('ROLLBACK'); } catch {}
+                emit({ type: 'error', error: 'Database failed: ' + error.message });
+              } finally {
+                client.release();
+                controller.close();
+              }
+            })().catch((error) => {
+              emit({ type: 'error', error: 'Database failed: ' + error.message });
+              controller.close();
+            });
           }
-          // Some existing deployments store movie IDs as TEXT, while fresh schemas use SERIAL/INTEGER.
-          // Only adjust a sequence when one exists, and cast the maximum ID explicitly to BIGINT.
-          const sequenceResult = await client.query("SELECT pg_get_serial_sequence('movies', 'id') AS sequence_name");
-          const sequenceName = sequenceResult.rows[0]?.sequence_name;
-          if (sequenceName) {
-            const maxIdResult = await client.query("SELECT MAX(NULLIF(id::text, '')::bigint) AS max_id, COUNT(*)::int AS row_count FROM movies");
-            const maxId = Number(maxIdResult.rows[0]?.max_id) || 1;
-            const hasRows = Number(maxIdResult.rows[0]?.row_count) > 0;
-            await client.query('SELECT setval($1::regclass, $2::bigint, $3::boolean)', [sequenceName, maxId, hasRows]);
-          }
-          await refreshActorMovieCounts(client);
-          await client.query('COMMIT');
-          return jsonResponse({ message: 'Movie database replaced successfully.', count: body.movies.length }, 200, headers);
-        } catch (error) {
-          await client.query('ROLLBACK');
-          throw error;
-        } finally {
-          client.release();
-        }
+        });
+        headers.set('Content-Type', 'application/x-ndjson; charset=utf-8');
+        headers.set('X-Content-Type-Options', 'nosniff');
+        return new Response(stream, { status: 200, headers });
       }
 
       if (body.action === 'clearDatabase') {

@@ -24,23 +24,57 @@ async function requestCatalog(payload: {
     xhr.open('POST', CATALOG_API_URL);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && onUploadProgress) {
-        onUploadProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      // Upload transfer is only the first phase; server-side database progress is
+      // reported separately by the streamed response below.
+      if (event.lengthComputable && onUploadProgress && payload.action === 'save') {
+        onUploadProgress(Math.min(2, Math.round((event.loaded / event.total) * 2)));
       }
+    };
+    let processedResponseLength = 0;
+    let pendingProgressText = '';
+    const processProgressLines = (chunk: string) => {
+      pendingProgressText += chunk;
+      const lines = pendingProgressText.split('\n');
+      pendingProgressText = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const event = JSON.parse(line);
+          if (event.type === 'progress' && typeof event.percent === 'number') onUploadProgress?.(Math.min(97, event.percent));
+          if (event.type === 'error') {
+            // Final error is also parsed below; don't resolve the request early.
+          }
+        } catch { /* Ignore incomplete/non-progress response fragments. */ }
+      }
+    };
+    xhr.onprogress = () => {
+      if (payload.action !== 'save') return;
+      const newText = xhr.responseText.slice(processedResponseLength);
+      processedResponseLength = xhr.responseText.length;
+      processProgressLines(newText);
     };
     xhr.onload = () => resolve(new Response(xhr.responseText, { status: xhr.status, statusText: xhr.statusText }));
     xhr.onerror = () => reject(new Error('Network error while uploading the catalog.'));
     xhr.onabort = () => reject(new Error('Catalog upload was cancelled.'));
     xhr.send(body);
   });
-  if (response.ok) onUploadProgress?.(100);
+  // Progress is driven by streamed server events; completion is reported by the caller only after actor-profile sync.
   const text = await response.text();
   let result: any;
 
   try {
-    // Coba ubah teks menjadi JSON
-    result = JSON.parse(text);
+    if (payload.action === 'save') {
+      const events = text.split('\n').filter(Boolean).map((line) => JSON.parse(line));
+      const failure = events.find((event) => event.type === 'error');
+      if (failure) throw new Error(failure.error || 'Database save failed.');
+      result = events.find((event) => event.type === 'complete');
+      if (!result) throw new Error('The server ended the save process without confirming completion.');
+      onUploadProgress?.(97);
+    } else {
+      result = JSON.parse(text);
+    }
   } catch (error) {
+    if (error instanceof Error && (error.message.includes('Database failed:') || error.message.includes('without confirming completion') || error.message === 'Database save failed.')) throw error;
     // Jika gagal (karena server mengirim HTML), tampilkan pesan error yang rapi
     console.error('Invalid JSON response from server:', text.substring(0, 100));
     throw new Error('Server returned an invalid response. Please try again later.');
