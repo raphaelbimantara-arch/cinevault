@@ -109,7 +109,33 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
   const [pendingActorJumpLetter, setPendingActorJumpLetter] = useState<string | null>(null);
   const [isAlphabetOpen, setIsAlphabetOpen] = useState(false);
-  const [cols, setCols] = useState(4);
+  const [cols, setCols] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('cinevault_actor_cover_cols_v1'));
+      return Number.isInteger(saved) && saved >= 6 && saved <= 22 ? saved : 10;
+    } catch { return 10; }
+  });
+  const actorCoverViewportRef = useRef<HTMLDivElement | null>(null);
+  const [actorCoverScrollTop, setActorCoverScrollTop] = useState(0);
+  const [actorCoverViewportHeight, setActorCoverViewportHeight] = useState(650);
+  const [actorCoverViewportWidth, setActorCoverViewportWidth] = useState(1200);
+  useEffect(() => {
+    const element = actorCoverViewportRef.current;
+    if (!element) return;
+    const measure = () => {
+      setActorCoverViewportHeight(element.clientHeight || 650);
+      setActorCoverViewportWidth(element.clientWidth || 1200);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [actorViewMode]);
+  useEffect(() => {
+    if (actorViewMode !== 'cover') return;
+    if (actorCoverViewportRef.current) actorCoverViewportRef.current.scrollTop = 0;
+    setActorCoverScrollTop(0);
+  }, [cols, actorViewMode, search, selectedAlphabets]);
   const [selectedActorNames, setSelectedActorNames] = useState<Set<string>>(() => new Set());
   const [actorStatusRevision, setActorStatusRevision] = useState(0);
   const [isEditingList, setIsEditingList] = useState(false);
@@ -313,6 +339,18 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
     });
   }, [actorStats, search, selectedAlphabets, actorSort]);
+
+  const actorCoverGap = 8;
+  const actorCoverCardWidth = Math.max(1, (actorCoverViewportWidth - actorCoverGap * (cols - 1)) / cols);
+  const actorCoverRowHeight = actorCoverCardWidth + 28 + actorCoverGap;
+  const actorCoverRowCount = Math.ceil(filteredActors.length / cols);
+  const actorCoverFirstRow = Math.max(0, Math.floor(actorCoverScrollTop / actorCoverRowHeight) - 3);
+  const actorCoverVisibleRowCount = Math.ceil(actorCoverViewportHeight / actorCoverRowHeight) + 6;
+  const actorCoverLastRow = Math.min(actorCoverRowCount, actorCoverFirstRow + actorCoverVisibleRowCount);
+  const visibleCoverActors = useMemo(
+    () => filteredActors.slice(actorCoverFirstRow * cols, actorCoverLastRow * cols),
+    [filteredActors, actorCoverFirstRow, actorCoverLastRow, cols],
+  );
 
   useEffect(() => {
     if (!pendingActorJumpLetter) return;
@@ -740,17 +778,22 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
       {/* Actors Cards Grid */}
       {actorViewMode === 'cover' && (
         <div className="flex min-w-0 flex-nowrap items-center gap-2 bg-[#121520] border border-zinc-800 rounded-xl px-2 py-1.5">
-          <span className="shrink-0 text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Cols</span>
+          <span className="shrink-0 text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Cover size</span>
           <input
             type="range"
-            min="1"
-            max="6"
+            min="6"
+            max="22"
+            step="1"
             value={cols}
-            onChange={(e) => setCols(Number(e.target.value))}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              setCols(next);
+              try { localStorage.setItem('cinevault_actor_cover_cols_v1', String(next)); } catch {}
+            }}
             aria-label="Actors per row"
-            className="h-1.5 w-32 max-w-full bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400 sm:w-48"
+            className="h-2 min-w-[140px] max-w-md flex-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
           />
-          <span className="shrink-0 text-[10px] text-zinc-500 font-mono">{cols} / row</span>
+          <span className="shrink-0 text-[10px] text-amber-300 font-mono">{cols} actors per row</span>
         </div>
       )}
       </div>
@@ -890,13 +933,27 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         </div>
       ) : (
       <div
+        ref={actorViewMode === 'cover' ? actorCoverViewportRef : undefined}
+        onScroll={actorViewMode === 'cover' ? (event) => setActorCoverScrollTop(event.currentTarget.scrollTop) : undefined}
+        className={actorViewMode === 'cover'
+          ? "h-[calc(100vh-285px)] min-h-[300px] overflow-x-hidden overflow-y-scroll overscroll-contain rounded-xl [scrollbar-width:thin] [scrollbar-color:#fbbf24_#27272a]"
+          : "overflow-visible"}
+        style={actorViewMode === 'cover' ? { scrollbarGutter: 'stable' } : undefined}
+      >
+      <div
         className={`grid min-w-0 w-full gap-2 sm:gap-4 ${
           actorViewMode === 'cover'
             ? ''
             : 'grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
         }`}
         style={actorViewMode === 'cover'
-          ? { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }
+          ? {
+              gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+              paddingTop: `${actorCoverFirstRow * actorCoverRowHeight}px`,
+              paddingBottom: `${Math.max(0, actorCoverRowCount - actorCoverLastRow) * actorCoverRowHeight}px`,
+              columnGap: `${actorCoverGap}px`,
+              rowGap: `${actorCoverGap}px`,
+            }
           : undefined}
         onPointerDown={longPressHandlers.onPointerDown}
         onPointerMove={longPressHandlers.onPointerMove}
@@ -905,7 +962,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         onContextMenu={longPressHandlers.onContextMenu}
         onClickCapture={longPressHandlers.onClickCapture}
       >
-        {filteredActors.map((actor) => {
+        {(actorViewMode === 'cover' ? visibleCoverActors : filteredActors).map((actor) => {
           return (
             <div
               key={actor.name}
@@ -972,6 +1029,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
             </div>
           );
         })}
+      </div>
       </div>
       )}
 
