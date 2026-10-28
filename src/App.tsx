@@ -334,7 +334,7 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem(GRID_COLS_STORAGE_KEY, String(gridCols)); } catch (e) { console.error(e); } }, [gridCols]);
 
   const [movieCoverCols, setMovieCoverCols] = useState(() => {
-    try { const savedCols = Number(localStorage.getItem(MOVIE_COVER_COLS_STORAGE_KEY)); return Number.isInteger(savedCols) && savedCols >= 1 && savedCols <= 7 ? savedCols : 4; } catch { return 4; }
+    try { const savedCols = Number(localStorage.getItem(MOVIE_COVER_COLS_STORAGE_KEY)); return Number.isInteger(savedCols) && savedCols >= 6 && savedCols <= 22 ? savedCols : 10; } catch { return 10; }
   });
 
   useEffect(() => { try { localStorage.setItem(MOVIE_COVER_COLS_STORAGE_KEY, String(movieCoverCols)); } catch (e) { console.error(e); } }, [movieCoverCols]);

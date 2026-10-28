@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Film } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -14,6 +14,9 @@ interface MovieCoverGridProps {
   onColsChange: (cols: number) => void;
 }
 
+const GRID_GAP = 8;
+const OVERSCAN_ROWS = 3;
+
 export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
   movies,
   onSelectMovie,
@@ -24,6 +27,44 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
   onColsChange,
 }) => {
   const longPressHandlers = useLongPress(onToggleMovieSelection, !selectionMode);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(700);
+  const [containerWidth, setContainerWidth] = useState(1200);
+
+  useEffect(() => {
+    const element = viewportRef.current;
+    if (!element) return;
+    const measure = () => {
+      setContainerWidth(element.clientWidth || 1200);
+      setViewportHeight(element.clientHeight || 700);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  // Keep the new layout predictable when the user changes cover size.
+  useEffect(() => {
+    if (viewportRef.current) viewportRef.current.scrollTop = 0;
+    setScrollTop(0);
+  }, [cols]);
+
+  const cardWidth = Math.max(1, (containerWidth - GRID_GAP * (cols - 1)) / cols);
+  const rowHeight = cardWidth * 1.5 + GRID_GAP;
+  const rowCount = Math.ceil(movies.length / cols);
+  const firstRow = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN_ROWS);
+  const visibleRows = Math.ceil(viewportHeight / rowHeight) + OVERSCAN_ROWS * 2;
+  const lastRow = Math.min(rowCount, firstRow + visibleRows);
+  const visibleMovies = useMemo(
+    () => movies.slice(firstRow * cols, lastRow * cols),
+    [movies, firstRow, lastRow, cols],
+  );
+
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(event.currentTarget.scrollTop);
+  }, []);
 
   if (movies.length === 0) {
     return (
@@ -36,71 +77,77 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
 
   return (
     <div className="w-full max-w-full overflow-hidden">
-      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3 mb-4 sm:mb-6 bg-[#121520] border border-zinc-800 rounded-xl p-3">
-        <span className="text-xs text-zinc-400 font-semibold uppercase tracking-wider shrink-0">Layout Size:</span>
+      <div className="flex flex-wrap items-center gap-3 mb-3 bg-[#121520] border border-zinc-800 rounded-xl p-3">
+        <span className="text-xs text-zinc-400 font-semibold uppercase tracking-wider shrink-0">Cover size:</span>
         <input
           type="range"
-          min="1"
-          max="7"
+          min="6"
+          max="22"
+          step="1"
           value={cols}
-          onChange={(e) => onColsChange(Number(e.target.value))}
-          aria-label="Movies per row"
-          className="flex-1 min-w-[120px] max-w-xs h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
+          onChange={(event) => onColsChange(Number(event.target.value))}
+          aria-label="Covers per row"
+          className="flex-1 min-w-[140px] max-w-md h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
         />
-        <span className="text-xs text-zinc-500 font-mono shrink-0">{cols} per row</span>
+        <span className="text-xs text-amber-300 font-mono shrink-0">{cols} covers per row</span>
       </div>
 
       <div
-        className="grid w-full min-w-0 gap-2 sm:gap-3"
-        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-        onPointerDown={longPressHandlers.onPointerDown}
-        onPointerMove={longPressHandlers.onPointerMove}
-        onPointerUp={longPressHandlers.onPointerUp}
-        onPointerCancel={longPressHandlers.onPointerCancel}
-        onContextMenu={longPressHandlers.onContextMenu}
-        onClickCapture={longPressHandlers.onClickCapture}
+        ref={viewportRef}
+        onScroll={handleScroll}
+        className="h-[calc(100vh-245px)] min-h-[320px] overflow-x-hidden overflow-y-scroll overscroll-contain select-none [scrollbar-width:thin] [scrollbar-color:#fbbf24_#27272a]"
+        style={{ scrollbarGutter: 'stable' }}
       >
-        {movies.map((movie) => (
-          <div
-            key={movie.id}
-            data-selection-id={movie.id}
-            data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
-            onClick={() => selectionMode
-              ? onToggleMovieSelection(movie.id)
-              : onSelectMovie(movie)}
-            className="group relative min-w-0 cursor-pointer"
-          >
-            {selectionMode && (
-              <label
-                onClick={(event) => event.stopPropagation()}
-                className="absolute right-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-zinc-600 bg-zinc-950/85 shadow backdrop-blur-sm"
-                title={`Select ${movie.title}`}
+        <div
+          className="grid w-full min-w-0 content-start select-none"
+          style={{
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+            columnGap: `${GRID_GAP}px`,
+            rowGap: `${GRID_GAP}px`,
+            paddingTop: `${firstRow * rowHeight}px`,
+            paddingBottom: `${Math.max(0, rowCount - lastRow) * rowHeight}px`,
+          }}
+          onPointerDown={longPressHandlers.onPointerDown}
+          onPointerMove={longPressHandlers.onPointerMove}
+          onPointerUp={longPressHandlers.onPointerUp}
+          onPointerCancel={longPressHandlers.onPointerCancel}
+          onContextMenu={longPressHandlers.onContextMenu}
+          onClickCapture={longPressHandlers.onClickCapture}
+        >
+          {visibleMovies.map((movie) => {
+            const selected = selectedMovieIds.has(movie.id);
+            return (
+              <button
+                key={movie.id}
+                type="button"
+                data-selection-id={movie.id}
+                data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
+                onClick={() => selectionMode ? onToggleMovieSelection(movie.id) : onSelectMovie(movie)}
+                aria-label={selectionMode ? `Select ${movie.title}` : `Open ${movie.title}`}
+                aria-pressed={selected}
+                className={`group relative block min-w-0 w-full overflow-hidden aspect-[2/3] cursor-pointer rounded-sm border bg-zinc-900 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 ${selected ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-zinc-800 hover:border-amber-500/70'}`}
               >
-                <input
-                  type="checkbox"
-                  checked={selectedMovieIds.has(movie.id)}
-                  onChange={() => onToggleMovieSelection(movie.id)}
-                  onClick={(event) => event.stopPropagation()}
-                  aria-label={`Select ${movie.title}`}
-                  className="h-4 w-4 cursor-pointer accent-amber-400"
+                <img
+                  src={getImageSource(movie.posterUrl)}
+                  alt={movie.uncensored ? `${movie.title} Uncensored` : movie.title}
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  decoding="async"
+                  draggable={false}
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
-              </label>
-            )}
-            <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 shadow-lg group-hover:border-amber-500/50 transition-all duration-300">
-              <img
-                src={getImageSource(movie.posterUrl)}
-                alt={movie.uncensored ? `${movie.title} Uncensored` : movie.title}
-                referrerPolicy="no-referrer"
-                className="h-full w-full object-cover"
-              />
-              {movie.uncensored && (
-                <span className="absolute bottom-2 left-2 rounded-md border border-rose-300/40 bg-zinc-950/85 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-rose-300 shadow sm:text-[10px]">
-                  Uncensored
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
+                {selectionMode && (
+                  <span className={`absolute right-1 bottom-1 z-10 flex h-4 w-4 items-center justify-center rounded-sm border text-[10px] font-bold shadow ${selected ? 'border-amber-300 bg-amber-400 text-black' : 'border-white/70 bg-black/60 text-transparent'}`}>
+                    ✓
+                  </span>
+                )}
+                {movie.uncensored && (
+                  <span className="absolute bottom-1 left-1 rounded-sm bg-black/85 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-rose-300 sm:text-[9px]">Uncensored</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
