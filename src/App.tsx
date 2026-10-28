@@ -686,10 +686,10 @@ export default function App() {
           <button type="button" onClick={() => { if (actionNotificationTimer.current !== null) { clearTimeout(actionNotificationTimer.current); actionNotificationTimer.current = null; } setActionNotification(null); }} className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"><X className="h-4 w-4" /></button>
         </div>
       )}
-      <main className="flex-1 w-full max-w-none px-3 sm:px-4 py-3 sm:py-4 overflow-x-clip">
+      <main className={`w-full max-w-none px-3 sm:px-4 py-3 sm:py-4 overflow-x-clip ${activePage === 'library' ? 'h-[calc(100dvh-180px)] min-h-0 flex-none overflow-hidden' : 'flex-1'}`}>
         {activePage === 'library' && (
-          <div className="w-full min-w-0 space-y-2">
-            <div className="sticky top-[56px] z-20 -mx-3 space-y-3 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-2 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-2 overflow-hidden">
+            <div className="sticky top-[56px] z-20 shrink-0 -mx-3 space-y-3 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-2 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               <FilterToolbar viewMode={viewMode} setViewMode={setViewMode} gridCols={gridCols} setGridCols={setGridCols} selectedCategory={selectedCategory} genreOptions={availableGenres} setSelectedCategory={setSelectedCategory} selectedAlphabets={selectedAlphabets} onToggleAlphabet={handleToggleAlphabet} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} activeMetadataFilter={activeMetadataFilter} clearActiveMetadataFilter={handleClearMetadataFilter} totalFilteredCount={filteredAndSortedMovies.length} totalCatalogCount={movies.length} />
               {selectedMovieCount > 0 && (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-[#121520] p-2.5 sm:p-3">
@@ -701,13 +701,15 @@ export default function App() {
                 </div>
               )}
             </div>
-            {viewMode === 'grid' ? (
-              <MovieGrid movies={filteredAndSortedMovies} onSelectMovie={setSelectedMovie} selectedMovieIds={selectedMovieIds} onToggleMovieSelection={handleToggleMovieSelection} onSelectMultipleMovies={handleSelectMultipleMovies} selectionMode={selectedMovieCount > 0} cols={gridCols} />
-            ) : viewMode === 'list' ? (
-              <MovieList movies={filteredAndSortedMovies} catalogMovies={movies} onSelectMovie={setSelectedMovie} onUpdateMovie={handleUpdateMovieFromList} selectedMovieIds={selectedMovieIds} onToggleMovieSelection={handleToggleMovieSelection} selectionMode={selectedMovieCount > 0} sortBy={sortBy} onToggleSort={handleToggleListSort} />
-            ) : (
-              <MovieCoverGrid movies={filteredAndSortedMovies} onSelectMovie={setSelectedMovie} selectedMovieIds={selectedMovieIds} onToggleMovieSelection={handleToggleMovieSelection} selectionMode={selectedMovieCount > 0} cols={movieCoverCols} onColsChange={setMovieCoverCols} />
-            )}
+            <div className={`flex min-h-0 flex-1 overflow-hidden ${selectedMovie ? 'pr-[300px]' : ''}`}>
+              {viewMode === 'grid' ? (
+                <MovieGrid movies={filteredAndSortedMovies} onSelectMovie={setSelectedMovie} selectedMovieIds={selectedMovieIds} onToggleMovieSelection={handleToggleMovieSelection} onSelectMultipleMovies={handleSelectMultipleMovies} selectionMode={selectedMovieCount > 0} cols={gridCols} />
+              ) : viewMode === 'list' ? (
+                <MovieList movies={filteredAndSortedMovies} catalogMovies={movies} onSelectMovie={setSelectedMovie} onUpdateMovie={handleUpdateMovieFromList} selectedMovieIds={selectedMovieIds} onToggleMovieSelection={handleToggleMovieSelection} selectionMode={selectedMovieCount > 0} sortBy={sortBy} onToggleSort={handleToggleListSort} />
+              ) : (
+                <MovieCoverGrid movies={filteredAndSortedMovies} onSelectMovie={setSelectedMovie} selectedMovieIds={selectedMovieIds} onToggleMovieSelection={handleToggleMovieSelection} selectionMode={selectedMovieCount > 0} cols={movieCoverCols} onColsChange={setMovieCoverCols} />
+              )}
+            </div>
           </div>
         )}
         {activePage === 'actors' && (
@@ -736,7 +738,7 @@ export default function App() {
       </main>
       <MovieDetailModal movie={selectedMovie} movies={movieDetailNavigationMovies} onClose={handleCloseMovieDetail} onNavigateMovie={setSelectedMovie} onFilterByAttribute={handleFilterByAttribute} onSelectActor={(actorName) => { setSelectedMovie(null); setSelectedActorName(actorName); }} onUpdateMovie={handleUpdateMovie} onDeleteMovie={handleDeleteMovie} onNotify={showActionNotification} />
       <ActorDetailModal actorName={selectedActorName} actorNames={actorNames} movies={movies} onClose={handleCloseActorDetail} onNavigateActor={setSelectedActorName} onSelectMovie={(movie) => { setSelectedActorName(null); setSelectedMovie(movie); }} onUpdateActor={handleUpdateActor} />
-      <footer className="mt-auto py-6 border-t border-zinc-800/60 text-center text-xs text-zinc-500">
+      <footer className={`mt-auto py-6 border-t border-zinc-800/60 text-center text-xs text-zinc-500 ${activePage === 'library' ? 'hidden' : ''}`}>
         <div className="w-full px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2"><span>CineVault Dark Movie Catalog</span><span aria-hidden="true">·</span><span>{movies.length} Master titles in library</span></div>
 
