@@ -5,6 +5,7 @@ export interface ActorProfile {
   name: string;
   alias?: string;
   dob: string; // Date of Birth
+  debutMovieTitle?: string; // Manually editable debut film title
   photoUrl: string;
   favorite?: boolean;
   reviewed?: boolean;
@@ -190,7 +191,7 @@ clearLegacyLocalActorDobsOnce();
 
 export function getCustomActors(): Record<
   string,
-  { alias?: string; dob: string; photoUrl: string; favorite?: boolean; reviewed?: boolean }
+  { alias?: string; dob: string; debutMovieTitle?: string; photoUrl: string; favorite?: boolean; reviewed?: boolean }
 > {
   try {
     const raw = localStorage.getItem(CUSTOM_ACTORS_KEY);
@@ -215,6 +216,7 @@ export function applySharedActorProfiles(profiles: ActorProfile[]): void {
       current[name] = {
         alias: profile.alias?.trim() || undefined,
         dob: profile.dob || '',
+        debutMovieTitle: profile.debutMovieTitle || '',
         photoUrl: profile.photoUrl || '',
         favorite: profile.favorite,
         reviewed: profile.reviewed,
@@ -234,6 +236,7 @@ export function registerCustomActor(profile: ActorProfile): void {
     current[profile.name.trim()] = {
       alias: profile.alias?.trim() || undefined,
       dob: profile.dob,
+      debutMovieTitle: profile.debutMovieTitle || '',
       photoUrl: profile.photoUrl,
       favorite: profile.favorite,
       reviewed: profile.reviewed,
@@ -283,6 +286,7 @@ export function updateActorProfile(oldName: string, updatedProfile: ActorProfile
     current[newTrimmed] = {
       alias: updatedProfile.alias?.trim() || undefined,
       dob: updatedProfile.dob,
+      debutMovieTitle: updatedProfile.debutMovieTitle || '',
       photoUrl: updatedProfile.photoUrl,
       favorite: updatedProfile.favorite ?? previousProfile.favorite,
       reviewed: updatedProfile.reviewed ?? previousProfile.reviewed,
@@ -309,6 +313,7 @@ export function updateActorStatuses(
       current[existingKey || trimmed] = {
         alias: profile.alias,
         dob: profile.dob,
+        debutMovieTitle: profile.debutMovieTitle || '',
         photoUrl: profile.photoUrl,
         favorite: updates.favorite ?? profile.favorite,
         reviewed: updates.reviewed ?? profile.reviewed,
@@ -357,6 +362,7 @@ function createActorProfile(
       name: trimmed,
       alias: customProfile.alias,
       dob: customProfile.dob,
+      debutMovieTitle: customProfile.debutMovieTitle || '',
       photoUrl: customProfile.photoUrl,
       favorite: customProfile.favorite,
       reviewed: customProfile.reviewed,
@@ -368,6 +374,7 @@ function createActorProfile(
       name: trimmed,
       alias: customProfile?.alias,
       dob: KNOWN_ACTORS[trimmed].dob,
+      debutMovieTitle: '',
       photoUrl: KNOWN_ACTORS[trimmed].photoUrl,
       favorite: customProfile?.favorite,
       reviewed: customProfile?.reviewed,
@@ -378,6 +385,7 @@ function createActorProfile(
   return {
     name: trimmed,
     dob: '',
+    debutMovieTitle: '',
     photoUrl: '', // Will render stylish initials avatar if empty
   };
 }

@@ -35,6 +35,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
   const [editAliases, setEditAliases] = useState<string[]>([]);
   const [newAlias, setNewAlias] = useState('');
   const [editDob, setEditDob] = useState('');
+  const [editDebutMovieTitle, setEditDebutMovieTitle] = useState('');
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
   const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
 
@@ -46,6 +47,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
       setEditAliases(getActorAliases(p.alias));
       setNewAlias('');
       setEditDob(p.dob);
+      setEditDebutMovieTitle(p.debutMovieTitle || '');
       setEditPhotoUrl(p.photoUrl);
       setIsEditing(false);
       setEditSavedToast(null);
@@ -145,6 +147,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
     setEditAliases(getActorAliases(profile.alias));
     setNewAlias('');
     setEditDob(profile.dob);
+    setEditDebutMovieTitle(profile.debutMovieTitle || '');
     setEditPhotoUrl(profile.photoUrl);
     setEditSavedToast(null);
     setIsEditing(true);
@@ -205,6 +208,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
       name: trimmedName,
       alias: formatActorAliases(editAliases),
       dob,
+      debutMovieTitle: editDebutMovieTitle.trim(),
       photoUrl: getImageSource(editPhotoUrl),
     };
     onUpdateActor(actorName, updated);
@@ -363,6 +367,19 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                       <ActorDobFields value={editDob} onChange={setEditDob} actorName={actorName} />
                     </div>
 
+                    {/* Debut movie title */}
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold uppercase text-zinc-500">Debut Movie Title</label>
+                      <input
+                        type="text"
+                        value={editDebutMovieTitle}
+                        onChange={(e) => setEditDebutMovieTitle(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+                        placeholder="Enter debut film title (optional)"
+                      />
+                      <p className="mt-1 text-[11px] text-zinc-500">Leave blank to keep the title empty. If a date of birth is saved, the earliest film in your catalog is shown automatically.</p>
+                    </div>
+
                     {/* Photo URL */}
                     <div>
                       <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Photo URL</label>
@@ -444,14 +461,17 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                       </div>
                       <div
                         className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs"
-                        title={debutMovie ? `Based on first released film: ${debutMovie.title} (${debutMovie.year})` : 'No released film or birth year available'}
+                        title={profile.debutMovieTitle || (profile.dob && debutMovie ? `Based on first released film: ${debutMovie.title} (${debutMovie.year})` : 'No debut film set')}
                       >
                         <Film className="h-3.5 w-3.5 shrink-0 text-amber-400" />
                         <span className="text-zinc-400">Debut age:</span>
                         <span className="font-mono font-semibold text-zinc-100">
                           {debutAge === null ? '—' : `${debutAge} years`}
                         </span>
-                        {debutMovie && (
+                        {(profile.debutMovieTitle || (profile.dob && debutMovie)) && (
+                          <span className="min-w-0 max-w-full break-words font-semibold text-amber-300">— {profile.debutMovieTitle || debutMovie?.title}</span>
+                        )}
+                        {!profile.debutMovieTitle && profile.dob && debutMovie && (
                           <span className="font-mono text-zinc-500">({debutMovie.year})</span>
                         )}
                       </div>

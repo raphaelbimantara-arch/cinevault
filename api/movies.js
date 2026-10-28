@@ -41,10 +41,11 @@ export default {
       }
 
       if (body.action === 'loadActors') {
+        await pool.query('ALTER TABLE actors ADD COLUMN IF NOT EXISTS debut_movie_title TEXT');
         const result = await pool.query('SELECT * FROM actors ORDER BY name ASC');
         const formatted = result.rows.map(row => ({
           name: row.name, alias: row.alias || '', dob: row.dob ? row.dob.toISOString().split('T')[0] : '',
-          photoUrl: row.photo_url || '', favorite: row.favorite, reviewed: row.reviewed, movieCount: row.movie_count
+          photoUrl: row.photo_url || '', debutMovieTitle: row.debut_movie_title || '', favorite: row.favorite, reviewed: row.reviewed, movieCount: row.movie_count
         }));
         return jsonResponse({ actors: formatted }, 200, headers);
       }
@@ -122,6 +123,7 @@ export default {
       }
 
       if (body.action === 'saveActor' || body.action === 'saveActors') {
+        await pool.query('ALTER TABLE actors ADD COLUMN IF NOT EXISTS debut_movie_title TEXT');
         const actorsToSave = body.action === 'saveActor' ? [body.actor] : body.actors;
         if (!Array.isArray(actorsToSave)) return jsonResponse({ error: 'Invalid actor data.' }, 400, headers);
         const client = await pool.connect();
@@ -133,15 +135,16 @@ export default {
             if (!a || !String(a.name || '').trim()) continue;
             const allowDobUpdate = body.action === 'saveActor' && body.updateDob === true;
             await client.query(
-              `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count) VALUES ($1, $2, $3, $4, $5, $6, $7)
+              `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count, debut_movie_title) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                ON CONFLICT (name) DO UPDATE SET
                  alias = EXCLUDED.alias,
-                 dob = CASE WHEN $8::boolean THEN EXCLUDED.dob ELSE actors.dob END,
+                 dob = CASE WHEN $9::boolean THEN EXCLUDED.dob ELSE actors.dob END,
                  photo_url = EXCLUDED.photo_url,
                  favorite = EXCLUDED.favorite,
                  reviewed = EXCLUDED.reviewed,
-                 movie_count = EXCLUDED.movie_count`,
-              [a.name.trim(), a.alias || null, allowDobUpdate ? (a.dob || null) : null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), Number(a.movieCount) || 0, allowDobUpdate]
+                 movie_count = EXCLUDED.movie_count,
+                 debut_movie_title = EXCLUDED.debut_movie_title`,
+              [a.name.trim(), a.alias || null, allowDobUpdate ? (a.dob || null) : null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), Number(a.movieCount) || 0, String(a.debutMovieTitle || '').trim() || null, allowDobUpdate]
             );
           }
           await client.query('COMMIT');

@@ -18,7 +18,7 @@ const HEADERS = [
   'reviewed',
   'uncensored',
 ];
-const ACTOR_HEADERS = ['name', 'alias', 'dob', 'photoUrl', 'favorite', 'reviewed'];
+const ACTOR_HEADERS = ['name', 'alias', 'dob', 'photoUrl', 'favorite', 'reviewed', 'debutMovieTitle'];
 
 function doPost(event) {
   try {
@@ -137,6 +137,7 @@ function readActors(sheet) {
       alias: actor.alias || undefined,
       dob: actor.dob || '',
       photoUrl: actor.photoUrl || '',
+      debutMovieTitle: actor.debutMovieTitle || '',
       favorite: String(actor.favorite || '').toLowerCase() === 'true',
       reviewed: String(actor.reviewed || '').toLowerCase() === 'true',
     };
@@ -148,7 +149,7 @@ function validateActor(actor) {
     throw new Error('Every actor must have a name.');
   }
   if (actor.name.length > 200 || String(actor.alias || '').length > 2000 ||
-      String(actor.dob || '').length > 100 || String(actor.photoUrl || '').length > 2000) {
+      String(actor.dob || '').length > 100 || String(actor.photoUrl || '').length > 2000 || String(actor.debutMovieTitle || '').length > 500) {
     throw new Error('Actor profile fields exceed the allowed length.');
   }
 }
@@ -161,6 +162,7 @@ function actorToRow(actor) {
     String(actor.photoUrl || ''),
     String(actor.favorite === true),
     String(actor.reviewed === true),
+    String(actor.debutMovieTitle || ''),
   ];
 }
 
