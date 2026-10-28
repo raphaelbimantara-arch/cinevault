@@ -228,7 +228,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         if (!actorNames.has(normalizedKey)) actorNames.set(normalizedKey, cleanName);
       }));
 
-      const headers = ['Name', 'Aliases', 'Date of Birth', 'Debut Movie Title', 'Photo URL'];
+      const headers = ['Name', 'Aliases', 'Date of Birth', 'Debut Movie Title', 'Photo URL', 'Movie Count'];
       const rows = [...actorNames.values()]
         .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
         .map((name) => {
@@ -258,10 +258,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             profile.dob || '',
             debutMovieTitle,
             profile.photoUrl || '',
+            actorMovies.length,
           ];
         });
       const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-      worksheet['!cols'] = [{ wch: 28 }, { wch: 34 }, { wch: 18 }, { wch: 28 }, { wch: 55 }];
+      worksheet['!cols'] = [{ wch: 28 }, { wch: 34 }, { wch: 18 }, { wch: 28 }, { wch: 55 }, { wch: 14 }];
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Actors');
       XLSX.writeFile(workbook, `cinevault_actor_details_${new Date().toISOString().split('T')[0]}.xlsx`);
