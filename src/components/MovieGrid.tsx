@@ -96,7 +96,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     }
   };
 
-  const rowHeight = 340;
+  const rowHeight = 280;
   const viewportRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(720);
@@ -111,7 +111,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   const visibleMovies = useMemo(() => movies.slice(firstRow * cols, lastRow * cols), [movies, firstRow, lastRow, cols]);
 
   return (
-    <div ref={viewportRef} onScroll={handleScroll} className="h-[calc(100vh-190px)] min-h-[360px] overflow-x-hidden overflow-y-scroll select-none">
+    <div ref={viewportRef} onScroll={handleScroll} className="h-[calc(100dvh-310px)] min-h-[300px] w-full min-w-0 overflow-x-hidden overflow-y-scroll overscroll-contain select-none">
       <div
       className="grid gap-3 sm:gap-4 select-none content-start"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, paddingTop: firstRow * rowHeight, paddingBottom: Math.max(0, rowCount - lastRow) * rowHeight }}
@@ -136,7 +136,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             }`}
           >
             {/* Area Poster */}
-            <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-900 shrink-0 pointer-events-none">
+            <div className="relative h-[clamp(130px,20vh,220px)] w-full overflow-hidden bg-zinc-900 shrink-0 pointer-events-none">
               
               {/* PERUBAHAN 2: Menggunakan komponen PosterImage untuk fallback */}
               <PosterImage 
