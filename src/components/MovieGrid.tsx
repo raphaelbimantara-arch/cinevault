@@ -43,7 +43,7 @@ const PosterImage = ({ src, alt }: { src: string; alt: string }) => {
       referrerPolicy="no-referrer"
       draggable={false}
       onError={() => setHasError(true)}
-      className="w-full h-full object-cover transition-none"
+      className="w-full h-full object-contain transition-none"
       loading="lazy"
     />
   );
@@ -96,7 +96,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
     }
   };
 
-  const rowHeight = 280;
+  const rowHeight = 238;
   const viewportRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(720);
@@ -111,9 +111,9 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   const visibleMovies = useMemo(() => movies.slice(firstRow * cols, lastRow * cols), [movies, firstRow, lastRow, cols]);
 
   return (
-    <div ref={viewportRef} onScroll={handleScroll} className="h-[calc(100dvh-310px)] min-h-[300px] w-full min-w-0 overflow-x-hidden overflow-y-scroll overscroll-contain select-none">
+    <div ref={viewportRef} onScroll={handleScroll} className="cv-grid-scroll h-[calc(100dvh-300px)] min-h-[420px] w-full min-w-0 overflow-x-hidden overflow-y-scroll overscroll-contain select-none" style={{ scrollbarWidth: 'auto', scrollbarColor: '#52525b #18181b' }}>
       <div
-      className="grid gap-3 sm:gap-4 select-none content-start"
+      className="grid gap-2 sm:gap-2.5 select-none content-start"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, paddingTop: firstRow * rowHeight, paddingBottom: Math.max(0, rowCount - lastRow) * rowHeight }}
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
@@ -136,7 +136,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             }`}
           >
             {/* Area Poster */}
-            <div className="relative h-[clamp(130px,20vh,220px)] w-full overflow-hidden bg-zinc-900 shrink-0 pointer-events-none">
+            <div className="relative h-[clamp(100px,15vh,145px)] w-full overflow-hidden bg-zinc-900 shrink-0 pointer-events-none">
               
               {/* PERUBAHAN 2: Menggunakan komponen PosterImage untuk fallback */}
               <PosterImage 
@@ -156,7 +156,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             </div>
 
             {/* Area Info */}
-            <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520] pointer-events-none">
+            <div className="p-2 flex flex-col gap-1 flex-1 bg-[#121520] pointer-events-none">
               
               <div className="flex items-start justify-between gap-1.5">
                 <div className="flex flex-col gap-0.5">

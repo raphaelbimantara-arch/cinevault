@@ -305,7 +305,7 @@ export const MovieList: React.FC<MovieListProps> = ({
 
   return (
     <div
-      className="h-[calc(100dvh-310px)] min-h-[300px] w-full min-w-0 overflow-x-auto overflow-y-scroll overscroll-contain rounded-none border border-zinc-800/80 bg-[#121520] shadow-lg"
+      className="cv-list-scroll h-[calc(100dvh-300px)] min-h-[300px] w-full min-w-0 overflow-x-auto overflow-y-scroll overscroll-contain rounded-none border border-zinc-800/80 bg-[#121520] shadow-lg" style={{ scrollbarWidth: 'auto', scrollbarColor: '#71717a #18181b' }}
       onPointerDown={longPressHandlers.onPointerDown}
       onPointerMove={longPressHandlers.onPointerMove}
       onPointerUp={longPressHandlers.onPointerUp}
