@@ -19,19 +19,29 @@
     font-family: var(--font-heading);
   }
 
-  /* Custom dark scrollbar */
+  /* High-visibility scrollbar for long lists and panels */
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: #f5b800 #252a36;
+  }
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 14px;
+    height: 14px;
   }
   ::-webkit-scrollbar-track {
-    background: #0d0f17;
+    background: #252a36;
+    border-left: 1px solid #42495a;
   }
   ::-webkit-scrollbar-thumb {
-    background: #232838;
-    border-radius: 3px;
+    background: #f5b800;
+    border: 3px solid #252a36;
+    border-radius: 8px;
+    min-height: 36px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #39425a;
+    background: #ffd34d;
+  }
+  ::-webkit-scrollbar-corner {
+    background: #252a36;
   }
 }

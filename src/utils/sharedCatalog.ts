@@ -13,18 +13,27 @@ async function requestCatalog(payload: {
   updateDob?: boolean;
   actors?: ActorProfile[];
   names?: string[];
-}, serializedPayload?: string): Promise<{
+}, serializedPayload?: string, onUploadProgress?: (percent: number) => void): Promise<{
   movies?: Movie[];
   actors?: ActorProfile[];
   count?: number;
 }> {
-  const response = await fetch(CATALOG_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: serializedPayload ?? JSON.stringify(payload),
+  const body = serializedPayload ?? JSON.stringify(payload);
+  const response = await new Promise<Response>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', CATALOG_API_URL);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onUploadProgress) {
+        onUploadProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      }
+    };
+    xhr.onload = () => resolve(new Response(xhr.responseText, { status: xhr.status, statusText: xhr.statusText }));
+    xhr.onerror = () => reject(new Error('Network error while uploading the catalog.'));
+    xhr.onabort = () => reject(new Error('Catalog upload was cancelled.'));
+    xhr.send(body);
   });
-
-  // Baca respons sebagai teks terlebih dahulu
+  if (response.ok) onUploadProgress?.(100);
   const text = await response.text();
   let result: any;
 
@@ -55,8 +64,9 @@ export async function loadSharedCatalog(): Promise<Movie[]> {
 export async function saveSharedCatalog(
   movies: Movie[],
   serializedPayload?: string,
+  onUploadProgress?: (percent: number) => void,
 ): Promise<void> {
-  await requestCatalog({ action: 'save', movies }, serializedPayload);
+  await requestCatalog({ action: 'save', movies }, serializedPayload, onUploadProgress);
 }
 
 export async function clearSharedDatabase(): Promise<void> {

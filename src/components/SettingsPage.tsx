@@ -26,7 +26,7 @@ interface SettingsPageProps {
   onConnectSharedCatalog: (token: string) => void;
   onDisconnectSharedCatalog: () => void;
   onInitializeSharedCatalog: () => Promise<void>;
-  onSaveSharedCatalog: () => Promise<number>;
+  onSaveSharedCatalog: (onUploadProgress?: (percent: number) => void) => Promise<number>;
   onRefreshSharedCatalog: () => Promise<number>;
   onDeleteAllDatabase: () => Promise<void>;
   onImportMovies: (newMovies: Movie[], mode: 'merge' | 'replace') => void;
@@ -67,7 +67,7 @@ interface KeepDuplicateButtonProps {
 interface SaveSharedCatalogButtonProps {
   movieCount: number;
   isLoading: boolean;
-  onSave: () => Promise<number>;
+  onSave: (onUploadProgress?: (percent: number) => void) => Promise<number>;
   onNotify: (type: 'success' | 'error', message: string) => void;
 }
 
@@ -78,11 +78,13 @@ const SaveSharedCatalogButton: React.FC<SaveSharedCatalogButtonProps> = ({
 }) => {
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleSave = async () => {
     setSaving(true);
+    setUploadProgress(0);
     try {
-      const count = await onSave();
+      const count = await onSave(setUploadProgress);
       onNotify('success', `${count} movies successfully saved to the database.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save database.';
@@ -97,6 +99,12 @@ const SaveSharedCatalogButton: React.FC<SaveSharedCatalogButtonProps> = ({
     return (
       <div className="space-y-2 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 sm:col-span-2">
         <p className="text-xs text-zinc-200">Replace the shared database with all {movieCount} movies from this device?</p>
+        {saving && (
+          <div className="space-y-1.5" role="status" aria-live="polite">
+            <div className="flex items-center justify-between text-[11px] text-zinc-300"><span>Uploading catalog data...</span><strong className="font-mono text-emerald-300">{uploadProgress}%</strong></div>
+            <div className="h-2 overflow-hidden rounded-full bg-zinc-800"><div className="h-full rounded-full bg-emerald-400 transition-[width] duration-150" style={{ width: `${uploadProgress}%` }} /></div>
+          </div>
+        )}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={() => setConfirming(false)} disabled={saving || isLoading} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-zinc-800 disabled:opacity-50">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving || isLoading} className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50">{saving || isLoading ? 'Saving...' : 'Confirm and save'}</button>

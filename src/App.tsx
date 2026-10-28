@@ -157,14 +157,14 @@ export default function App() {
     }
   };
 
-  const handleSaveSharedCatalog = async (): Promise<number> => {
+  const handleSaveSharedCatalog = async (onUploadProgress?: (percent: number) => void): Promise<number> => {
     if (movies.length === 0) throw new Error('There are no movies on this device to save.');
     const movieSnapshot = movies;
     const actorSnapshot = Object.entries(getCustomActors()).map(([name, profile]) => ({ name, ...profile }));
     startTransition(() => { setSharedCatalogStatus('loading'); setSharedCatalogError(''); });
     try {
       await sharedCatalogSaveQueue.current;
-      await saveSharedCatalog(movieSnapshot);
+      await saveSharedCatalog(movieSnapshot, undefined, onUploadProgress);
       enqueueSharedActorUpdate(() => saveSharedActors(actorSnapshot));
       await sharedActorSaveQueue.current;
       setSharedCatalogStatus('connected');

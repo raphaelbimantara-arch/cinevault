@@ -24,6 +24,7 @@ interface ActorStat {
   name: string;
   alias: string;
   movies: Movie[];
+  debutTitle: string;
   genres: string[];
   studios: string[];
   dob: string;
@@ -176,6 +177,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         name,
         alias: profile.alias || '',
         movies: actorMovies,
+        debutTitle: [...actorMovies].sort((a, b) => (a.year || 9999) - (b.year || 9999))[0]?.title || '',
         genres,
         studios,
         dob: profile.dob,
@@ -763,9 +765,8 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     Debut Age
                   </button>
                 </th>
-                <th className={`${isEditingList ? 'w-[11%] sm:w-[11%]' : 'w-[11%] sm:w-[12%]'} px-0.5 py-2 text-center sm:px-2`}>
-                  <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('size-asc', 'size-desc')} className="w-full text-center disabled:cursor-default">Size</button>
-                </th>
+                <th className="w-[17%] px-0.5 py-2 text-center sm:px-1">Debut</th>
+                <th className="w-[8%] px-0.5 py-2 text-center sm:px-1">Size</th>
                 <th className={`${isEditingList ? 'w-[10%] sm:w-[13%]' : 'w-[10%] sm:w-[14%]'} px-0.5 py-2 text-center sm:px-2`}>
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('duration-asc', 'duration-desc')} className="w-full text-center disabled:cursor-default">Min</button>
                 </th>
@@ -850,6 +851,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     >
                       {actor.debutAge ?? '—'}
                     </td>
+                    <td className="max-w-0 overflow-hidden px-0.5 py-2 text-left text-[7px] text-zinc-300 sm:px-1 sm:text-xs" title={actor.debutTitle || 'Debut title unavailable'}><span className="block truncate">{actor.debutTitle || '—'}</span></td>
                     <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={size}>{size}</td>
                     <td className="overflow-hidden px-0.5 py-2 text-right font-mono text-[7px] text-zinc-300 sm:px-2 sm:text-xs" title={`${actor.totalMinutes} minutes`}>{minutes}</td>
                     <td className="overflow-hidden px-0.5 py-2 text-center font-mono text-[8px] text-zinc-300 sm:px-2 sm:text-xs">{actor.movies.length}</td>
