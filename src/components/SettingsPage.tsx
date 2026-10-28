@@ -5,6 +5,7 @@ import {
   RefreshCw, Layers, HardDrive, Sliders, Info, Check, Smartphone, ShieldCheck, X
 } from 'lucide-react';
 import { Movie } from '../types';
+import { ActorProfile } from '../data/actorsData';
 import { getImageSource } from '../utils/googleDriveImage';
 import { getActorAliases, getCustomActors, KNOWN_ACTORS } from '../data/actorsData';
 
@@ -29,6 +30,7 @@ interface SettingsPageProps {
   onRefreshSharedCatalog: () => Promise<number>;
   onDeleteAllDatabase: () => Promise<void>;
   onImportMovies: (newMovies: Movie[], mode: 'merge' | 'replace') => void;
+  onImportActors: (profiles: ActorProfile[]) => void;
   onDeleteMovie: (movieId: string) => void;
   onBulkDeleteMovies: (movieIds: string[]) => void;
   onMergeActors: (primaryName: string, mergedNames: string[]) => void;
@@ -174,10 +176,10 @@ function getActorDuplicateReason(first: ActorDuplicateCandidate, second: ActorDu
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
   movies, sharedCatalogToken, sharedCatalogStatus, sharedCatalogError, onConnectSharedCatalog, onDisconnectSharedCatalog,
-  onInitializeSharedCatalog, onSaveSharedCatalog, onRefreshSharedCatalog, onImportMovies, onDeleteMovie, onBulkDeleteMovies,
+  onInitializeSharedCatalog, onSaveSharedCatalog, onRefreshSharedCatalog, onImportMovies, onImportActors, onDeleteMovie, onBulkDeleteMovies,
   onMergeActors, onResetCatalog, onSelectMovie, onDeleteAllDatabase,
 }) => {
-  const [activeTab, setActiveTab] = useState<'csv' | 'duplicates' | 'system'>('csv');
+  const [activeTab, setActiveTab] = useState<'csv' | 'actors' | 'duplicates' | 'system'>('csv');
   const [duplicateType, setDuplicateType] = useState<'movies' | 'actors'>('movies');
   const [reviewedDuplicateGroups, setReviewedDuplicateGroups] = useState<Set<string>>(() => {
     try { const stored = localStorage.getItem(REVIEWED_DUPLICATE_GROUPS_KEY); const parsed: unknown = stored ? JSON.parse(stored) : []; return new Set(Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === 'string') : []); } catch { return new Set(); }
@@ -193,6 +195,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [parseNotes, setParseNotes] = useState<string[]>([]);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const [isProcessingCsv, setIsProcessingCsv] = useState(false);
+  const actorFileInputRef = useRef<HTMLInputElement>(null);
+  const [actorFile, setActorFile] = useState<File | null>(null);
+  const [parsedActorProfiles, setParsedActorProfiles] = useState<ActorProfile[]>([]);
+  const [actorPreviewRows, setActorPreviewRows] = useState<string[][]>([]);
+  const [actorImportError, setActorImportError] = useState('');
+  const [isProcessingActors, setIsProcessingActors] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { try { localStorage.setItem(REVIEWED_DUPLICATE_GROUPS_KEY, JSON.stringify([...reviewedDuplicateGroups])); } catch { showToast('error', 'Could not save review.'); } }, 0);
@@ -325,6 +333,86 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     onImportMovies(parsedMovies, safeMode);
     showToast('success', `Successfully imported ${parsedMovies.length} movies using ${selectedFileType === 'excel' ? 'Excel' : 'CSV'}.`);
     handleCancelUpload();
+  };
+
+  const handleActorFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setActorFile(file);
+    setParsedActorProfiles([]);
+    setActorPreviewRows([]);
+    setActorImportError('');
+    setIsProcessingActors(true);
+    void file.arrayBuffer().then((buffer) => {
+      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+      const sheetName = workbook.SheetNames[0];
+      if (!sheetName) throw new Error('Workbook does not contain a worksheet.');
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '', raw: false }) as unknown[][];
+      if (rows.length < 2) throw new Error('The worksheet must contain a header row and at least one actor row.');
+      const headers = rows[0].map((value) => String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+      const findColumn = (...names: string[]) => headers.findIndex((header) => names.some((name) => header === name || header.includes(name)));
+      const nameIndex = findColumn('actorname', 'name', 'actor');
+      if (nameIndex < 0) throw new Error('Required column missing: Name.');
+      const aliasIndex = findColumn('aliases', 'alias', 'alternatename');
+      const dobIndex = findColumn('dateofbirth', 'dob', 'birthdate');
+      const debutIndex = findColumn('debutmovietitle', 'debutmovie', 'debutfilm');
+      const photoIndex = findColumn('photourl', 'photo', 'imageurl');
+      const preview = rows.slice(0, 6).map((row) => row.map((cell) => String(cell ?? '')));
+      const parsed: ActorProfile[] = [];
+      const errors: string[] = [];
+      const toDateString = (value: unknown): string => {
+        const text = String(value ?? '').trim();
+        if (!text) return '';
+        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) {
+          const [year, month, day] = text.split('-');
+          return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+        const parsedDate = new Date(text);
+        if (!Number.isNaN(parsedDate.getTime())) {
+          const year = parsedDate.getFullYear();
+          const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+          const day = String(parsedDate.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+        return text;
+      };
+      rows.slice(1).forEach((row, index) => {
+        const cell = (column: number) => column < 0 ? '' : String(row[column] ?? '').trim();
+        const name = cell(nameIndex);
+        if (!name) return;
+        parsed.push({
+          name,
+          alias: cell(aliasIndex).replace(/[|;]/g, '\n') || undefined,
+          dob: toDateString(cell(dobIndex)),
+          debutMovieTitle: cell(debutIndex),
+          photoUrl: cell(photoIndex),
+        });
+      });
+      if (!parsed.length) errors.push('No actor rows with a Name value were found.');
+      setActorPreviewRows(preview);
+      setParsedActorProfiles(parsed);
+      if (errors.length) throw new Error(errors[0]);
+    }).catch((error) => {
+      setActorImportError(error instanceof Error ? error.message : String(error));
+      setParsedActorProfiles([]);
+      setActorPreviewRows([]);
+    }).finally(() => setIsProcessingActors(false));
+  };
+
+  const handleCancelActorUpload = () => {
+    setActorFile(null);
+    setParsedActorProfiles([]);
+    setActorPreviewRows([]);
+    setActorImportError('');
+    if (actorFileInputRef.current) actorFileInputRef.current.value = '';
+  };
+
+  const handleExecuteActorImport = () => {
+    if (!parsedActorProfiles.length) { showToast('error', 'No actor data to import.'); return; }
+    onImportActors(parsedActorProfiles);
+    showToast('success', `Successfully imported or updated ${parsedActorProfiles.length} actor profiles.`);
+    handleCancelActorUpload();
   };
 
   const duplicateGroups: DuplicateGroup[] = useMemo(() => {
@@ -461,9 +549,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <p className="text-xs sm:text-sm text-zinc-400 mt-1">Export and import CSV spreadsheets, detect duplicate movies, and manage library storage.</p>
         </div>
 
-        <div className="grid grid-cols-3 items-stretch bg-[#121520] border border-zinc-800 rounded-xl p-1 w-full sm:w-auto">
+        <div className="grid grid-cols-4 items-stretch bg-[#121520] border border-zinc-800 rounded-xl p-1 w-full sm:w-auto">
           <button onClick={() => setActiveTab('csv')} className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors whitespace-nowrap ${activeTab === 'csv' ? 'bg-amber-400 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}>
             <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" /><span>CSV Tools</span>
+          </button>
+          <button onClick={() => setActiveTab('actors')} className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors whitespace-nowrap ${activeTab === 'actors' ? 'bg-amber-400 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}>
+            <Upload className="w-3.5 h-3.5 shrink-0" /><span>Actor Import</span>
           </button>
           <button onClick={() => setActiveTab('duplicates')} className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors relative whitespace-nowrap ${activeTab === 'duplicates' ? 'bg-amber-400 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}>
             <Copy className="w-3.5 h-3.5 shrink-0" /><span>Duplicates</span>
@@ -511,6 +602,32 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <button onClick={handleExecuteImport} disabled={parsedMovies.length === 0 || isProcessingCsv} className="w-full sm:w-auto py-2 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:bg-zinc-800 disabled:text-zinc-600 text-zinc-950 font-bold text-xs flex items-center justify-center gap-2"><Upload className="w-3.5 h-3.5" /><span>{isProcessingCsv ? 'Processing...' : `Apply Import (${parsedMovies.length})`}</span></button>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'actors' && (
+        <div className="w-full max-w-4xl bg-[#121520] border border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0"><Upload className="w-5 h-5" /></div>
+            <div><h3 className="font-bold text-base text-zinc-100">Import or Update Actor Details</h3><p className="text-xs text-zinc-400">Upload an Excel spreadsheet to add or update actor profiles.</p></div>
+          </div>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-3 text-xs text-zinc-300 space-y-1">
+            <p><strong className="text-amber-300">Required column:</strong> Name</p>
+            <p><strong className="text-amber-300">Optional columns:</strong> Aliases, Date of Birth, Debut Movie Title, Photo URL</p>
+            <p>Match actors by Name. Rows with an existing name update that profile; new names create profiles. Empty cells are imported as empty values.</p>
+          </div>
+          <div className="flex gap-2 items-stretch">
+            <input ref={actorFileInputRef} type="file" accept=".xlsx,.xls" onClick={(event) => { (event.target as HTMLInputElement).value = ''; }} onChange={handleActorFileChange} className="hidden" id="actor-excel-picker" />
+            <label htmlFor="actor-excel-picker" className="flex-1 border-2 border-dashed border-zinc-700 hover:border-amber-400 rounded-xl p-4 flex flex-col items-center justify-center gap-1 text-center cursor-pointer transition-colors bg-zinc-900/40 hover:bg-zinc-900/80"><FileSpreadsheet className="w-6 h-6 text-amber-400" /><span className="text-xs font-semibold text-zinc-200 truncate max-w-full">{actorFile ? actorFile.name : 'Choose Excel file (.xlsx, .xls)'}</span></label>
+            {actorFile && <button type="button" onClick={handleCancelActorUpload} className="px-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" title="Cancel upload"><X className="w-5 h-5" /></button>}
+          </div>
+          {isProcessingActors && <p className="text-xs text-amber-300">Reading Excel file...</p>}
+          {actorImportError && <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{actorImportError}</p>}
+          {actorPreviewRows.length > 0 && <div className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900">
+            <div className="px-3 py-2 border-b border-zinc-800 flex justify-between items-center bg-[#151926]"><span className="text-[10px] font-bold text-zinc-300 uppercase">Data Preview (First 5 rows)</span><span className="text-[10px] text-emerald-400 font-mono">{parsedActorProfiles.length} actors parsed</span></div>
+            <div className="overflow-x-auto max-h-[220px] custom-scrollbar"><table className="w-full text-left border-collapse"><thead className="sticky top-0 bg-[#121520]"><tr className="border-b border-zinc-800">{actorPreviewRows[0].map((heading, index) => <th key={index} className="px-2 py-1.5 text-[9px] font-bold text-amber-400 uppercase border-r border-zinc-800 last:border-0 whitespace-nowrap">{heading}</th>)}</tr></thead><tbody>{actorPreviewRows.slice(1).map((row, rowIndex) => <tr key={rowIndex} className="border-b border-zinc-800/50 last:border-0">{actorPreviewRows[0].map((_, colIndex) => <td key={colIndex} className="px-2 py-1.5 text-[9px] text-zinc-300 border-r border-zinc-800/50 last:border-0 whitespace-nowrap font-mono">{row[colIndex] || <span className="text-zinc-600 italic">empty</span>}</td>)}</tr>)}</tbody></table></div>
+          </div>}
+          <div className="flex justify-end"><button type="button" onClick={handleExecuteActorImport} disabled={!parsedActorProfiles.length || isProcessingActors} className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:bg-zinc-800 disabled:text-zinc-600 text-zinc-950 font-bold text-xs flex items-center justify-center gap-2"><Upload className="w-3.5 h-3.5" /><span>{isProcessingActors ? 'Processing...' : `Apply Actor Import (${parsedActorProfiles.length})`}</span></button></div>
         </div>
       )}
 
