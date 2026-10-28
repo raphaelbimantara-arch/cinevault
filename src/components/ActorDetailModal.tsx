@@ -285,11 +285,11 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
             )}
 
             {/* Top Section: Picture, Name, Date of Birth, Total Size, Total Duration */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 pb-5 sm:pb-6 border-b border-zinc-800">
+            <div className={embedded ? "flex flex-col items-stretch gap-3 pb-4 border-b border-zinc-800" : "flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 pb-5 sm:pb-6 border-b border-zinc-800"}>
               {/* Picture */}
               <div
                 onClick={() => { if (profile.photoUrl) setZoomedPhotoUrl(profile.photoUrl); }}
-                className="w-28 h-28 sm:w-40 sm:h-40 rounded-2xl overflow-hidden bg-zinc-900 border-2 border-zinc-700 shadow-xl shrink-0 relative group cursor-pointer"
+                className={`${embedded ? "w-20 h-20 rounded-xl" : "w-28 h-28 sm:w-40 sm:h-40 rounded-2xl"} overflow-hidden bg-zinc-900 border-2 border-zinc-700 shadow-xl shrink-0 relative group cursor-pointer` }
                 title="Click to enlarge photo (phone width)"
               >
                 {profile.photoUrl ? (
@@ -316,7 +316,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
               </div>
 
               {/* Actor Information — View or Edit */}
-              <div className="flex-1 text-center sm:text-left w-full min-w-0">
+              <div className={`flex-1 ${embedded ? "text-left" : "text-center sm:text-left"} w-full min-w-0`}>
                 {isEditing ? (
                   /* ===== EDIT MODE ===== */
                   <form onSubmit={handleSaveEdit} className="space-y-3 w-full">
@@ -440,8 +440,8 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                     <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">
                       Actor Profile
                     </div>
-                    <div className="mt-1 flex min-w-0 flex-col items-center gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-                      <h2 className="w-full min-w-0 break-words text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-left sm:text-3xl">
+                    <div className={`mt-1 flex min-w-0 flex-col items-start gap-1 ${embedded ? "" : "sm:flex-row sm:items-start sm:justify-between sm:gap-2"}`}>
+                      <h2 className={`w-full min-w-0 break-words font-extrabold leading-tight tracking-tight text-white ${embedded ? "text-xl" : "text-2xl sm:text-3xl sm:text-left"}`}>
                         {actorName}
                       </h2>
                       {(profile.favorite || profile.reviewed) && (
@@ -468,9 +468,9 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                     )}
 
                     {/* Badges: Date of Birth and Total Duration */}
-                    <div className="mt-3.5 flex flex-wrap gap-2 justify-center sm:justify-start">
+                    <div className={`mt-3.5 flex flex-col gap-2 ${embedded ? "items-stretch" : "sm:flex-row sm:flex-wrap sm:justify-start"}`}>
                       {/* DATE OF BIRTH */}
-                      <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs sm:justify-start">
+                      <div className={`inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/90 px-3 py-2 text-xs ${embedded ? "justify-start" : "justify-center sm:justify-start"}`}>
                         <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                         <span className="text-zinc-400">Date of Birth:</span>
                         <span className="font-semibold text-zinc-100 font-mono">
@@ -483,7 +483,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                         </span>
                       </div>
                       <div
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs"
+                        className="inline-flex max-w-full flex-wrap items-start gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/90 px-3 py-2 text-xs"
                         title={profile.debutMovieTitle || (profile.dob && debutMovie ? `Based on first released film: ${debutMovie.title} (${debutMovie.year})` : 'No debut film set')}
                       >
                         <Film className="h-3.5 w-3.5 shrink-0 text-amber-400" />
@@ -500,7 +500,7 @@ export const ActorDetailModal: React.FC<ActorDetailModalProps> = ({
                       </div>
 
                       {/* TOTAL DURATION */}
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
+                      <div className="inline-flex max-w-full flex-wrap items-start gap-1.5 px-3 py-2 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
                         <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                         <span className="text-zinc-400">Total Duration:</span>
                         <span className="font-semibold text-amber-300 font-mono">
