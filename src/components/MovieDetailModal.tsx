@@ -349,10 +349,15 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                       </div>
                     </div>
                     <div>
+                      <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Censor</label>
+                      <select value={editCensored} onChange={(e) => setEditCensored(e.target.value as 'Uncensored' | 'Reduced Mosaic' | '')} className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none"><option value="">Blank</option><option value="Uncensored">Uncensored</option><option value="Reduced Mosaic">Reduced Mosaic</option></select>
+                    </div>
+                    <div>
                       <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Studio</label>
                       <input type="text" list="movie-detail-studios" value={editStudio} onChange={(e) => setEditStudio(e.target.value)} onFocus={(e) => e.target.select()} className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white outline-none" placeholder="e.g. Warner Bros." />
                       <datalist id="movie-detail-studios">{studioOptions.map((studio) => <option key={studio} value={studio} />)}</datalist>
                     </div>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"><input type="checkbox" checked={editFavorite} onChange={(e) => setEditFavorite(e.target.checked)} className="h-3.5 w-3.5 accent-amber-400" /><Star className={`h-3.5 w-3.5 ${editFavorite ? 'fill-amber-400 text-amber-400' : 'text-zinc-500'}`} />Favorite</label>
                   </div>
 
                   <div className="space-y-3">
@@ -384,10 +389,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"><input type="checkbox" checked={editFavorite} onChange={(e) => setEditFavorite(e.target.checked)} className="h-3.5 w-3.5 accent-amber-400" /><Star className={`h-3.5 w-3.5 ${editFavorite ? 'fill-amber-400 text-amber-400' : 'text-zinc-500'}`} />Favorite</label>
-                      <label className="flex flex-1 items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200">Censored<select value={editCensored} onChange={(e) => setEditCensored(e.target.value as 'Uncensored' | 'Reduced Mosaic' | '')} className="min-w-0 flex-1 bg-zinc-900 text-white outline-none"><option value="">Blank</option><option value="Uncensored">Uncensored</option><option value="Reduced Mosaic">Reduced Mosaic</option></select></label>
-                    </div>
                     <div>
                       <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Front Cover URL</label>
                       <input type="text" value={editPosterUrl} onChange={(e) => setEditPosterUrl(e.target.value)} onFocus={(e) => e.target.select()} className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-white outline-none text-xs" />
@@ -446,14 +447,16 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('minutes', movie.minutes); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by duration">
                   <Clock className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.minutes} min</span>
                 </div>
-                <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('size', movie.size); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by file size">
-                  <HardDrive className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.size}</span>
-                </div>
                 <button type="button" onClick={() => { if (!movie.resolution || !onFilterByAttribute) return; onClose(); onFilterByAttribute('resolution', movie.resolution); }} disabled={!movie.resolution || !onFilterByAttribute} className="flex min-w-0 items-center gap-2 text-left text-zinc-400 transition-colors enabled:cursor-pointer enabled:hover:text-amber-300 disabled:cursor-default" title={movie.resolution ? 'Show movies with this resolution' : 'Resolution unavailable'}>
                   <Film className="w-4 h-4 shrink-0 text-amber-400" /><span className="truncate text-sm font-semibold">{movie.resolution || 'Standard'}</span>
                 </button>
+                <div onClick={() => { if (onFilterByAttribute) { onClose(); onFilterByAttribute('size', movie.size); } }} className="flex items-center gap-2 text-zinc-400 hover:text-amber-300 cursor-pointer transition-colors group" title="Filter by file size">
+                  <HardDrive className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" /><span className="font-mono">{movie.size}</span>
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-zinc-400" title="Censor status">
+                  <Film className="w-4 h-4 shrink-0 text-rose-400" /><span className="truncate text-sm font-semibold">{movie.censored ?? (movie.uncensored ? 'Uncensored' : '—')}</span>
+                </div>
                 <div className="col-span-2 pt-1 border-t border-zinc-800/60">
-                  {(movie.censored ?? (movie.uncensored ? 'Uncensored' : '')) && <div className="mb-2 flex items-center gap-2 text-amber-400 font-semibold"><Film className="w-4 h-4 shrink-0" /><span>{movie.censored ?? 'Uncensored'}</span></div>}
                   <div className="flex flex-wrap items-center gap-2">
                     <Film className="w-4 h-4 text-amber-400 shrink-0" />
                     {/* PERUBAHAN: text-xs diubah menjadi text-sm */}

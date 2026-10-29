@@ -163,18 +163,18 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             <div className="p-2.5 flex flex-col gap-1.5 flex-1 bg-[#121520] pointer-events-none">
               
               <div className="flex items-start justify-between gap-1.5">
-                <div className="flex flex-col gap-0.5">
+                <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                   <h3 
-                    className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight line-clamp-2 group-hover:text-amber-400 transition-colors" 
+                    className="text-[10px] sm:text-xs font-bold text-zinc-100 leading-tight group-hover:text-amber-400 transition-colors" 
                     title={movie.title}
                   >
                     {movie.title}
                   </h3>
                   {(movie.censored ?? (movie.uncensored ? 'Uncensored' : '')) === 'Uncensored' && (
-                    <span className="text-[8px] font-bold text-rose-500 uppercase tracking-wider">Uncensored</span>
+                    <span className="text-[10px] sm:text-xs font-bold leading-tight text-rose-500">Uncensored</span>
                   )}
                   {(movie.censored ?? (movie.uncensored ? 'Uncensored' : '')) === 'Reduced Mosaic' && (
-                    <span className="text-[8px] font-bold text-rose-500 uppercase tracking-wider">RM</span>
+                    <span className="text-[10px] sm:text-xs font-bold leading-tight text-amber-400">RM</span>
                   )}
                 </div>
 
