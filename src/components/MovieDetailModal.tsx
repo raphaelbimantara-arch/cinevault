@@ -21,11 +21,12 @@ import { getImageSource } from '../utils/googleDriveImage';
 import { getMovieGenres } from '../utils/movieGenres';
 import { useHorizontalSwipe } from '../utils/useHorizontalSwipe';
 import { useLongPress } from '../utils/useLongPress';
-import { getCustomActors, getActorAliases, getActorProfile, KNOWN_ACTORS } from '../data/actorsData';
+import { getActorProfile } from '../data/actorsData';
 
 interface MovieDetailModalProps {
   movie: Movie | null;
   movies: Movie[];
+  actorNames: string[];
   onClose: () => void;
   onNavigateMovie: (movie: Movie) => void;
   onSelectActor?: (actorName: string) => void;
@@ -38,6 +39,7 @@ interface MovieDetailModalProps {
 export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   movie,
   movies,
+  actorNames,
   onClose,
   onNavigateMovie,
   onSelectActor,
@@ -91,6 +93,10 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
   const actorOptions = useMemo(() => {
     const actorStats = new Map<string, { name: string; count: number; lastUsed: number }>();
+    actorNames.forEach((name) => {
+      const trimmed = name.trim();
+      if (trimmed) actorStats.set(trimmed.toLowerCase(), { name: trimmed, count: 0, lastUsed: 0 });
+    });
     movies.forEach((m) => {
       const dateVal = new Date(m.addedDate || 0).getTime();
       m.actors.forEach((actor) => {
@@ -112,7 +118,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         return a.name.localeCompare(b.name);
       })
       .map((stat) => stat.name);
-  }, [movies]);
+  }, [movies, actorNames]);
 
   // In the edit form, always include the movie's existing actors in the options,
   // and keep selected actors at the top so they are immediately visible.
@@ -130,18 +136,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       return a.localeCompare(b);
     });
   }, [actorOptions, editActors]);
-
-  const actorSuggestions = useMemo(() => {
-    const customProfiles = getCustomActors();
-    const names = new Set<string>();
-    Object.keys(KNOWN_ACTORS).forEach(name => names.add(name));
-    Object.entries(customProfiles).forEach(([name, profile]) => {
-      names.add(name);
-      if (profile.alias) getActorAliases(profile.alias).forEach(alias => names.add(alias));
-    });
-    movies.forEach(m => m.actors.forEach(a => names.add(a)));
-    return Array.from(names).sort();
-  }, [movies]);
 
   const resolutionOptions = useMemo(() => {
     const resolutions = new Map<string, string>();
@@ -162,8 +156,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
   const addActor = () => {
     const actor = newActor.trim();
-    if (!actor) return;
-    setEditActors((current) => current.some((item) => item.toLowerCase() === actor.toLowerCase()) ? current : [...current, actor]);
+    if (!actor || !actorOptions.some((name) => name.toLowerCase() === actor.toLowerCase())) return;
+    setEditActors((current) => current.some((item) => item.toLowerCase() === actor.toLowerCase()) ? current : [...current, actorOptions.find((name) => name.toLowerCase() === actor.toLowerCase())!]);
     setNewActor('');
   };
 
@@ -404,9 +398,19 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                         ))}
                       </div>
                       <div className="mt-2 flex gap-2">
-                        <input type="text" list="actor-suggestions-edit" value={newActor} onChange={(e) => setNewActor(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addActor(); } }} onFocus={(e) => e.target.select()} className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none" placeholder="Add an actor..." />
-                        <datalist id="actor-suggestions-edit">{actorSuggestions.map((name, index) => <option key={index} value={name} />)}</datalist>
-                        <button type="button" onClick={addActor} className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700">Add</button>
+                        <select
+                          value={newActor}
+                          onChange={(e) => setNewActor(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addActor(); } }}
+                          className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none"
+                          aria-label="Select an actor from the Actor menu"
+                        >
+                          <option value="">Select actor...</option>
+                          {actorOptions.filter((name) => !editActors.some((selected) => selected.toLowerCase() === name.toLowerCase())).map((name) => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+                        <button type="button" onClick={addActor} disabled={!newActor} className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50">Add</button>
                       </div>
                     </div>
                     <div>
