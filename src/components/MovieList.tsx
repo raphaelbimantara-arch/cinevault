@@ -443,6 +443,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     ) : (
                       <div className="flex min-w-0 flex-col items-start text-[9px] font-semibold text-zinc-100 transition-colors group-hover:text-amber-400 sm:text-sm" title={movie.uncensored ? `${movie.title} Uncensored` : movie.title}>
                         <span className="block w-full truncate">{movie.title}</span>
+                        {movie.uncensored && <span className="mt-0.5 text-[7px] font-bold uppercase tracking-wide text-rose-300 sm:text-[9px]">Uncensored</span>}
                       </div>
                     )}
                   </div>
