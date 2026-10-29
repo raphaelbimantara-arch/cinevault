@@ -21,11 +21,12 @@ import { getImageSource } from '../utils/googleDriveImage';
 import { getMovieGenres } from '../utils/movieGenres';
 import { useHorizontalSwipe } from '../utils/useHorizontalSwipe';
 import { useLongPress } from '../utils/useLongPress';
-import { getCustomActors, getActorAliases, getActorProfile, KNOWN_ACTORS } from '../data/actorsData';
+import { getActorProfile } from '../data/actorsData';
 
 interface MovieDetailModalProps {
   movie: Movie | null;
   movies: Movie[];
+  actorNames: string[];
   onClose: () => void;
   onNavigateMovie: (movie: Movie) => void;
   onSelectActor?: (actorName: string) => void;
@@ -38,6 +39,7 @@ interface MovieDetailModalProps {
 export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   movie,
   movies,
+  actorNames,
   onClose,
   onNavigateMovie,
   onSelectActor,
@@ -90,25 +92,11 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   }, [movies]);
 
   const actorOptions = useMemo(() => {
-    const names = new Map<string, string>();
-    movies.forEach((item) => item.actors.forEach((actor) => {
-      const trimmed = actor.trim();
-      if (trimmed && !names.has(trimmed.toLowerCase())) names.set(trimmed.toLowerCase(), trimmed);
-    }));
-    Object.keys(KNOWN_ACTORS).forEach((name) => {
-      const trimmed = name.trim();
-      if (trimmed && !names.has(trimmed.toLowerCase())) names.set(trimmed.toLowerCase(), trimmed);
-    });
-    Object.entries(getCustomActors()).forEach(([name, profile]) => {
-      const trimmed = name.trim();
-      if (trimmed && !names.has(trimmed.toLowerCase())) names.set(trimmed.toLowerCase(), trimmed);
-      if (profile.alias) getActorAliases(profile.alias).forEach((alias) => {
-        const value = alias.trim();
-        if (value && !names.has(value.toLowerCase())) names.set(value.toLowerCase(), value);
-      });
-    });
-    return [...names.values()].sort((a, b) => a.localeCompare(b));
-  }, [movies]);
+    // Use the exact same canonical actor list as the Actor directory and Add Movie.
+    // No legacy known-actor list, aliases, or raw historical credits are merged here.
+    return [...new Set(actorNames.map((name) => name.trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b));
+  }, [actorNames]);
 
   const editActorOptions = useMemo(() => {
     const selectedByKey = new Set(editActors.map((name) => name.trim().toLowerCase()));

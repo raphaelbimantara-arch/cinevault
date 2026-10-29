@@ -16,7 +16,7 @@ import { ActorsPage } from './components/ActorsPage';
 import { AddMoviePage } from './components/AddMoviePage';
 import { SettingsPage } from './components/SettingsPage';
 import { ALL_GENRES, INITIAL_MOVIES } from './data/initialMovies';
-import { ActorProfile, applyDeletedActorNames, applySharedActorProfiles, formatActorAliases, getActorAliases, getActorProfile, getCustomActors, removeCustomActors, updateActorProfile } from './data/actorsData';
+import { ActorProfile, applyDeletedActorNames, applySharedActorProfiles, formatActorAliases, getActorAliases, getActorProfile, getCustomActors, getRegisteredActorNames, removeCustomActors, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
 import { Check, RotateCcw, Star, Trash2, X } from 'lucide-react';
 import { clearSharedDatabase, deleteSharedActors, loadSharedActors, loadSharedCatalog, saveSharedActor, saveSharedActors, saveSharedCatalog } from './utils/sharedCatalog';
@@ -788,17 +788,18 @@ export default function App() {
   }, [filteredAndSortedMovies, movies, selectedMovie]);
 
   const actorNames = useMemo(() => {
-    // The Actor menu and the add-film actor suggestions must share the same
-    // canonical list. Never surface names that have a persisted deletion tombstone.
+    // Single canonical source matching the Actor menu: movie credits + registered
+    // actor profiles only. Do not merge KNOWN_ACTORS/master data/aliases, because
+    // those legacy sources can resurrect names that are no longer in the directory.
     const deletedNames = new Set(getDeletedActorNames().map((name) => name.trim().toLowerCase()));
     const names = new Map<string, string>();
-    [...masterActors, ...movies.flatMap((movie) => movie.actors)].forEach((name) => {
+    [...movies.flatMap((movie) => movie.actors), ...getRegisteredActorNames()].forEach((name) => {
       const trimmed = name.trim();
       const key = trimmed.toLowerCase();
       if (trimmed && key !== 'cast' && !deletedNames.has(key) && !names.has(key)) names.set(key, trimmed);
     });
     return [...names.values()].sort((a, b) => a.localeCompare(b));
-  }, [movies, masterActors, actorProfileRevision]);
+  }, [movies, actorProfileRevision]);
 
   const isFiltered = selectedCategory !== 'All' || (!selectedAlphabets.includes('All') && selectedAlphabets.length > 0) || searchQuery.trim() !== '' || activeMetadataFilter !== null || filteredAndSortedMovies.length !== movies.length;
   const selectedMovieCount = movies.filter((movie) => selectedMovieIds.has(movie.id)).length;
@@ -861,7 +862,7 @@ export default function App() {
           <SettingsPage movies={movies} sharedCatalogToken={''} sharedCatalogStatus={sharedCatalogStatus} sharedCatalogError={sharedCatalogError} onConnectSharedCatalog={() => {}} onDisconnectSharedCatalog={() => {}} onInitializeSharedCatalog={handleInitializeSharedCatalog} onSaveSharedCatalog={handleSaveSharedCatalog} onRefreshSharedCatalog={handleRefreshSharedCatalog} onDeleteAllDatabase={handleDeleteAllDatabase} onImportMovies={handleImportMovies} onImportActors={(profiles) => { for (const profile of profiles) { const existingName = Object.keys(getCustomActors()).find((name) => name.trim().toLowerCase() === profile.name.trim().toLowerCase()) || profile.name; handleUpdateActor(existingName, { ...profile, name: profile.name }); } }} onDeleteMovie={handleDeleteMovie} onBulkDeleteMovies={handleBulkDeleteMovies} onMergeActors={handleMergeActors} onResetCatalog={handleResetCatalog} onSelectMovie={setSelectedMovie} />
         )}
       </main>
-      <MovieDetailModal movie={selectedMovie} movies={movieDetailNavigationMovies} onClose={handleCloseMovieDetail} onNavigateMovie={setSelectedMovie} onFilterByAttribute={handleFilterByAttribute} onSelectActor={(actorName) => { setSelectedMovie(null); setSelectedActorName(actorName); }} onUpdateMovie={handleUpdateMovie} onDeleteMovie={handleDeleteMovie} onNotify={showActionNotification} />
+      <MovieDetailModal movie={selectedMovie} movies={movieDetailNavigationMovies} actorNames={actorNames} onClose={handleCloseMovieDetail} onNavigateMovie={setSelectedMovie} onFilterByAttribute={handleFilterByAttribute} onSelectActor={(actorName) => { setSelectedMovie(null); setSelectedActorName(actorName); }} onUpdateMovie={handleUpdateMovie} onDeleteMovie={handleDeleteMovie} onNotify={showActionNotification} />
       <ActorDetailModal actorName={selectedActorName} actorNames={actorNames} movies={movies} onClose={handleCloseActorDetail} onNavigateActor={setSelectedActorName} onSelectMovie={(movie) => { setSelectedActorName(null); setSelectedMovie(movie); }} onUpdateActor={handleUpdateActor} />
       <footer className="mt-auto py-6 border-t border-zinc-800/60 text-center text-xs text-zinc-500">
         <div className="w-full px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
