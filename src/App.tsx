@@ -350,7 +350,7 @@ export default function App() {
   }, [movies, masterGenres]);
 
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
-  const movieTypeSearchRef = useRef<{ text: string; timer: number | null }>({ text: '', timer: null });
+  const [pendingMovieJumpLetter, setPendingMovieJumpLetter] = useState<string | null>(null);
   const handleToggleAlphabet = (char: string) => {
     if (char === 'All') { setSelectedAlphabets(['All']); return; }
     setSelectedAlphabets((prev) => {
@@ -370,15 +370,8 @@ export default function App() {
     const handleLibraryLetterShortcut = (event: KeyboardEvent) => {
       const target = event.target;
       if (event.ctrlKey || event.metaKey || event.altKey || (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)))) return;
-      if (!/^[a-z0-9]$/i.test(event.key)) return;
-      const nextText = `${movieTypeSearchRef.current.text}${event.key}`.toLowerCase();
-      movieTypeSearchRef.current.text = nextText;
-      if (movieTypeSearchRef.current.timer !== null) window.clearTimeout(movieTypeSearchRef.current.timer);
-      movieTypeSearchRef.current.timer = window.setTimeout(() => {
-        movieTypeSearchRef.current.text = '';
-        movieTypeSearchRef.current.timer = null;
-      }, 900);
-      setSelectedAlphabets(['All']); setSelectedCategory('All'); setSearchQuery(nextText); setActiveMetadataFilter(null); setSortBy('alphabet-asc');
+      if (!/^[a-z]$/i.test(event.key)) return;
+      setPendingMovieJumpLetter(event.key.toUpperCase()); setSelectedAlphabets(['All']); setSelectedCategory('All'); setSearchQuery(''); setActiveMetadataFilter(null); setSortBy('alphabet-asc');
     };
     window.addEventListener('keydown', handleLibraryLetterShortcut);
     return () => window.removeEventListener('keydown', handleLibraryLetterShortcut);
@@ -691,6 +684,16 @@ export default function App() {
     return result;
   }, [movies, selectedCategory, selectedAlphabets, searchQuery, activeMetadataFilter, sortBy]);
 
+  useEffect(() => {
+    if (!pendingMovieJumpLetter) return;
+    const letter = pendingMovieJumpLetter;
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-keyboard-letter="${letter}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPendingMovieJumpLetter(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pendingMovieJumpLetter, filteredAndSortedMovies]);
+
   const movieDetailNavigationMovies = useMemo(() => {
     if (!selectedMovie) return filteredAndSortedMovies;
     return filteredAndSortedMovies.some((movie) => movie.id === selectedMovie.id) ? filteredAndSortedMovies : movies;
@@ -766,7 +769,7 @@ export default function App() {
           <SettingsPage movies={movies} sharedCatalogToken={''} sharedCatalogStatus={sharedCatalogStatus} sharedCatalogError={sharedCatalogError} onConnectSharedCatalog={() => {}} onDisconnectSharedCatalog={() => {}} onInitializeSharedCatalog={handleInitializeSharedCatalog} onSaveSharedCatalog={handleSaveSharedCatalog} onRefreshSharedCatalog={handleRefreshSharedCatalog} onDeleteAllDatabase={handleDeleteAllDatabase} onImportMovies={handleImportMovies} onImportActors={(profiles) => { for (const profile of profiles) { const existingName = Object.keys(getCustomActors()).find((name) => name.trim().toLowerCase() === profile.name.trim().toLowerCase()) || profile.name; handleUpdateActor(existingName, { ...profile, name: profile.name }); } }} onDeleteMovie={handleDeleteMovie} onBulkDeleteMovies={handleBulkDeleteMovies} onMergeActors={handleMergeActors} onResetCatalog={handleResetCatalog} onSelectMovie={setSelectedMovie} />
         )}
       </main>
-      <MovieDetailModal movie={selectedMovie} movies={movieDetailNavigationMovies} actorNames={actorNames} onClose={handleCloseMovieDetail} onNavigateMovie={setSelectedMovie} onFilterByAttribute={handleFilterByAttribute} onSelectActor={(actorName) => { setSelectedMovie(null); setSelectedActorName(actorName); }} onUpdateMovie={handleUpdateMovie} onDeleteMovie={handleDeleteMovie} onNotify={showActionNotification} />
+      <MovieDetailModal movie={selectedMovie} movies={movieDetailNavigationMovies} onClose={handleCloseMovieDetail} onNavigateMovie={setSelectedMovie} onFilterByAttribute={handleFilterByAttribute} onSelectActor={(actorName) => { setSelectedMovie(null); setSelectedActorName(actorName); }} onUpdateMovie={handleUpdateMovie} onDeleteMovie={handleDeleteMovie} onNotify={showActionNotification} />
       <ActorDetailModal actorName={selectedActorName} actorNames={actorNames} movies={movies} onClose={handleCloseActorDetail} onNavigateActor={setSelectedActorName} onSelectMovie={(movie) => { setSelectedActorName(null); setSelectedMovie(movie); }} onUpdateActor={handleUpdateActor} />
       <footer className="mt-auto py-6 border-t border-zinc-800/60 text-center text-xs text-zinc-500">
         <div className="w-full px-4 flex flex-col sm:flex-row items-center justify-between gap-3">

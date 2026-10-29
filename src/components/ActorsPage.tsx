@@ -112,7 +112,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   const [search, setSearch] = useState('');
   const [actorSort, setActorSort] = useState<ActorSortOption>('name');
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
-  const actorTypeSearchRef = useRef<{ text: string; timer: number | null }>({ text: '', timer: null });
+  const [pendingActorJumpLetter, setPendingActorJumpLetter] = useState<string | null>(null);
   const [isAlphabetOpen, setIsAlphabetOpen] = useState(false);
   const [cols, setCols] = useState(() => {
     try {
@@ -159,16 +159,9 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         (target instanceof HTMLElement &&
           (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)))
       ) return;
-      if (!/^[a-z0-9]$/i.test(event.key)) return;
+      if (!/^[a-z]$/i.test(event.key)) return;
 
-      const nextText = `${actorTypeSearchRef.current.text}${event.key}`.toLowerCase();
-      actorTypeSearchRef.current.text = nextText;
-      if (actorTypeSearchRef.current.timer !== null) window.clearTimeout(actorTypeSearchRef.current.timer);
-      actorTypeSearchRef.current.timer = window.setTimeout(() => {
-        actorTypeSearchRef.current.text = '';
-        actorTypeSearchRef.current.timer = null;
-      }, 900);
-      setSearch(nextText);
+      setPendingActorJumpLetter(event.key.toUpperCase());
       setSelectedAlphabets(['All']);
       setSearch('');
       setActorSort('name');
@@ -391,6 +384,18 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
     () => filteredActors.slice(actorCoverFirstRow * cols, actorCoverLastRow * cols),
     [filteredActors, actorCoverFirstRow, actorCoverLastRow, cols],
   );
+
+  useEffect(() => {
+    if (!pendingActorJumpLetter) return;
+    const letter = pendingActorJumpLetter;
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`[data-keyboard-letter="${letter}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPendingActorJumpLetter(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pendingActorJumpLetter, filteredActors]);
 
   const startListEditing = () => {
     setActorDrafts(Object.fromEntries(filteredActors.map((actor) => [
