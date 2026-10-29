@@ -45,6 +45,8 @@ export default {
     try {
       if (body.action === 'load') {
         await pool.query("ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors JSONB NOT NULL DEFAULT '[]'::jsonb");
+        await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS added_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+        await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS modified_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
         const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
         const formatted = result.rows.map(row => ({
           id: row.id.toString(), title: row.title || 'Untitled', year: Number(row.year) || 0,
@@ -52,24 +54,28 @@ export default {
           size: row.size || '0 GB', sizeBytes: Math.round(Number(row.size_bytes)) || 0,
           resolution: row.resolution || '1080p', posterUrl: row.poster_url || '', backdropUrl: row.backdrop_url || '',
           actors: row.actors || [], favorite: row.favorite, reviewed: row.reviewed, uncensored: row.uncensored,
-          addedDate: row.added_date || new Date().toISOString()
+          addedDate: row.added_date || new Date().toISOString(), modifiedDate: row.modified_date || row.added_date || new Date().toISOString()
         }));
         return jsonResponse({ movies: formatted }, 200, headers);
       }
 
       if (body.action === 'loadActors') {
         await pool.query('ALTER TABLE actors ADD COLUMN IF NOT EXISTS debut_movie_title TEXT');
+        await pool.query('ALTER TABLE actors ADD COLUMN IF NOT EXISTS added_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+        await pool.query('ALTER TABLE actors ADD COLUMN IF NOT EXISTS modified_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
         await refreshActorMovieCounts(pool);
         const result = await pool.query('SELECT * FROM actors ORDER BY name ASC');
         const formatted = result.rows.map(row => ({
           name: row.name, alias: row.alias || '', dob: row.dob ? row.dob.toISOString().split('T')[0] : '',
-          photoUrl: row.photo_url || '', debutMovieTitle: row.debut_movie_title || '', favorite: row.favorite, reviewed: row.reviewed, movieCount: row.movie_count
+          photoUrl: row.photo_url || '', debutMovieTitle: row.debut_movie_title || '', favorite: row.favorite, reviewed: row.reviewed, movieCount: row.movie_count, dateAdded: row.added_date || '', dateModified: row.modified_date || row.added_date || ''
         }));
         return jsonResponse({ actors: formatted }, 200, headers);
       }
 
       if (body.action === 'save') {
         await pool.query("ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors JSONB NOT NULL DEFAULT '[]'::jsonb");
+        await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS added_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+        await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS modified_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
         if (!Array.isArray(body.movies)) return jsonResponse({ error: 'Movies must be array.' }, 400, headers);
 
         // Stream server-side progress as newline-delimited JSON so the client reports
@@ -95,15 +101,15 @@ export default {
                   const safeYear = parseInt(String(m.year ?? '').replace(/[^0-9]/g, ''), 10) || 0;
                   const safeMinutes = parseInt(String(m.minutes ?? '').replace(/[^0-9]/g, ''), 10) || 0;
                   const safeSizeBytes = Math.round(Number(String(m.sizeBytes ?? '').replace(/[^0-9]/g, ''))) || 0;
-                  const values = [m.title || 'Untitled', safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, Boolean(m.favorite), Boolean(m.reviewed), Boolean(m.uncensored), m.addedDate || null, JSON.stringify(Array.isArray(m.actors) ? m.actors : [])];
+                  const values = [m.title || 'Untitled', safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, Boolean(m.favorite), Boolean(m.reviewed), Boolean(m.uncensored), m.addedDate || new Date().toISOString(), m.modifiedDate || m.addedDate || new Date().toISOString(), JSON.stringify(Array.isArray(m.actors) ? m.actors : [])];
                   if (numericId !== null) {
                     await client.query(
-                      `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+                      `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, modified_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
                       [numericId, ...values]
                     );
                   } else {
                     await client.query(
-                      `INSERT INTO movies (title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, values
+                      `INSERT INTO movies (title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, modified_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`, values
                     );
                   }
                   // Reserve the final portion for sequence maintenance and actor-count refresh.
@@ -166,6 +172,8 @@ export default {
 
       if (body.action === 'saveActor' || body.action === 'saveActors') {
         await pool.query('ALTER TABLE actors ADD COLUMN IF NOT EXISTS debut_movie_title TEXT');
+        await pool.query('ALTER TABLE actors ADD COLUMN IF NOT EXISTS added_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+        await pool.query('ALTER TABLE actors ADD COLUMN IF NOT EXISTS modified_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
         const actorsToSave = body.action === 'saveActor' ? [body.actor] : body.actors;
         if (!Array.isArray(actorsToSave)) return jsonResponse({ error: 'Invalid actor data.' }, 400, headers);
         const client = await pool.connect();
@@ -184,15 +192,16 @@ export default {
                  photo_url = $4,
                  favorite = $5,
                  reviewed = $6,
-                 debut_movie_title = $7
+                 debut_movie_title = $7,
+                 modified_date = CURRENT_TIMESTAMP
                WHERE lower(trim(name)) = lower(trim($1))`,
               [actorName, a.alias || null, allowDobUpdate ? (a.dob || null) : null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), String(a.debutMovieTitle || '').trim() || null, allowDobUpdate]
             );
             if (updateResult.rowCount === 0) {
               await client.query(
-                `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count, debut_movie_title)
-                 VALUES ($1, $2, $3, $4, $5, $6, 0, $7)`,
-                [actorName, a.alias || null, allowDobUpdate ? (a.dob || null) : null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), String(a.debutMovieTitle || '').trim() || null]
+                `INSERT INTO actors (name, alias, dob, photo_url, favorite, reviewed, movie_count, debut_movie_title, added_date, modified_date)
+                 VALUES ($1, $2, $3, $4, $5, $6, 0, $7, COALESCE($8::timestamp, CURRENT_TIMESTAMP), COALESCE($9::timestamp, CURRENT_TIMESTAMP))`,
+                [actorName, a.alias || null, allowDobUpdate ? (a.dob || null) : null, a.photoUrl || null, Boolean(a.favorite), Boolean(a.reviewed), String(a.debutMovieTitle || '').trim() || null, a.dateAdded || null, a.dateModified || null]
               );
             }
           }

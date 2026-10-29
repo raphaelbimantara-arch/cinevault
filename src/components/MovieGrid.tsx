@@ -80,17 +80,20 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
           const start = Math.min(lastIndex, currentIndex);
           const end = Math.max(lastIndex, currentIndex);
           const rangeIds = movies.slice(start, end + 1).map((m) => m.id);
-          
           if (onSelectMultipleMovies) {
             onSelectMultipleMovies(rangeIds);
           } else {
-            rangeIds.forEach((id) => onToggleMovieSelection(id));
+            // Fallback must not toggle existing selections off when selecting a range.
+            rangeIds.forEach((id) => {
+              if (!selectedMovieIds.has(id)) onToggleMovieSelection(id);
+            });
           }
         }
       } else {
         onToggleMovieSelection(movie.id);
+        // Keep the last non-Shift click as the anchor for subsequent range selections.
+        lastSelectedIdRef.current = movie.id;
       }
-      lastSelectedIdRef.current = movie.id;
     } else {
       onSelectMovie(movie);
     }
