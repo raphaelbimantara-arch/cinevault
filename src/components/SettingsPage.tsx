@@ -148,38 +148,18 @@ function normalizePersonName(value: string): string {
   return clean.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
 }
 
-function editDistance(left: string, right: string): number {
-  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
-  for (let leftIndex = 1; leftIndex <= left.length; leftIndex++) {
-    let diagonal = previous[0];
-    previous[0] = leftIndex;
-    for (let rightIndex = 1; rightIndex <= right.length; rightIndex++) {
-      const above = previous[rightIndex];
-      previous[rightIndex] = Math.min(previous[rightIndex] + 1, previous[rightIndex - 1] + 1, diagonal + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1));
-      diagonal = above;
-    }
-  }
-  return previous[right.length];
-}
-
 function getActorDuplicateReason(first: ActorDuplicateCandidate, second: ActorDuplicateCandidate): ActorDuplicateGroup['reason'] | null {
-  const clean = (str: string) => str.replace(/\s*\(.*?\)\s*/g, '').trim();
-  const firstIdentities = [clean(first.name), ...getActorAliases(first.alias)].map(normalizePersonName).filter(Boolean);
-  const secondIdentities = [clean(second.name), ...getActorAliases(second.alias)].map(normalizePersonName).filter(Boolean);
-  if (firstIdentities.some((identity) => secondIdentities.includes(identity))) return 'name-or-alias';
-  for (const firstIdentity of firstIdentities) {
-    for (const secondIdentity of secondIdentities) {
-      const firstWords = firstIdentity.split(' '); const secondWords = secondIdentity.split(' ');
-      if (firstWords.length > 1 && secondWords.length > 1 && firstWords.length === secondWords.length && [...firstWords].sort().join(' ') === [...secondWords].sort().join(' ')) return 'matching-name-parts';
-      if (firstWords.length > 1 && secondWords.length > 1) {
-        const firstGiven = firstWords[0]; const secondGiven = secondWords[0]; const firstFamily = firstWords[firstWords.length - 1]; const secondFamily = secondWords[secondWords.length - 1];
-        const sameFamily = firstFamily === secondFamily || (firstFamily.length >= 4 && secondFamily.length >= 4 && editDistance(firstFamily, secondFamily) <= 1);
-        if (sameFamily && firstGiven.length >= 3 && secondGiven.length >= 3 && editDistance(firstGiven, secondGiven) <= 1) return 'matching-name-parts';
-      }
-      const maxLength = Math.max(firstIdentity.length, secondIdentity.length); const allowedDistance = maxLength >= 8 ? 2 : maxLength >= 5 ? 1 : 0;
-      if (allowedDistance > 0 && editDistance(firstIdentity, secondIdentity) <= allowedDistance) return 'similar-spelling';
-    }
-  }
+  const fullName = (value: string) => normalizePersonName(value);
+  const firstName = fullName(first.name);
+  const secondName = fullName(second.name);
+  const firstAliases = getActorAliases(first.alias).map(fullName).filter(Boolean);
+  const secondAliases = getActorAliases(second.alias).map(fullName).filter(Boolean);
+
+  // Only match complete names: full name ↔ full name, or full name ↔ full-name alias.
+  // Do not match shared first/last-name parts, spelling similarity, or alias ↔ alias.
+  if (firstName && firstName === secondName) return 'name-or-alias';
+  if (firstName && secondAliases.includes(firstName)) return 'name-or-alias';
+  if (secondName && firstAliases.includes(secondName)) return 'name-or-alias';
   return null;
 }
 
@@ -190,6 +170,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'csv' | 'actors' | 'duplicates' | 'system'>('csv');
   const [duplicateType, setDuplicateType] = useState<'movies' | 'actors'>('movies');
+  const [hasScannedMovieDuplicates, setHasScannedMovieDuplicates] = useState(false);
+  const [hasScannedActorDuplicates, setHasScannedActorDuplicates] = useState(false);
   const [reviewedDuplicateGroups, setReviewedDuplicateGroups] = useState<Set<string>>(() => {
     try { const stored = localStorage.getItem(REVIEWED_DUPLICATE_GROUPS_KEY); const parsed: unknown = stored ? JSON.parse(stored) : []; return new Set(Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === 'string') : []); } catch { return new Set(); }
   });
@@ -481,6 +463,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   };
 
   const duplicateGroups: DuplicateGroup[] = useMemo(() => {
+    if (!hasScannedMovieDuplicates) return [];
     const groups: DuplicateGroup[] = []; const processedIds = new Set<string>();
     const normalizeTitle = (str: string) => str.toLowerCase().replace(/^(the|a|an)\s+/i, '').replace(/[^\w\s]/gi, '').replace(/\s+/g, ' ').trim();
     const titleMap = new Map<string, Movie[]>(); movies.forEach((m) => { const key = m.title.trim().toLowerCase(); const list = titleMap.get(key) || []; list.push(m); titleMap.set(key, list); });
@@ -489,9 +472,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     remaining.forEach((m) => { const norm = normalizeTitle(m.title); if (norm.length >= 3) { const list = normMap.get(norm) || []; list.push(m); normMap.set(norm, list); } });
     normMap.forEach((list, norm) => { if (list.length > 1) groups.push({ key: `similar-${norm}`, reason: 'similar-title', movies: list }); });
     return groups;
-  }, [movies]);
+  }, [movies, hasScannedMovieDuplicates]);
 
   const actorDuplicateGroups: ActorDuplicateGroup[] = useMemo(() => {
+    if (!hasScannedActorDuplicates) return [];
     const actorMap = new Map<string, ActorDuplicateCandidate>(); const custom = getCustomActors();
     
     // FUNGSI UNTUK MEMBERSIHKAN NAMA DARI KURUNG
@@ -535,7 +519,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     
     const grouped = new Map<number, ActorDuplicateCandidate[]>(); actors.forEach((a, i) => { const r = findRoot(i); const g = grouped.get(r) || []; g.push(a); grouped.set(r, g); });
     return [...grouped.entries()].filter(([, g]) => g.length > 1).map(([r, g]) => { const gr = reasons.get(r) || new Set(); const reason = gr.has('name-or-alias') ? 'name-or-alias' : gr.has('matching-name-parts') ? 'matching-name-parts' : 'similar-spelling'; const sorted = g.sort((a, b) => a.name.localeCompare(b.name)); return { key: sorted.map((a) => normalizePersonName(a.name)).join('|'), reason, actors: sorted }; }).sort((a, b) => a.actors[0].name.localeCompare(b.actors[0].name));
-  }, [movies]);
+  }, [movies, hasScannedActorDuplicates]);
 
   const visibleMovieGroups = useMemo(() => duplicateGroups.filter((g) => !reviewedDuplicateGroups.has(`movie:${getMovieDuplicateReviewKey(g)}`)), [duplicateGroups, reviewedDuplicateGroups]);
   const visibleActorGroups = useMemo(() => actorDuplicateGroups.filter((g) => !reviewedDuplicateGroups.has(`actor:${g.key}`)), [actorDuplicateGroups, reviewedDuplicateGroups]);
@@ -712,17 +696,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-base sm:text-lg text-white">Duplicate Movie Finder</h3>
-                    {visibleMovieGroups.length > 0 ? (<span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">{visibleMovieGroups.length} Groups ({totalMovieDuplicates} duplicates)</span>) : (<span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Clean Catalog (0 Duplicates)</span>)}
+                    {!hasScannedMovieDuplicates ? (<span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">Not scanned</span>) : visibleMovieGroups.length > 0 ? (<span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">{visibleMovieGroups.length} Groups ({totalMovieDuplicates} duplicates)</span>) : (<span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Clean Catalog (0 Duplicates)</span>)}
                   </div>
-                  <p className="text-xs text-zinc-400 mt-1">Scans for identical titles, identical title & release year, or spelling variations.</p>
+                  <p className="text-xs text-zinc-400 mt-1">Click Find Duplicates to scan identical titles and title variations.</p>
                 </div>
+                <div className="flex flex-wrap gap-2 shrink-0">
+                  <button type="button" onClick={() => setHasScannedMovieDuplicates(true)} className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs transition-colors">Find Duplicates</button>
                 {visibleMovieGroups.length > 0 && (<button onClick={handleAutoCleanAllDuplicates} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors shrink-0 shadow-md"><Trash2 className="w-3.5 h-3.5" /><span>Auto Clean All Duplicates</span></button>)}
+                </div>
               </div>
               {visibleMovieGroups.length === 0 && (
                 <div className="py-16 text-center rounded-2xl border border-dashed border-zinc-800 bg-[#0d0f16]/60 p-6">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto mb-3"><Check className="w-7 h-7" /></div>
-                  <h3 className="text-base font-bold text-zinc-200">{duplicateGroups.length > 0 ? 'All Movie Groups Reviewed' : 'No Duplicate Movies Found!'}</h3>
-                  <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">{duplicateGroups.length > 0 ? 'Reviewed groups remain saved in your catalog and can be detected again if their entries change.' : `All ${movies.length} titles in your library are unique. No redundant duplicate titles or releases detected.`}</p>
+                  <h3 className="text-base font-bold text-zinc-200">{!hasScannedMovieDuplicates ? 'Ready to scan' : duplicateGroups.length > 0 ? 'All Movie Groups Reviewed' : 'No Duplicate Movies Found!'}</h3>
+                  <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">{!hasScannedMovieDuplicates ? 'Click Find Duplicates to start searching.' : duplicateGroups.length > 0 ? 'Reviewed groups remain saved in your catalog and can be detected again if their entries change.' : `All ${movies.length} titles in your library are unique. No duplicate titles detected.`}</p>
                 </div>
               )}
               {visibleMovieGroups.length > 0 && (
@@ -773,14 +760,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="space-y-4">
               <div className="rounded-2xl border border-zinc-800 bg-[#121520] p-4 sm:p-5">
                 <h3 className="font-bold text-base text-white">Duplicate Actor Finder</h3>
-                <p className="mt-1 text-xs text-zinc-400">Checks actor names and aliases for exact matches, spelling variations, and similar first/last names.</p>
-                <div className="mt-3 text-xs font-mono text-zinc-300">{visibleActorGroups.length} groups · {totalActorDuplicates} possible duplicate entries</div>
+                <p className="mt-1 text-xs text-zinc-400">Matches complete actor names to complete names or complete-name aliases only. No partial-name or spelling-similarity matches.</p>
+                <div className="mt-3 text-xs font-mono text-zinc-300">{hasScannedActorDuplicates ? `${visibleActorGroups.length} groups · ${totalActorDuplicates} possible duplicate entries` : 'Not scanned yet'}</div>
+                <button type="button" onClick={() => setHasScannedActorDuplicates(true)} className="mt-3 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs transition-colors">Find Duplicates</button>
               </div>
               {visibleActorGroups.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-zinc-800 bg-[#0d0f16]/60 p-8 text-center">
                   <Check className="mx-auto mb-3 h-8 w-8 text-emerald-400" />
-                  <h3 className="font-bold text-zinc-200">{actorDuplicateGroups.length > 0 ? 'All Actor Groups Reviewed' : 'No duplicate actors found'}</h3>
-                  <p className="mt-1 text-xs text-zinc-400">{actorDuplicateGroups.length > 0 ? 'Reviewed actor entries remain saved and can be detected again if the names or aliases change.' : 'Actor names and aliases currently appear unique.'}</p>
+                  <h3 className="font-bold text-zinc-200">{!hasScannedActorDuplicates ? 'Ready to scan' : actorDuplicateGroups.length > 0 ? 'All Actor Groups Reviewed' : 'No duplicate actors found'}</h3>
+                  <p className="mt-1 text-xs text-zinc-400">{!hasScannedActorDuplicates ? 'Click Find Duplicates to start searching.' : actorDuplicateGroups.length > 0 ? 'Reviewed actor entries remain saved and can be detected again if the names or aliases change.' : 'No exact full-name or full-name/alias matches found.'}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
