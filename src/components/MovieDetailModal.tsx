@@ -211,7 +211,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   useEffect(() => {
     if (!movie) return;
     const handleNavigationKeyDown = (event: KeyboardEvent) => {
-      if (isEditing || zoomedImageUrl || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (zoomedImageUrl || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
       if (event.key === 'ArrowRight' && movieIndex >= 0 && movieIndex < movies.length - 1) {
@@ -273,8 +273,12 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         )}
         {
             movieIndex > 0 && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onPointerCancel={(e) => e.stopPropagation()}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePrev(); }}
                 className="absolute -left-14 sm:-left-20 top-1/2 -translate-y-1/2 z-50 flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-400 hover:bg-amber-400 hover:text-zinc-950 transition-all border border-zinc-700/50 backdrop-blur-md shadow-lg cursor-pointer"
                 title="Previous movie"
               >
@@ -283,8 +287,12 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
             )}
 
             {movieIndex >= 0 && movieIndex < movies.length - 1 && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleNext(); }}
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onPointerCancel={(e) => e.stopPropagation()}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleNext(); }}
                 className="absolute -right-14 sm:-right-20 top-1/2 -translate-y-1/2 z-50 flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-400 hover:bg-amber-400 hover:text-zinc-950 transition-all border border-zinc-700/50 backdrop-blur-md shadow-lg cursor-pointer"
                 title="Next movie"
               >
