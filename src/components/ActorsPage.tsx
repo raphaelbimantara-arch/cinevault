@@ -41,7 +41,7 @@ interface ActorStat {
   dateModified: string;
 }
 
-type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'dob-asc' | 'dob-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'debut-age-asc' | 'debut-age-desc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc' | 'uncensored-asc' | 'uncensored-desc' | 'date-added-asc' | 'date-added-desc' | 'date-modified-asc' | 'date-modified-desc';
+type ActorSortOption = 'name' | 'name-desc' | 'alias' | 'alias-desc' | 'dob-asc' | 'dob-desc' | 'movies-desc' | 'movies-asc' | 'age-desc' | 'age-asc' | 'debut-age-asc' | 'debut-age-desc' | 'debut-title-asc' | 'debut-title-desc' | 'size-desc' | 'size-asc' | 'duration-desc' | 'duration-asc' | 'uncensored-asc' | 'uncensored-desc' | 'date-added-asc' | 'date-added-desc' | 'date-modified-asc' | 'date-modified-desc';
 type ActorEditDraft = { name: string; dob: string };
 
 const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = ({
@@ -327,6 +327,15 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
           : b.debutAge - a.debutAge;
         return debutAgeOrder || a.name.localeCompare(b.name);
       }
+      if (actorSort === 'debut-title-asc' || actorSort === 'debut-title-desc') {
+        const titleA = a.debutTitle.trim();
+        const titleB = b.debutTitle.trim();
+        if (!titleA && !titleB) return a.name.localeCompare(b.name);
+        if (!titleA) return 1;
+        if (!titleB) return -1;
+        const titleOrder = titleA.localeCompare(titleB, undefined, { sensitivity: 'base' });
+        return (actorSort === 'debut-title-asc' ? titleOrder : -titleOrder) || a.name.localeCompare(b.name);
+      }
       if (actorSort === 'dob-asc' || actorSort === 'dob-desc') {
         const dobA = getActorDobSortValue(a.dob);
         const dobB = getActorDobSortValue(b.dob);
@@ -594,7 +603,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                 const pairs: Partial<Record<ActorSortOption, ActorSortOption>> = {
                   name:'name-desc','name-desc':'name', alias:'alias-desc','alias-desc':'alias',
                   'dob-asc':'dob-desc','dob-desc':'dob-asc', 'movies-asc':'movies-desc','movies-desc':'movies-asc',
-                  'age-asc':'age-desc','age-desc':'age-asc', 'debut-age-asc':'debut-age-desc','debut-age-desc':'debut-age-asc',
+                  'age-asc':'age-desc','age-desc':'age-asc', 'debut-age-asc':'debut-age-desc','debut-age-desc':'debut-age-asc', 'debut-title-asc':'debut-title-desc','debut-title-desc':'debut-title-asc',
                   'size-asc':'size-desc','size-desc':'size-asc', 'duration-asc':'duration-desc','duration-desc':'duration-asc',
                   'uncensored-asc':'uncensored-desc','uncensored-desc':'uncensored-asc',
                   'date-added-asc':'date-added-desc','date-added-desc':'date-added-asc',
@@ -881,7 +890,18 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     Debut Age
                   </button>
                 <span onPointerDown={(e) => resizeActorColumn(3, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
-                <th className="relative px-0.5 py-2 text-center sm:px-1">Debut<span onPointerDown={(e) => resizeActorColumn(4, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
+                <th className="relative px-0.5 py-2 text-center sm:px-1">
+                  <button
+                    type="button"
+                    disabled={isEditingList}
+                    onClick={() => toggleActorSort('debut-title-asc', 'debut-title-desc')}
+                    className="w-full text-center disabled:cursor-default"
+                    title="Sort by debut movie title"
+                  >
+                    Debut
+                  </button>
+                  <span onPointerDown={(e) => resizeActorColumn(4, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" />
+                </th>
                 <th className="relative px-0.5 py-2 text-center sm:px-1">Size<span onPointerDown={(e) => resizeActorColumn(5, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
                 <th className="relative px-0.5 py-2 text-center sm:px-2">
                   <button type="button" disabled={isEditingList} onClick={() => toggleActorSort('duration-asc', 'duration-desc')} className="w-full text-center disabled:cursor-default">Min</button>
