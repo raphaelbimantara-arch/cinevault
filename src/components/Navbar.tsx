@@ -18,6 +18,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   filteredMovies,
   isFiltered = false,
 }) => {
+  // Use the same storage formatting as the Settings overview card.
+  // Values at or above 1,000 GB are shown without decimals (e.g. 1,745 GB).
+  const formatStorageGB = (sizeInGB: number) =>
+    new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: sizeInGB < 1000 ? 2 : 0,
+      maximumFractionDigits: sizeInGB < 1000 ? 2 : 0,
+    }).format(sizeInGB) + ' GB';
+
   // Calculate total library size
   const totalGB = movies.reduce((acc, m) => acc + (m.sizeBytes || 0), 0) / 1000;
 
@@ -88,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               ? 'bg-amber-500/10 border border-amber-500/40 text-amber-200' 
               : 'bg-zinc-900/90 border border-zinc-800 text-zinc-300'
           }`}
-          title={isFiltered ? `${currentMovies.length} of ${movies.length} movies (${currentGB.toFixed(1)} GB of ${totalGB.toFixed(1)} GB)` : undefined}
+          title={isFiltered ? `${currentMovies.length} of ${movies.length} movies (${formatStorageGB(currentGB)} of ${formatStorageGB(totalGB)})` : undefined}
         >
           {isFiltered ? (
             <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 animate-pulse shrink-0" />
@@ -100,12 +108,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               <>
                 <strong className="text-amber-400 font-semibold">{currentMovies.length}</strong>{' '}
                 {currentMovies.length === 1 ? 'Movie' : 'Movies'} &{' '}
-                <strong className="text-amber-400 font-semibold">{currentGB.toFixed(1)} GB</strong>
+                <strong className="text-amber-400 font-semibold">{formatStorageGB(currentGB)}</strong>
               </>
             ) : (
               <>
                 <strong className="text-white font-semibold">{movies.length}</strong> Movies &{' '}
-                <strong className="text-white font-semibold">{totalGB.toFixed(1)} GB</strong>
+                <strong className="text-white font-semibold">{formatStorageGB(totalGB)}</strong>
               </>
             )}
           </span>
