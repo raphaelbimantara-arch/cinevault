@@ -107,24 +107,12 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
   const [deleteSuccess, setDeleteSuccess] = useState('');
   const [searchDeleteQuery, setSearchDeleteQuery] = useState('');
 
-  // GET ACTOR SUGGESTIONS FOR AUTOCOMPLETE
+  // Keep the cast dropdown identical to the Actor directory list.
+  // Do not merge KNOWN_ACTORS, aliases, or arbitrary historical movie credits here.
   const actorSuggestions = useMemo(() => {
-    const customProfiles = getCustomActors();
-    const names = new Set<string>();
-
-    Object.keys(KNOWN_ACTORS).forEach(name => names.add(name));
-
-    Object.entries(customProfiles).forEach(([name, profile]) => {
-      names.add(name);
-      if (profile.alias) {
-        getActorAliases(profile.alias).forEach(alias => names.add(alias));
-      }
-    });
-
-    existingMovies.forEach(m => m.actors.forEach(a => names.add(a)));
-
-    return Array.from(names).sort();
-  }, [existingMovies]);
+    return Array.from(new Set(existingActors.map((name) => name.trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b));
+  }, [existingActors]);
 
   const handleMovieSubmit = (e: React.FormEvent) => {
     e.preventDefault();
