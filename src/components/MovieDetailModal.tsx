@@ -114,6 +114,23 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       .map((stat) => stat.name);
   }, [movies]);
 
+  // In the edit form, always include the movie's existing actors in the options,
+  // and keep selected actors at the top so they are immediately visible.
+  const editActorOptions = useMemo(() => {
+    const selectedByKey = new Map(editActors.map((name) => [name.trim().toLowerCase(), name.trim()]));
+    const allByKey = new Map<string, string>();
+    [...editActors, ...actorOptions].forEach((name) => {
+      const trimmed = name.trim();
+      if (trimmed && !allByKey.has(trimmed.toLowerCase())) allByKey.set(trimmed.toLowerCase(), trimmed);
+    });
+    return [...allByKey.values()].sort((a, b) => {
+      const aSelected = selectedByKey.has(a.toLowerCase());
+      const bSelected = selectedByKey.has(b.toLowerCase());
+      if (aSelected !== bSelected) return aSelected ? -1 : 1;
+      return a.localeCompare(b);
+    });
+  }, [actorOptions, editActors]);
+
   const actorSuggestions = useMemo(() => {
     const customProfiles = getCustomActors();
     const names = new Set<string>();
@@ -379,8 +396,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                         <span className="text-[10px] text-zinc-500">{editActors.length} selected</span>
                       </div>
                       <div className="grid max-h-[14rem] grid-cols-1 gap-1 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 p-2">
-                        {actorOptions.map((actor) => (
-                          <label key={actor} className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
+                        {editActorOptions.map((actor) => (
+                          <label key={actor} className={`flex min-w-0 cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-xs hover:bg-zinc-800 ${editActors.some((item) => item.toLowerCase() === actor.toLowerCase()) ? 'bg-amber-400/10 text-amber-300' : 'text-zinc-300'}`}>
                             <input type="checkbox" checked={editActors.some((item) => item.toLowerCase() === actor.toLowerCase())} onChange={() => toggleActor(actor)} className="h-3.5 w-3.5 shrink-0 accent-amber-400" />
                             <span className="truncate">{actor}</span>
                           </label>
