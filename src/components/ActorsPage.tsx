@@ -110,6 +110,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   };
   const [selectedDetailActor, setSelectedDetailActor] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [typeToSearchPrefix, setTypeToSearchPrefix] = useState<string | null>(null);
   const [actorSort, setActorSort] = useState<ActorSortOption>('name');
   const [selectedAlphabets, setSelectedAlphabets] = useState<string[]>(['All']);
   const [pendingActorJumpLetter, setPendingActorJumpLetter] = useState<string | null>(null);
@@ -151,23 +152,25 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
     });
   };
   const selectionMode = selectedActorNames.size > 0;
+  const actorTypeSearchRef = useRef({ value: '', lastAt: 0 });
   useEffect(() => {
-    const handleActorLetterShortcut = (event: KeyboardEvent) => {
+    const handleActorTypeSearch = (event: KeyboardEvent) => {
       const target = event.target;
       if (
-        !keyboardAlphabetEnabled || isEditingList || event.ctrlKey || event.metaKey || event.altKey ||
+        !keyboardAlphabetEnabled || isEditingList || event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1 || !/[a-z0-9]/i.test(event.key) ||
         (target instanceof HTMLElement &&
           (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)))
       ) return;
-      if (!/^[a-z]$/i.test(event.key)) return;
-
-      setPendingActorJumpLetter(event.key.toUpperCase());
+      const now = Date.now();
+      const value = now - actorTypeSearchRef.current.lastAt > 900 ? event.key : actorTypeSearchRef.current.value + event.key;
+      actorTypeSearchRef.current = { value, lastAt: now };
       setSelectedAlphabets(['All']);
+      setTypeToSearchPrefix(value.toLowerCase());
       setSearch('');
       setActorSort('name');
     };
-    window.addEventListener('keydown', handleActorLetterShortcut);
-    return () => window.removeEventListener('keydown', handleActorLetterShortcut);
+    window.addEventListener('keydown', handleActorTypeSearch);
+    return () => window.removeEventListener('keydown', handleActorTypeSearch);
   }, [isEditingList, keyboardAlphabetEnabled]);
 
   const longPressHandlers = useLongPress((name) => {
@@ -371,7 +374,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         ? b.name.localeCompare(a.name, undefined, { sensitivity: 'base' })
         : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
     });
-  }, [actorStats, search, selectedAlphabets, actorSort]);
+  }, [actorStats, search, typeToSearchPrefix, selectedAlphabets, actorSort]);
 
   const actorCoverGap = 8;
   const actorCoverCardWidth = Math.max(1, (actorCoverViewportWidth - actorCoverGap * (cols - 1)) / cols);
@@ -386,16 +389,23 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   );
 
   useEffect(() => {
-    if (!pendingActorJumpLetter) return;
-    const letter = pendingActorJumpLetter;
+    if (!typeToSearchPrefix || !keyboardAlphabetEnabled) return;
+    const targetIndex = filteredActors.findIndex((actor) => actor.name.trim().toLowerCase().startsWith(typeToSearchPrefix));
+    if (targetIndex < 0) return;
     const frame = window.requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLElement>(`[data-keyboard-letter="${letter}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setPendingActorJumpLetter(null);
+      if (actorViewMode === 'cover') {
+        const rowHeight = actorCoverRowHeight || 100;
+        const nextTop = Math.max(0, Math.floor(targetIndex / cols) * rowHeight);
+        if (actorCoverViewportRef.current) actorCoverViewportRef.current.scrollTo({ top: nextTop, behavior: 'smooth' });
+        setActorCoverScrollTop(nextTop);
+      } else {
+        const targetName = filteredActors[targetIndex].name.trim().toLowerCase();
+        const item = Array.from(document.querySelectorAll<HTMLElement>('[data-keyboard-title]')).find((el) => el.dataset.keyboardTitle === targetName);
+        item?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [pendingActorJumpLetter, filteredActors]);
+  }, [typeToSearchPrefix, keyboardAlphabetEnabled, filteredActors, actorViewMode, actorCoverRowHeight, cols]);
 
   const startListEditing = () => {
     setActorDrafts(Object.fromEntries(filteredActors.map((actor) => [
@@ -937,6 +947,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                     key={actor.name}
                     data-selection-id={isEditingList ? undefined : actor.name}
                     data-keyboard-letter={actor.name.trim().charAt(0).toUpperCase()}
+                    data-keyboard-title={actor.name.trim().toLowerCase()}
                     onClick={() => {
                       if (isEditingList) return;
                       if (selectionMode) handleToggleActorSelection(actor.name);
@@ -1042,6 +1053,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
               key={actor.name}
               data-selection-id={actor.name}
               data-keyboard-letter={actor.name.trim().charAt(0).toUpperCase()}
+              data-keyboard-title={actor.name.trim().toLowerCase()}
               aria-label={`Open ${actor.name}`}
               onClick={() => selectionMode
                 ? handleToggleActorSelection(actor.name)

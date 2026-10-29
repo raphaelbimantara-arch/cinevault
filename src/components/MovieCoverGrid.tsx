@@ -94,6 +94,7 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
 
       <div
         ref={viewportRef}
+        data-movie-scroll-viewport="cover"
         onScroll={handleScroll}
         className="h-[calc(100vh-245px)] min-h-[320px] overflow-x-hidden overflow-y-scroll overscroll-contain select-none [scrollbar-width:thin] [scrollbar-color:#fbbf24_#27272a]"
         style={{ scrollbarGutter: 'stable' }}
@@ -122,6 +123,7 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
                 type="button"
                 data-selection-id={movie.id}
                 data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
+                data-keyboard-title={movie.title.trim().toLowerCase()}
                 onClick={() => selectionMode ? onToggleMovieSelection(movie.id) : onSelectMovie(movie)}
                 aria-label={selectionMode ? `Select ${movie.title}` : `Open ${movie.title}`}
                 aria-pressed={selected}

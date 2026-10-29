@@ -114,7 +114,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   const visibleMovies = useMemo(() => movies.slice(firstRow * cols, lastRow * cols), [movies, firstRow, lastRow, cols]);
 
   return (
-    <div ref={viewportRef} onScroll={handleScroll} className="h-[calc(100vh-190px)] min-h-[360px] overflow-x-hidden overflow-y-scroll select-none">
+    <div ref={viewportRef} data-movie-scroll-viewport="grid" onScroll={handleScroll} className="h-[calc(100vh-190px)] min-h-[360px] overflow-x-hidden overflow-y-scroll select-none">
       <div
       className="grid gap-3 sm:gap-4 select-none content-start"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, paddingTop: firstRow * rowHeight, paddingBottom: Math.max(0, rowCount - lastRow) * rowHeight }}
@@ -132,6 +132,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
             key={movie.id}
             data-selection-id={movie.id}
             data-keyboard-letter={movie.title.trim().charAt(0).toUpperCase()}
+            data-keyboard-title={movie.title.trim().toLowerCase()}
             onClick={(e) => handleMovieClick(e, movie)}
             // PERUBAHAN 1: rounded-xl diganti menjadi rounded-md agar lebih kotak
             className={`group relative flex flex-col cursor-pointer rounded-none overflow-hidden bg-[#121520] border transition-all duration-200 select-none ${

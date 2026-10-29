@@ -362,19 +362,28 @@ export default function App() {
   };
 
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [typeToSearchPrefix, setTypeToSearchPrefix] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('alphabet-asc');
   const [activeMetadataFilter, setActiveMetadataFilter] = useState<ActiveFilter | null>(null);
 
+  const libraryTypeSearchRef = useRef({ value: '', lastAt: 0 });
   useEffect(() => {
-    if (activePage !== 'library' || selectedMovie || selectedActorName) return;
-    const handleLibraryLetterShortcut = (event: KeyboardEvent) => {
+    if (activePage !== 'library' || selectedMovie || selectedActorName) {
+      libraryTypeSearchRef.current = { value: '', lastAt: 0 };
+      return;
+    }
+    const handleLibraryTypeSearch = (event: KeyboardEvent) => {
       const target = event.target;
-      if (event.ctrlKey || event.metaKey || event.altKey || (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)))) return;
-      if (!/^[a-z]$/i.test(event.key)) return;
-      setPendingMovieJumpLetter(event.key.toUpperCase()); setSelectedAlphabets(['All']); setSelectedCategory('All'); setSearchQuery(''); setActiveMetadataFilter(null); setSortBy('alphabet-asc');
+      if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1 || !/[a-z0-9]/i.test(event.key) ||
+        (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)))) return;
+      const now = Date.now();
+      const value = now - libraryTypeSearchRef.current.lastAt > 900 ? event.key : libraryTypeSearchRef.current.value + event.key;
+      libraryTypeSearchRef.current = { value, lastAt: now };
+      setTypeToSearchPrefix(value.toLowerCase());
+      setSelectedAlphabets(['All']); setSelectedCategory('All'); setSearchQuery(''); setActiveMetadataFilter(null); setSortBy('alphabet-asc');
     };
-    window.addEventListener('keydown', handleLibraryLetterShortcut);
-    return () => window.removeEventListener('keydown', handleLibraryLetterShortcut);
+    window.addEventListener('keydown', handleLibraryTypeSearch);
+    return () => window.removeEventListener('keydown', handleLibraryTypeSearch);
   }, [activePage, selectedMovie, selectedActorName]);
 
   const actorsCount = useMemo(() => {
@@ -682,17 +691,30 @@ export default function App() {
       }
     });
     return result;
-  }, [movies, selectedCategory, selectedAlphabets, searchQuery, activeMetadataFilter, sortBy]);
+  }, [movies, selectedCategory, selectedAlphabets, searchQuery, typeToSearchPrefix, activeMetadataFilter, sortBy]);
 
   useEffect(() => {
-    if (!pendingMovieJumpLetter) return;
-    const letter = pendingMovieJumpLetter;
+    if (!typeToSearchPrefix || activePage !== 'library' || selectedMovie || selectedActorName) return;
+    const targetIndex = filteredAndSortedMovies.findIndex((movie) => movie.title.trim().toLowerCase().startsWith(typeToSearchPrefix));
+    if (targetIndex < 0) return;
     const frame = window.requestAnimationFrame(() => {
-      document.querySelector<HTMLElement>(`[data-keyboard-letter="${letter}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setPendingMovieJumpLetter(null);
+      const targetTitle = filteredAndSortedMovies[targetIndex].title.trim().toLowerCase();
+      const item = Array.from(document.querySelectorAll<HTMLElement>('[data-keyboard-title]')).find((el) => el.dataset.keyboardTitle === targetTitle);
+      if (item) { item.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      const viewport = document.querySelector<HTMLElement>('[data-movie-scroll-viewport]');
+      if (!viewport) return;
+      if (viewMode === 'grid') viewport.scrollTo({ top: Math.max(0, Math.floor(targetIndex / gridCols) * 340), behavior: 'smooth' });
+      else if (viewMode === 'cover') {
+        const width = viewport.clientWidth || 1200;
+        const rowHeight = ((width - 8 * (movieCoverCols - 1)) / movieCoverCols) * 1.5 + 8;
+        viewport.scrollTo({ top: Math.max(0, Math.floor(targetIndex / movieCoverCols) * rowHeight), behavior: 'smooth' });
+      } else {
+        const row = document.querySelector<HTMLElement>(`[data-keyboard-title="${CSS.escape(targetTitle)}"]`);
+        row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [pendingMovieJumpLetter, filteredAndSortedMovies]);
+  }, [typeToSearchPrefix, activePage, selectedMovie, selectedActorName, filteredAndSortedMovies, viewMode, gridCols, movieCoverCols]);
 
   const movieDetailNavigationMovies = useMemo(() => {
     if (!selectedMovie) return filteredAndSortedMovies;
@@ -725,7 +747,7 @@ export default function App() {
         {activePage === 'library' && (
           <div className="w-full min-w-0 space-y-2">
             <div className="sticky top-[56px] z-20 -mx-3 space-y-3 border-b border-zinc-800/80 bg-[#08090d]/95 px-3 py-2 backdrop-blur-md sm:top-[60px] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-              <FilterToolbar viewMode={viewMode} setViewMode={setViewMode} gridCols={gridCols} setGridCols={setGridCols} selectedCategory={selectedCategory} genreOptions={availableGenres} setSelectedCategory={setSelectedCategory} selectedAlphabets={selectedAlphabets} onToggleAlphabet={handleToggleAlphabet} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} activeMetadataFilter={activeMetadataFilter} clearActiveMetadataFilter={handleClearMetadataFilter} totalFilteredCount={filteredAndSortedMovies.length} totalCatalogCount={movies.length} />
+              <FilterToolbar viewMode={viewMode} setViewMode={setViewMode} gridCols={gridCols} setGridCols={setGridCols} selectedCategory={selectedCategory} genreOptions={availableGenres} setSelectedCategory={setSelectedCategory} selectedAlphabets={selectedAlphabets} onToggleAlphabet={handleToggleAlphabet} searchQuery={searchQuery} setSearchQuery={(value) => { setTypeToSearchPrefix(null); setSearchQuery(value); }} sortBy={sortBy} setSortBy={setSortBy} activeMetadataFilter={activeMetadataFilter} clearActiveMetadataFilter={handleClearMetadataFilter} totalFilteredCount={filteredAndSortedMovies.length} totalCatalogCount={movies.length} />
               {selectedMovieCount > 0 && (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-[#121520] p-2.5 sm:p-3">
                   <span className="text-xs text-zinc-400">{selectedMovieCount} selected</span>

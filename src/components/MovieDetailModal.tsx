@@ -90,58 +90,35 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   }, [movies]);
 
   const actorOptions = useMemo(() => {
-    const actorStats = new Map<string, { name: string; count: number; lastUsed: number }>();
-    movies.forEach((m) => {
-      const dateVal = new Date(m.addedDate || 0).getTime();
-      m.actors.forEach((actor) => {
-        const trimmed = actor.trim();
-        if (!trimmed) return;
-        const key = trimmed.toLowerCase();
-        const existing = actorStats.get(key) || { name: trimmed, count: 0, lastUsed: 0 };
-        actorStats.set(key, {
-          name: trimmed,
-          count: existing.count + 1,
-          lastUsed: Math.max(existing.lastUsed, dateVal),
-        });
+    const names = new Map<string, string>();
+    movies.forEach((item) => item.actors.forEach((actor) => {
+      const trimmed = actor.trim();
+      if (trimmed && !names.has(trimmed.toLowerCase())) names.set(trimmed.toLowerCase(), trimmed);
+    }));
+    Object.keys(KNOWN_ACTORS).forEach((name) => {
+      const trimmed = name.trim();
+      if (trimmed && !names.has(trimmed.toLowerCase())) names.set(trimmed.toLowerCase(), trimmed);
+    });
+    Object.entries(getCustomActors()).forEach(([name, profile]) => {
+      const trimmed = name.trim();
+      if (trimmed && !names.has(trimmed.toLowerCase())) names.set(trimmed.toLowerCase(), trimmed);
+      if (profile.alias) getActorAliases(profile.alias).forEach((alias) => {
+        const value = alias.trim();
+        if (value && !names.has(value.toLowerCase())) names.set(value.toLowerCase(), value);
       });
     });
-    return [...actorStats.values()]
-      .sort((a, b) => {
-        if (b.count !== a.count) return b.count - a.count;
-        if (b.lastUsed !== a.lastUsed) return b.lastUsed - a.lastUsed;
-        return a.name.localeCompare(b.name);
-      })
-      .map((stat) => stat.name);
+    return [...names.values()].sort((a, b) => a.localeCompare(b));
   }, [movies]);
 
-  // In the edit form, always include the movie's existing actors in the options,
-  // and keep selected actors at the top so they are immediately visible.
   const editActorOptions = useMemo(() => {
-    const selectedByKey = new Map(editActors.map((name) => [name.trim().toLowerCase(), name.trim()]));
-    const allByKey = new Map<string, string>();
-    [...editActors, ...actorOptions].forEach((name) => {
-      const trimmed = name.trim();
-      if (trimmed && !allByKey.has(trimmed.toLowerCase())) allByKey.set(trimmed.toLowerCase(), trimmed);
-    });
-    return [...allByKey.values()].sort((a, b) => {
+    const selectedByKey = new Set(editActors.map((name) => name.trim().toLowerCase()));
+    return [...actorOptions].sort((a, b) => {
       const aSelected = selectedByKey.has(a.toLowerCase());
       const bSelected = selectedByKey.has(b.toLowerCase());
       if (aSelected !== bSelected) return aSelected ? -1 : 1;
       return a.localeCompare(b);
     });
   }, [actorOptions, editActors]);
-
-  const actorSuggestions = useMemo(() => {
-    const customProfiles = getCustomActors();
-    const names = new Set<string>();
-    Object.keys(KNOWN_ACTORS).forEach(name => names.add(name));
-    Object.entries(customProfiles).forEach(([name, profile]) => {
-      names.add(name);
-      if (profile.alias) getActorAliases(profile.alias).forEach(alias => names.add(alias));
-    });
-    movies.forEach(m => m.actors.forEach(a => names.add(a)));
-    return Array.from(names).sort();
-  }, [movies]);
 
   const resolutionOptions = useMemo(() => {
     const resolutions = new Map<string, string>();
@@ -161,7 +138,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   };
 
   const addActor = () => {
-    const actor = newActor.trim();
+    const actor = editActorOptions.find((name) => name.toLowerCase() === newActor.trim().toLowerCase());
     if (!actor) return;
     setEditActors((current) => current.some((item) => item.toLowerCase() === actor.toLowerCase()) ? current : [...current, actor]);
     setNewActor('');
@@ -404,9 +381,11 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                         ))}
                       </div>
                       <div className="mt-2 flex gap-2">
-                        <input type="text" list="actor-suggestions-edit" value={newActor} onChange={(e) => setNewActor(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addActor(); } }} onFocus={(e) => e.target.select()} className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none" placeholder="Add an actor..." />
-                        <datalist id="actor-suggestions-edit">{actorSuggestions.map((name, index) => <option key={index} value={name} />)}</datalist>
-                        <button type="button" onClick={addActor} className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700">Add</button>
+                        <select value={newActor} onChange={(e) => setNewActor(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none">
+                          <option value="">Select an actor...</option>
+                          {editActorOptions.filter((name) => !editActors.some((selected) => selected.toLowerCase() === name.toLowerCase())).map((name) => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                        <button type="button" onClick={addActor} disabled={!newActor || !editActorOptions.some((name) => name.toLowerCase() === newActor.trim().toLowerCase())} className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40">Add</button>
                       </div>
                     </div>
                     <div>
