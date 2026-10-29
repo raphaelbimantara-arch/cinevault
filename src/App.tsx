@@ -16,7 +16,7 @@ import { ActorsPage } from './components/ActorsPage';
 import { AddMoviePage } from './components/AddMoviePage';
 import { SettingsPage } from './components/SettingsPage';
 import { ALL_GENRES, INITIAL_MOVIES } from './data/initialMovies';
-import { ActorProfile, applySharedActorProfiles, formatActorAliases, getActorAliases, getActorProfile, getCustomActors, removeCustomActors, updateActorProfile } from './data/actorsData';
+import { ActorProfile, applyDeletedActorNames, applySharedActorProfiles, formatActorAliases, getActorAliases, getActorProfile, getCustomActors, removeCustomActors, updateActorProfile } from './data/actorsData';
 import { Movie, ViewMode, ActivePage, SortOption, ActiveFilter } from './types';
 import { Check, RotateCcw, Star, Trash2, X } from 'lucide-react';
 import { clearSharedDatabase, deleteSharedActors, loadSharedActors, loadSharedCatalog, saveSharedActor, saveSharedActors, saveSharedCatalog } from './utils/sharedCatalog';
@@ -36,6 +36,39 @@ import {
 const STORAGE_KEY = 'cinevault_movies_library_v2';
 const MOVIE_COVER_COLS_STORAGE_KEY = 'cinevault_movie_cover_cols_v1';
 const GRID_COLS_STORAGE_KEY = 'cinevault_grid_cols_v1';
+const PENDING_ACTOR_DELETIONS_KEY = 'cinevault_pending_actor_deletions_v1';
+const DELETED_ACTOR_NAMES_KEY = 'cinevault_deleted_actor_names_v1';
+
+function getPendingActorDeletions(): string[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(PENDING_ACTOR_DELETIONS_KEY) || '[]');
+    return Array.isArray(value) ? value.filter((name): name is string => typeof name === 'string' && name.trim()) : [];
+  } catch { return []; }
+}
+
+function getDeletedActorNames(): string[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(DELETED_ACTOR_NAMES_KEY) || '[]');
+    return Array.isArray(value) ? value.filter((name): name is string => typeof name === 'string' && name.trim()) : [];
+  } catch { return []; }
+}
+
+function addDeletedActorNames(names: string[]): void {
+  const combined = [...getDeletedActorNames(), ...names.map((name) => name.trim()).filter(Boolean)];
+  const unique = [...new Map(combined.map((name) => [name.toLowerCase(), name])).values()];
+  try { localStorage.setItem(DELETED_ACTOR_NAMES_KEY, JSON.stringify(unique)); } catch (error) { console.error('Could not persist deleted actor names:', error); }
+}
+
+function addPendingActorDeletions(names: string[]): void {
+  const combined = [...getPendingActorDeletions(), ...names.map((name) => name.trim()).filter(Boolean)];
+  const unique = [...new Map(combined.map((name) => [name.toLowerCase(), name])).values()];
+  try { localStorage.setItem(PENDING_ACTOR_DELETIONS_KEY, JSON.stringify(unique)); } catch (error) { console.error('Could not persist pending actor deletions:', error); }
+}
+
+function removePendingActorDeletions(names: string[]): void {
+  const removed = new Set(names.map((name) => name.trim().toLowerCase()));
+  try { localStorage.setItem(PENDING_ACTOR_DELETIONS_KEY, JSON.stringify(getPendingActorDeletions().filter((name) => !removed.has(name.trim().toLowerCase())))); } catch (error) { console.error('Could not update pending actor deletions:', error); }
+}
 type SharedCatalogStatus = 'disconnected' | 'loading' | 'connected' | 'empty' | 'error';
 type ActionNotification = {
   message: string;
@@ -100,7 +133,11 @@ export default function App() {
     // Debounce catalog persistence so rapid edits and bulk updates do not
     // serialize the entire catalog on every intermediate render.
     const timer = window.setTimeout(() => {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(movies)); } catch (e) { console.error(e); }
+      try {
+        const deleted = new Set(getDeletedActorNames().map((name) => name.trim().toLowerCase()));
+        const sanitized = deleted.size ? movies.map((movie) => ({ ...movie, actors: movie.actors.filter((name) => !deleted.has(name.trim().toLowerCase())) })) : movies;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+      } catch (e) { console.error(e); }
     }, 700);
     return () => window.clearTimeout(timer);
   }, [movies]);
@@ -111,26 +148,39 @@ export default function App() {
     setSharedCatalogError('');
 
     loadSharedCatalog()
-      .then((sharedMovies) => {
+      .then(async (sharedMovies) => {
         if (cancelled) return;
         if (sharedMovies.length > 0) {
           setMovies(sharedMovies);
           setSelectedMovieIds(new Set());
-          setSharedCatalogStatus('connected');
-          void loadSharedActors()
-            .then((sharedActors) => {
-              if (cancelled) return;
-              applySharedActorProfiles(sharedActors);
-              setActorProfileRevision((revision) => revision + 1);
-            })
-            .catch((error: unknown) => {
-              if (cancelled) return;
-              console.error('Failed to load shared actor profiles:', error);
-              showActionNotification(error instanceof Error ? `Could not load shared actor profiles: ${error.message}` : 'Could not load shared actor profiles.');
-            });
-        } else {
-          setSharedCatalogStatus('empty');
         }
+        // Retry deletions made while offline before importing any server-side actor profiles.
+        const pendingActorDeletions = getPendingActorDeletions();
+        if (pendingActorDeletions.length) {
+          try {
+            await deleteSharedActors(pendingActorDeletions);
+            removePendingActorDeletions(pendingActorDeletions);
+          } catch (error) {
+            console.error('Pending actor deletions will retry on the next refresh:', error);
+          }
+        }
+        // Actor-only catalogs must still populate the directory even when there are zero movies.
+        const sharedActorData = await loadSharedActors();
+        if (cancelled) return;
+        if (sharedActorData.deletedActorNames.length) {
+          addDeletedActorNames(sharedActorData.deletedActorNames);
+          const deleted = new Set([...getDeletedActorNames(), ...sharedActorData.deletedActorNames].map((name) => name.trim().toLowerCase()));
+          applyDeletedActorNames(sharedActorData.deletedActorNames);
+          setMovies((prev) => prev.map((movie) => ({ ...movie, actors: movie.actors.filter((name) => !deleted.has(name.trim().toLowerCase())) })));
+        }
+        const deletedActorKeys = new Set(getDeletedActorNames().map((name) => name.trim().toLowerCase()));
+        if (deletedActorKeys.size) {
+          setMovies((prev) => prev.map((movie) => ({ ...movie, actors: movie.actors.filter((name) => !deletedActorKeys.has(name.trim().toLowerCase())) })));
+          applyDeletedActorNames(getDeletedActorNames());
+        }
+        applySharedActorProfiles(sharedActorData.actors.filter((actor) => !deletedActorKeys.has(actor.name.trim().toLowerCase())));
+        setActorProfileRevision((revision) => revision + 1);
+        setSharedCatalogStatus(sharedMovies.length > 0 ? 'connected' : (sharedActorData.actors.length > 0 ? 'connected' : 'empty'));
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -204,13 +254,21 @@ export default function App() {
     setSharedCatalogStatus('loading'); setSharedCatalogError('');
     try {
       await sharedCatalogSaveQueue.current; await sharedActorSaveQueue.current;
+      const pendingActorDeletions = getPendingActorDeletions();
+      if (pendingActorDeletions.length) {
+        await deleteSharedActors(pendingActorDeletions);
+        removePendingActorDeletions(pendingActorDeletions);
+      }
       const sharedMovies = await loadSharedCatalog();
-      const sharedActors = await loadSharedActors();
-      setMovies(sharedMovies);
-      applySharedActorProfiles(sharedActors);
+      const sharedActorData = await loadSharedActors();
+      addDeletedActorNames(sharedActorData.deletedActorNames);
+      const deleted = new Set(getDeletedActorNames().map((name) => name.trim().toLowerCase()));
+      applyDeletedActorNames(getDeletedActorNames());
+      setMovies(sharedMovies.map((movie) => ({ ...movie, actors: movie.actors.filter((name) => !deleted.has(name.trim().toLowerCase())) })));
+      applySharedActorProfiles(sharedActorData.actors.filter((actor) => !deleted.has(actor.name.trim().toLowerCase())));
       setActorProfileRevision((rev) => rev + 1);
       setSelectedMovieIds(new Set());
-      setSharedCatalogStatus(sharedMovies.length > 0 ? 'connected' : 'empty');
+      setSharedCatalogStatus(sharedMovies.length > 0 || sharedActorData.actors.length > 0 ? 'connected' : 'empty');
       return sharedMovies.length;
     } catch (error) {
       setSharedCatalogError(error instanceof Error ? error.message : 'Unable to refresh.');
@@ -547,10 +605,18 @@ export default function App() {
     removeCustomActors(actorNames);
     deleteMasterActors(actorNames);
     setActorProfileRevision((revision) => revision + 1);
-    if (sharedCatalogStatus === 'connected') enqueueSharedActorUpdate(() => deleteSharedActors(actorNames));
+    // Write a server-side deletion tombstone even if the connection status is stale; this
+    // prevents old offline snapshots from restoring the actor on the next successful sync.
+    addDeletedActorNames(actorNames);
+    addPendingActorDeletions(actorNames);
+    enqueueSharedActorUpdate(async () => {
+      await deleteSharedActors(actorNames);
+      removePendingActorDeletions(actorNames);
+      showActionNotification(`${actorNames.length} actor(s) deleted locally and from the online database.`);
+    });
     setMovies((prev) => prev.map((movie) => ({ ...movie, actors: movie.actors.filter((name) => !namesToDelete.has(name.trim().toLowerCase())) })));
     setSelectedActorName((current) => current && namesToDelete.has(current.trim().toLowerCase()) ? null : current);
-    showActionNotification(`${actorNames.length} actor(s) deleted from master & all movies.`);
+    showActionNotification(`${actorNames.length} actor(s) removed locally; syncing deletion to the online database.`);
   };
 
   const handleDeleteStudio = (studioName: string) => {

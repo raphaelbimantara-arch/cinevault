@@ -43,17 +43,21 @@ export default {
     if (!supportedActions.includes(body.action)) return jsonResponse({ error: 'Unsupported action.' }, 400, headers);
 
     try {
+      // Tombstones make actor deletion durable across devices and prevent stale offline snapshots from resurrecting names.
+      await pool.query(`CREATE TABLE IF NOT EXISTS deleted_actor_names (name_key TEXT PRIMARY KEY, name TEXT NOT NULL, deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
       if (body.action === 'load') {
         await pool.query("ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors JSONB NOT NULL DEFAULT '[]'::jsonb");
         await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS added_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
         await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS modified_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+        const deletedResult = await pool.query('SELECT name_key FROM deleted_actor_names');
+        const deletedNames = new Set(deletedResult.rows.map(row => String(row.name_key).toLowerCase()));
         const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
         const formatted = result.rows.map(row => ({
           id: row.id.toString(), title: row.title || 'Untitled', year: Number(row.year) || 0,
           genre: row.genre || '', studio: row.studio || '', minutes: Number(row.minutes) || 0,
           size: row.size || '0 GB', sizeBytes: Math.round(Number(row.size_bytes)) || 0,
           resolution: row.resolution || '1080p', posterUrl: row.poster_url || '', backdropUrl: row.backdrop_url || '',
-          actors: row.actors || [], favorite: row.favorite, reviewed: row.reviewed, uncensored: row.uncensored,
+          actors: (Array.isArray(row.actors) ? row.actors : []).filter((name) => !deletedNames.has(String(name).trim().toLowerCase())), favorite: row.favorite, reviewed: row.reviewed, uncensored: row.uncensored,
           addedDate: row.added_date || new Date().toISOString(), modifiedDate: row.modified_date || row.added_date || new Date().toISOString()
         }));
         return jsonResponse({ movies: formatted }, 200, headers);
@@ -69,7 +73,8 @@ export default {
           name: row.name, alias: row.alias || '', dob: row.dob ? row.dob.toISOString().split('T')[0] : '',
           photoUrl: row.photo_url || '', debutMovieTitle: row.debut_movie_title || '', favorite: row.favorite, reviewed: row.reviewed, movieCount: row.movie_count, dateAdded: row.added_date || '', dateModified: row.modified_date || row.added_date || ''
         }));
-        return jsonResponse({ actors: formatted }, 200, headers);
+        const deletedResult = await pool.query('SELECT name FROM deleted_actor_names ORDER BY name ASC');
+        return jsonResponse({ actors: formatted, deletedActorNames: deletedResult.rows.map(row => row.name) }, 200, headers);
       }
 
       if (body.action === 'save') {
@@ -77,6 +82,8 @@ export default {
         await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS added_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
         await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS modified_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
         if (!Array.isArray(body.movies)) return jsonResponse({ error: 'Movies must be array.' }, 400, headers);
+        const deletedResult = await pool.query('SELECT name_key FROM deleted_actor_names');
+        const deletedNames = new Set(deletedResult.rows.map(row => String(row.name_key).toLowerCase()));
 
         // Stream server-side progress as newline-delimited JSON so the client reports
         // actual database work rather than upload progress alone.
@@ -101,7 +108,7 @@ export default {
                   const safeYear = parseInt(String(m.year ?? '').replace(/[^0-9]/g, ''), 10) || 0;
                   const safeMinutes = parseInt(String(m.minutes ?? '').replace(/[^0-9]/g, ''), 10) || 0;
                   const safeSizeBytes = Math.round(Number(String(m.sizeBytes ?? '').replace(/[^0-9]/g, ''))) || 0;
-                  const values = [m.title || 'Untitled', safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, Boolean(m.favorite), Boolean(m.reviewed), Boolean(m.uncensored), m.addedDate || new Date().toISOString(), m.modifiedDate || m.addedDate || new Date().toISOString(), JSON.stringify(Array.isArray(m.actors) ? m.actors : [])];
+                  const values = [m.title || 'Untitled', safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, Boolean(m.favorite), Boolean(m.reviewed), Boolean(m.uncensored), m.addedDate || new Date().toISOString(), m.modifiedDate || m.addedDate || new Date().toISOString(), JSON.stringify((Array.isArray(m.actors) ? m.actors : []).filter((name) => !deletedNames.has(String(name).trim().toLowerCase())))];
                   if (numericId !== null) {
                     await client.query(
                       `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, modified_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
@@ -185,6 +192,8 @@ export default {
             if (!a || !String(a.name || '').trim()) continue;
             const allowDobUpdate = body.action === 'saveActor' && body.updateDob === true;
             const actorName = a.name.trim();
+            const tombstone = await client.query('SELECT 1 FROM deleted_actor_names WHERE name_key = lower(trim($1))', [actorName]);
+            if (tombstone.rowCount > 0) continue;
             const updateResult = await client.query(
               `UPDATE actors SET
                  alias = $2,
@@ -218,8 +227,25 @@ export default {
 
       if (body.action === 'deleteActors') {
         if (!Array.isArray(body.names)) return jsonResponse({ error: 'Names must be array.' }, 400, headers);
-        for (const name of body.names) { await pool.query('DELETE FROM actors WHERE name = $1', [name]); }
-        return jsonResponse({ message: 'Actors deleted.' }, 200, headers);
+        const names = [...new Map(body.names.map((value) => String(value || '').trim()).filter(Boolean).map((name) => [name.toLowerCase(), name])).values()];
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          for (const name of names) {
+            const key = name.toLowerCase();
+            await client.query(`INSERT INTO deleted_actor_names (name_key, name, deleted_at) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (name_key) DO UPDATE SET name = EXCLUDED.name, deleted_at = CURRENT_TIMESTAMP`, [key, name]);
+            await client.query('DELETE FROM actors WHERE lower(trim(name)) = $1', [key]);
+            await client.query(`UPDATE movies SET actors = COALESCE((SELECT jsonb_agg(value) FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(actors) = 'array' THEN actors ELSE '[]'::jsonb END) AS credit(value) WHERE lower(trim(value)) <> $1), '[]'::jsonb), modified_date = CURRENT_TIMESTAMP WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(actors) = 'array' THEN actors ELSE '[]'::jsonb END) AS credit(value) WHERE lower(trim(value)) = $1)`, [key]);
+          }
+          await refreshActorMovieCounts(client);
+          await client.query('COMMIT');
+          return jsonResponse({ message: 'Actors deleted from profiles and all movie credits; deletion tombstones saved.', count: names.length }, 200, headers);
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
+        }
       }
       return jsonResponse({ error: 'Unknown action.' }, 400, headers);
     } catch (error) {

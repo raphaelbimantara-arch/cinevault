@@ -20,4 +20,3 @@ This clears only existing actor DOB values. It does not delete actors or alter t
 - Full actor sync no longer truncates the actors table, so it cannot accidentally erase actor records or their saved DOBs.
 - The browser clears legacy local DOBs once, then preserves later manually saved values.
 
-Note: any separate Google Apps Script / Google Sheets integration must follow the same rule if it is still used by your deployment. This ZIP's active API uses PostgreSQL/Neon.

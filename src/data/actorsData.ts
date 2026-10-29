@@ -282,6 +282,12 @@ export function removeCustomActors(names: string[]): void {
   }
 }
 
+
+/** Remove deleted actor names from all local actor profiles and movie credits are handled by App state. */
+export function applyDeletedActorNames(names: string[]): void {
+  removeCustomActors(names);
+}
+
 /**
  * Update an existing actor profile in localStorage
  */

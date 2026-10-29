@@ -17,6 +17,7 @@ async function requestCatalog(payload: {
   movies?: Movie[];
   actors?: ActorProfile[];
   count?: number;
+  deletedActorNames?: string[];
 }> {
   const body = serializedPayload ?? JSON.stringify(payload);
   const response = await new Promise<Response>((resolve, reject) => {
@@ -107,12 +108,12 @@ export async function clearSharedDatabase(): Promise<void> {
   await requestCatalog({ action: 'clearDatabase' });
 }
 
-export async function loadSharedActors(): Promise<ActorProfile[]> {
+export async function loadSharedActors(): Promise<{ actors: ActorProfile[]; deletedActorNames: string[] }> {
   const result = await requestCatalog({ action: 'loadActors' });
   if (!Array.isArray(result.actors)) {
     throw new Error('The shared catalog returned invalid actor profiles.');
   }
-  return result.actors;
+  return { actors: result.actors, deletedActorNames: Array.isArray(result.deletedActorNames) ? result.deletedActorNames : [] };
 }
 
 export async function saveSharedActors(actors: ActorProfile[]): Promise<void> {

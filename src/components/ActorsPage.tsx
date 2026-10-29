@@ -66,6 +66,14 @@ const ActorStatusMarkers: React.FC<{ favorite: boolean; reviewed: boolean }> = (
   ) : null
 );
 
+const DELETED_ACTOR_NAMES_KEY = 'cinevault_deleted_actor_names_v1';
+function getDeletedActorNameKeys(): Set<string> {
+  try {
+    const names = JSON.parse(localStorage.getItem(DELETED_ACTOR_NAMES_KEY) || '[]');
+    return new Set(Array.isArray(names) ? names.filter((name): name is string => typeof name === 'string').map((name) => name.trim().toLowerCase()) : []);
+  } catch { return new Set(); }
+}
+
 const ALPHABET_LIST = [
   'All',
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
@@ -206,11 +214,12 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
   // Extract all unique actors and compute their catalog filmography + profile info
   const actorStats = useMemo(() => {
     const map = new Map<string, Movie[]>();
+    const deletedActorNames = getDeletedActorNameKeys();
 
     movies.forEach((m) => {
       m.actors.forEach((act) => {
         const trimmed = act.trim();
-        if (!trimmed) return;
+        if (!trimmed || deletedActorNames.has(trimmed.toLowerCase())) return;
         const list = map.get(trimmed) || [];
         list.push(m);
         map.set(trimmed, list);
@@ -219,7 +228,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
 
     // Include actors registered in the directory even when they are not linked to a movie yet.
     getRegisteredActorNames().forEach((name) => {
-      if (name && !map.has(name)) map.set(name, []);
+      if (name && !deletedActorNames.has(name.trim().toLowerCase()) && !map.has(name)) map.set(name, []);
     });
 
     const profiles = getActorProfiles([...map.keys()]);

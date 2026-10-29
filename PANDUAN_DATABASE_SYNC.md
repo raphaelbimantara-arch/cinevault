@@ -1,4 +1,4 @@
-# Panduan Sinkronisasi Database CineVault
+# Panduan Sinkronisasi Database CineVault (PostgreSQL/Neon)
 
 ## Perilaku baru
 

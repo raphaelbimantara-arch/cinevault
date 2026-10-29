@@ -47,3 +47,10 @@ CREATE TABLE IF NOT EXISTS actor_movie (
     actor_id INTEGER REFERENCES actors(id) ON DELETE CASCADE,
     PRIMARY KEY (movie_id, actor_id)
 );
+
+-- Durable actor-deletion tombstones prevent stale offline clients from restoring deleted names.
+CREATE TABLE IF NOT EXISTS deleted_actor_names (
+    name_key TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
