@@ -788,13 +788,17 @@ export default function App() {
   }, [filteredAndSortedMovies, movies, selectedMovie]);
 
   const actorNames = useMemo(() => {
+    // The Actor menu and the add-film actor suggestions must share the same
+    // canonical list. Never surface names that have a persisted deletion tombstone.
+    const deletedNames = new Set(getDeletedActorNames().map((name) => name.trim().toLowerCase()));
     const names = new Map<string, string>();
     [...masterActors, ...movies.flatMap((movie) => movie.actors)].forEach((name) => {
       const trimmed = name.trim();
-      if (trimmed && trimmed.toLowerCase() !== 'cast' && !names.has(trimmed.toLowerCase())) names.set(trimmed.toLowerCase(), trimmed);
+      const key = trimmed.toLowerCase();
+      if (trimmed && key !== 'cast' && !deletedNames.has(key) && !names.has(key)) names.set(key, trimmed);
     });
     return [...names.values()].sort((a, b) => a.localeCompare(b));
-  }, [movies, masterActors]);
+  }, [movies, masterActors, actorProfileRevision]);
 
   const isFiltered = selectedCategory !== 'All' || (!selectedAlphabets.includes('All') && selectedAlphabets.length > 0) || searchQuery.trim() !== '' || activeMetadataFilter !== null || filteredAndSortedMovies.length !== movies.length;
   const selectedMovieCount = movies.filter((movie) => selectedMovieIds.has(movie.id)).length;
