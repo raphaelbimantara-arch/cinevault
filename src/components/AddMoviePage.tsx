@@ -80,6 +80,7 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
   const [minutes, setMinutes] = useState<string>('128');
   const [sizeStr, setSizeStr] = useState('12.4');
   const [resolution, setResolution] = useState<(typeof ALLOWED_RESOLUTIONS)[number]>('1080p HD');
+  const [censored, setCensored] = useState<'Uncensored' | 'Reduced Mosaic' | ''>('');
   const [actorsInput, setActorsInput] = useState('');
   const [posterUrl, setPosterUrl] = useState(PRESET_POSTERS[0].url);
   const [customPoster, setCustomPoster] = useState('');
@@ -142,6 +143,8 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
       size: finalSizeString,
       sizeBytes,
       resolution,
+      censored,
+      uncensored: censored === 'Uncensored',
       posterUrl: finalPoster,
       actors: actorsList.length > 0 ? actorsList : ['Lead Actor'],
       addedDate: new Date().toISOString(),
@@ -379,6 +382,12 @@ export const AddMoviePage: React.FC<AddDataPageProps> = ({
                       );
                     })}
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">Censored</label>
+                  <select value={censored} onChange={(e) => setCensored(e.target.value as 'Uncensored' | 'Reduced Mosaic' | '')} className="w-full bg-[#0a0c12] border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-500/60">
+                    <option value="">Blank</option><option value="Uncensored">Uncensored</option><option value="Reduced Mosaic">Reduced Mosaic</option>
+                  </select>
                 </div>
               </div>
 

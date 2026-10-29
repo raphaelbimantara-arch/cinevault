@@ -82,10 +82,10 @@ export const MovieList: React.FC<MovieListProps> = ({
   const [coverLoadStatus, setCoverLoadStatus] = useState<Record<string, 'loaded' | 'failed'>>({});
   const tableRef = useRef<HTMLTableElement>(null);
   const resizeDragRef = useRef<{ column: string; startX: number; startWidth: number } | null>(null);
-  const columnIds = ['title', 'year', 'size', 'minutes', 'resolution', 'actors', 'studio', 'genre', 'dateAdded', 'dateModified', 'frontCover', 'backCover', 'actions'] as const;
+  const columnIds = ['title', 'year', 'size', 'minutes', 'resolution', 'actors', 'studio', 'genre', 'censored', 'dateAdded', 'dateModified', 'frontCover', 'backCover', 'actions'] as const;
   const defaultColumnRatios: Record<(typeof columnIds)[number], number> = {
     title: 0.14, year: 0.06, size: 0.09, minutes: 0.06, resolution: 0.08,
-    actors: 0.14, studio: 0.14, genre: 0.09, dateAdded: 0.10, dateModified: 0.11, frontCover: 0.07, backCover: 0.07, actions: 0.03,
+    actors: 0.14, studio: 0.14, genre: 0.08, censored: 0.10, dateAdded: 0.10, dateModified: 0.11, frontCover: 0.07, backCover: 0.07, actions: 0.03,
   };
 
   // Resize is intentionally kept outside React state: pointer movement updates CSS variables only.
@@ -360,6 +360,7 @@ export const MovieList: React.FC<MovieListProps> = ({
             {renderSortHeader('actors', 'Actor', 'overflow-hidden px-1 py-2')}
             {renderSortHeader('studio', 'Studio', 'overflow-hidden px-1 py-2')}
             {renderSortHeader('genre', 'Genre', 'overflow-hidden px-1 py-2')}
+            <th data-column-header="censored" className="relative overflow-hidden px-1 py-2">{resizeHandle('censored')}Censored</th>
             {renderSortHeader('dateAdded', 'Date Added', 'overflow-hidden px-1 py-2 text-center', 'Added')}
             {renderSortHeader('dateModified', 'Date Modified', 'overflow-hidden px-1 py-2 text-center', 'Modified')}
             <th data-column-header="frontCover" className="relative overflow-hidden px-1 py-2">{resizeHandle('frontCover')}<button type="button" onClick={() => onToggleSort('frontCover')} className="hover:text-amber-300" title="Sort missing front covers first; click again for available first">Front Cover {sortBy === 'poster-missing-first' ? '↑' : sortBy === 'poster-available-first' ? '↓' : '↕'}</button></th>
@@ -442,11 +443,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     ) : (
                       <div className="flex min-w-0 flex-col items-start text-[9px] font-semibold text-zinc-100 transition-colors group-hover:text-amber-400 sm:text-sm" title={movie.uncensored ? `${movie.title} Uncensored` : movie.title}>
                         <span className="block w-full truncate">{movie.title}</span>
-                        {movie.uncensored && (
-                          <span className="mt-0.5 text-[7px] font-bold uppercase tracking-wide text-rose-300 sm:text-[9px]">
-                            Uncensored
-                          </span>
-                        )}
+                        {movie.uncensored && <span className="mt-0.5 text-[7px] font-bold uppercase tracking-wide text-rose-300 sm:text-[9px]">Uncensored</span>}
                       </div>
                     )}
                   </div>
@@ -569,6 +566,7 @@ export const MovieList: React.FC<MovieListProps> = ({
                     </span>
                   )}
                 </td>
+                <td className="overflow-hidden whitespace-nowrap px-1 py-2 text-center text-[9px] text-zinc-300 sm:text-xs">{movie.censored ?? (movie.uncensored ? 'Uncensored' : '')}</td>
                 <td className="overflow-hidden whitespace-nowrap px-1 py-2 text-center font-mono text-[9px] text-zinc-300 sm:text-xs" title={movie.addedDate || 'Date added unavailable'}>{movie.addedDate ? new Date(movie.addedDate).toLocaleDateString() : '—'}</td>
                 <td className="overflow-hidden whitespace-nowrap px-1 py-2 text-center font-mono text-[9px] text-zinc-300 sm:text-xs" title={movie.modifiedDate || 'Date modified unavailable'}>{movie.modifiedDate ? new Date(movie.modifiedDate).toLocaleDateString() : '—'}</td>
                 <td className="px-2 py-2 text-xs sm:text-sm">

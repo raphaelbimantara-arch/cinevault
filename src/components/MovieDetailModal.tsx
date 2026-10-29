@@ -65,7 +65,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const [editActors, setEditActors] = useState<string[]>([]);
   const [editCastCount, setEditCastCount] = useState('');
   const [editFavorite, setEditFavorite] = useState(false);
-  const [editUncensored, setEditUncensored] = useState(false);
+  const [editCensored, setEditCensored] = useState<'Uncensored' | 'Reduced Mosaic' | ''>('');
   const [newActor, setNewActor] = useState('');
   const [editSavedToast, setEditSavedToast] = useState<string | null>(null);
 
@@ -148,7 +148,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditActors([...movie.actors]);
       setEditCastCount(movie.castCount === undefined ? '' : String(movie.castCount));
       setEditFavorite(movie.favorite === true);
-      setEditUncensored(movie.uncensored === true);
+      setEditCensored(movie.censored ?? (movie.uncensored ? 'Uncensored' : ''));
       setNewActor('');
       setIsEditing(false);
       setEditSavedToast(null);
@@ -182,7 +182,8 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       actors: editActors.length > 0 ? editActors : ['Cast'],
       castCount: editCastCount.trim() === '' ? undefined : Number(editCastCount),
       favorite: editFavorite,
-      uncensored: editUncensored,
+      uncensored: editCensored === 'Uncensored',
+      censored: editCensored,
     };
 
     onUpdateMovie(updated);
@@ -385,7 +386,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <div className="space-y-3">
                     <div className="flex gap-2">
                       <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"><input type="checkbox" checked={editFavorite} onChange={(e) => setEditFavorite(e.target.checked)} className="h-3.5 w-3.5 accent-amber-400" /><Star className={`h-3.5 w-3.5 ${editFavorite ? 'fill-amber-400 text-amber-400' : 'text-zinc-500'}`} />Favorite</label>
-                      <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"><input type="checkbox" checked={editUncensored} onChange={(e) => setEditUncensored(e.target.checked)} className="h-3.5 w-3.5 accent-rose-400" />Uncensored</label>
+                      <label className="flex flex-1 items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200">Censored<select value={editCensored} onChange={(e) => setEditCensored(e.target.value as 'Uncensored' | 'Reduced Mosaic' | '')} className="min-w-0 flex-1 bg-zinc-900 text-white outline-none"><option value="">Blank</option><option value="Uncensored">Uncensored</option><option value="Reduced Mosaic">Reduced Mosaic</option></select></label>
                     </div>
                     <div>
                       <label className="block text-[10px] text-zinc-500 uppercase font-semibold mb-1">Front Cover URL</label>
@@ -424,7 +425,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <div className="flex min-w-0 items-center justify-between gap-2">
                     <h2 className="flex min-w-0 items-center gap-2 text-xl font-extrabold leading-tight tracking-tight text-white sm:text-2xl">
                       <span className="min-w-0 truncate">{movie.title}</span>
-                      {movie.uncensored && <span className="shrink-0 rounded-md border border-rose-500/40 bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-300 sm:text-[10px]">Uncensored</span>}
+                      
                     </h2>
                     {(movie.favorite || movie.reviewed) && (
                       <div className="flex shrink-0 items-center gap-2">
@@ -452,6 +453,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                   <Film className="w-4 h-4 shrink-0 text-amber-400" /><span className="truncate text-sm font-semibold">{movie.resolution || 'Standard'}</span>
                 </button>
                 <div className="col-span-2 pt-1 border-t border-zinc-800/60">
+                  {(movie.censored ?? (movie.uncensored ? 'Uncensored' : '')) && <div className="mb-2 flex items-center gap-2 text-amber-400 font-semibold"><Film className="w-4 h-4 shrink-0" /><span>{movie.censored ?? 'Uncensored'}</span></div>}
                   <div className="flex flex-wrap items-center gap-2">
                     <Film className="w-4 h-4 text-amber-400 shrink-0" />
                     {/* PERUBAHAN: text-xs diubah menjadi text-sm */}

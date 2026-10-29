@@ -15,6 +15,7 @@ export interface Movie {
   favorite?: boolean;
   reviewed?: boolean;
   uncensored?: boolean;
+  censored?: 'Uncensored' | 'Reduced Mosaic' | '';
   addedDate?: string;
   modifiedDate?: string;
 }

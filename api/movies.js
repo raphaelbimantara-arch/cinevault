@@ -49,6 +49,7 @@ export default {
         await pool.query("ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors JSONB NOT NULL DEFAULT '[]'::jsonb");
         await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS added_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
         await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS modified_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+        await pool.query("ALTER TABLE movies ADD COLUMN IF NOT EXISTS censored TEXT NOT NULL DEFAULT ''");
         const deletedResult = await pool.query('SELECT name_key FROM deleted_actor_names');
         const deletedNames = new Set(deletedResult.rows.map(row => String(row.name_key).toLowerCase()));
         const result = await pool.query('SELECT * FROM movies ORDER BY id DESC');
@@ -57,7 +58,7 @@ export default {
           genre: row.genre || '', studio: row.studio || '', minutes: Number(row.minutes) || 0,
           size: row.size || '0 GB', sizeBytes: Math.round(Number(row.size_bytes)) || 0,
           resolution: row.resolution || '1080p', posterUrl: row.poster_url || '', backdropUrl: row.backdrop_url || '',
-          actors: (Array.isArray(row.actors) ? row.actors : []).filter((name) => !deletedNames.has(String(name).trim().toLowerCase())), favorite: row.favorite, reviewed: row.reviewed, uncensored: row.uncensored,
+          actors: (Array.isArray(row.actors) ? row.actors : []).filter((name) => !deletedNames.has(String(name).trim().toLowerCase())), favorite: row.favorite, reviewed: row.reviewed, uncensored: row.uncensored, censored: row.censored || (row.uncensored ? 'Uncensored' : ''),
           addedDate: row.added_date || new Date().toISOString(), modifiedDate: row.modified_date || row.added_date || new Date().toISOString()
         }));
         return jsonResponse({ movies: formatted }, 200, headers);
@@ -81,6 +82,7 @@ export default {
         await pool.query("ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors JSONB NOT NULL DEFAULT '[]'::jsonb");
         await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS added_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
         await pool.query('ALTER TABLE movies ADD COLUMN IF NOT EXISTS modified_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+        await pool.query("ALTER TABLE movies ADD COLUMN IF NOT EXISTS censored TEXT NOT NULL DEFAULT ''");
         if (!Array.isArray(body.movies)) return jsonResponse({ error: 'Movies must be array.' }, 400, headers);
         const deletedResult = await pool.query('SELECT name_key FROM deleted_actor_names');
         const deletedNames = new Set(deletedResult.rows.map(row => String(row.name_key).toLowerCase()));
@@ -108,15 +110,15 @@ export default {
                   const safeYear = parseInt(String(m.year ?? '').replace(/[^0-9]/g, ''), 10) || 0;
                   const safeMinutes = parseInt(String(m.minutes ?? '').replace(/[^0-9]/g, ''), 10) || 0;
                   const safeSizeBytes = Math.round(Number(String(m.sizeBytes ?? '').replace(/[^0-9]/g, ''))) || 0;
-                  const values = [m.title || 'Untitled', safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, Boolean(m.favorite), Boolean(m.reviewed), Boolean(m.uncensored), m.addedDate || new Date().toISOString(), m.modifiedDate || m.addedDate || new Date().toISOString(), JSON.stringify((Array.isArray(m.actors) ? m.actors : []).filter((name) => !deletedNames.has(String(name).trim().toLowerCase())))];
+                  const values = [m.title || 'Untitled', safeYear, m.genre || null, m.studio || null, safeMinutes, m.size || null, safeSizeBytes, m.resolution || null, m.posterUrl || null, m.backdropUrl || null, Boolean(m.favorite), Boolean(m.reviewed), Boolean(m.uncensored || m.censored === 'Uncensored'), m.censored || (m.uncensored ? 'Uncensored' : ''), m.addedDate || new Date().toISOString(), m.modifiedDate || m.addedDate || new Date().toISOString(), JSON.stringify((Array.isArray(m.actors) ? m.actors : []).filter((name) => !deletedNames.has(String(name).trim().toLowerCase())))];
                   if (numericId !== null) {
                     await client.query(
-                      `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, modified_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+                      `INSERT INTO movies (id, title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, censored, added_date, modified_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
                       [numericId, ...values]
                     );
                   } else {
                     await client.query(
-                      `INSERT INTO movies (title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, added_date, modified_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`, values
+                      `INSERT INTO movies (title, year, genre, studio, minutes, size, size_bytes, resolution, poster_url, backdrop_url, favorite, reviewed, uncensored, censored, added_date, modified_date, actors) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`, values
                     );
                   }
                   // Reserve the final portion for sequence maintenance and actor-count refresh.

@@ -170,10 +170,11 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                   >
                     {movie.title}
                   </h3>
-                  {movie.uncensored && (
-                    <span className="text-[8px] font-bold text-rose-500 uppercase tracking-wider">
-                      Uncensored
-                    </span>
+                  {(movie.censored ?? (movie.uncensored ? 'Uncensored' : '')) === 'Uncensored' && (
+                    <span className="text-[8px] font-bold text-rose-500 uppercase tracking-wider">Uncensored</span>
+                  )}
+                  {(movie.censored ?? (movie.uncensored ? 'Uncensored' : '')) === 'Reduced Mosaic' && (
+                    <span className="text-[8px] font-bold text-rose-500 uppercase tracking-wider">RM</span>
                   )}
                 </div>
 

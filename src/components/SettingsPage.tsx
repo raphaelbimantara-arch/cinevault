@@ -265,9 +265,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const handleExportCsv = () => {
     try {
-      const headers = ['id', 'title', 'genre', 'studio', 'year', 'minutes', 'size', 'resolution', 'posterUrl', 'backdropUrl', 'actors', 'addedDate', 'castCount', 'favorite', 'reviewed', 'uncensored'];
+      const headers = ['id', 'title', 'genre', 'studio', 'year', 'minutes', 'size', 'resolution', 'posterUrl', 'backdropUrl', 'actors', 'addedDate', 'castCount', 'favorite', 'reviewed', 'uncensored', 'censored'];
       const escapeCsvCell = (val: unknown): string => { if (val === null || val === undefined) return ''; const str = String(val); if (str.includes(',') || str.includes('\n') || str.includes('\r') || str.includes('"')) return `"${str.replace(/"/g, '""')}"`; return str; };
-      const rows = movies.map((m) => [escapeCsvCell(m.id), escapeCsvCell(m.title), escapeCsvCell(m.genre), escapeCsvCell(m.studio), escapeCsvCell(m.year), escapeCsvCell(m.minutes), escapeCsvCell(m.size), escapeCsvCell(m.resolution || '1080p BluRay'), escapeCsvCell(m.posterUrl), escapeCsvCell(m.backdropUrl || ''), escapeCsvCell(m.actors.join(' | ')), escapeCsvCell(m.addedDate || new Date().toISOString().split('T')[0]), escapeCsvCell(m.castCount ?? ''), escapeCsvCell(m.favorite ? 'true' : ''), escapeCsvCell(m.reviewed ? 'true' : ''), escapeCsvCell(m.uncensored ? 'true' : '')]);
+      const rows = movies.map((m) => [escapeCsvCell(m.id), escapeCsvCell(m.title), escapeCsvCell(m.genre), escapeCsvCell(m.studio), escapeCsvCell(m.year), escapeCsvCell(m.minutes), escapeCsvCell(m.size), escapeCsvCell(m.resolution || '1080p BluRay'), escapeCsvCell(m.posterUrl), escapeCsvCell(m.backdropUrl || ''), escapeCsvCell(m.actors.join(' | ')), escapeCsvCell(m.addedDate || new Date().toISOString().split('T')[0]), escapeCsvCell(m.castCount ?? ''), escapeCsvCell(m.favorite ? 'true' : ''), escapeCsvCell(m.reviewed ? 'true' : ''), escapeCsvCell(m.uncensored ? 'true' : ''), escapeCsvCell(m.censored ?? (m.uncensored ? 'Uncensored' : ''))]);
       const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.setAttribute('href', url); link.setAttribute('download', `cinevault_movies_export_${new Date().toISOString().split('T')[0]}.csv`);
@@ -308,7 +308,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       const yearIdx = findIdx('year'); const minutesIdx = findIdx('minutes'); const sizeIdx = findIdx('size'); const resolutionIdx = findIdx('resolution');
       const posterUrlIdx = findIdx('posterurl', 'poster'); const backdropUrlIdx = findIdx('backdrop'); const actorsIdx = findIdx('actors', 'actor', 'cast');
       const idIdx = findIdx('id'); const addedDateIdx = findIdx('addeddate', 'date'); const castCountIdx = findIdx('castcount');
-      const favoriteIdx = findIdx('favorite'); const reviewedIdx = findIdx('reviewed'); const uncensoredIdx = findIdx('uncensored');
+      const favoriteIdx = findIdx('favorite'); const reviewedIdx = findIdx('reviewed'); const uncensoredIdx = findIdx('uncensored'); const censoredIdx = findIdx('censored');
 
       const isHeaderRow = rawHeaders.some((h) => ['title', 'judul', 'movie', 'id', 'genre'].some((k) => h.includes(k)));
       if (titleIdx === -1) { if (idIdx === 0 && rows[0].length > 1) titleIdx = 1; else titleIdx = 0; }
@@ -334,10 +334,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         const castCount = parseInt(getCell(castCountIdx), 10) || undefined;
         const favorite = ['true', '1', 'yes'].includes(getCell(favoriteIdx).toLowerCase());
         const reviewed = ['true', '1', 'yes'].includes(getCell(reviewedIdx).toLowerCase());
-        const uncensored = ['true', '1', 'yes'].includes(getCell(uncensoredIdx).toLowerCase());
+        const rawCensored = getCell(censoredIdx); const censored = ['Uncensored', 'Reduced Mosaic'].includes(rawCensored) ? rawCensored as 'Uncensored' | 'Reduced Mosaic' : (['true', '1', 'yes'].includes(getCell(uncensoredIdx).toLowerCase()) ? 'Uncensored' : ''); const uncensored = censored === 'Uncensored';
         const sizeNum = parseFloat(size.replace(/[^\d.]/g, '')) || 4.5; const sizeBytes = Math.round(sizeNum * 1000);
         if (hadEmpty) autoFilled++;
-        parsedList.push({ id, title, genre, studio, year, minutes, size, sizeBytes, resolution, posterUrl, backdropUrl: getCell(backdropUrlIdx), actors, castCount, favorite, reviewed, uncensored, addedDate });
+        parsedList.push({ id, title, genre, studio, year, minutes, size, sizeBytes, resolution, posterUrl, backdropUrl: getCell(backdropUrlIdx), actors, castCount, favorite, reviewed, uncensored, censored, addedDate });
       }
       if (parsedList.length === 0) errors.push('No movie rows found.');
       else if (autoFilled > 0) notes.push(`Notice: ${autoFilled} rows had blank fields filled with defaults.`);
