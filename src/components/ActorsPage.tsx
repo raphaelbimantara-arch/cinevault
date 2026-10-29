@@ -893,6 +893,7 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
                   >
                     Uncen
                   </button>
+                  <span onPointerDown={(e) => resizeActorColumn(8, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" />
                 </th>
                 <th className="relative px-0.5 py-2 text-center"><button type="button" disabled={isEditingList} onClick={() => toggleActorSort('date-added-asc', 'date-added-desc')} className="w-full text-center disabled:cursor-default">Date Added</button><span onPointerDown={(e) => resizeActorColumn(9, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
                 <th className="relative px-0.5 py-2 text-center"><button type="button" disabled={isEditingList} onClick={() => toggleActorSort('date-modified-asc', 'date-modified-desc')} className="w-full text-center disabled:cursor-default">Date Modified</button><span onPointerDown={(e) => resizeActorColumn(10, e)} title="Drag to resize column" className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none bg-zinc-700/40 hover:bg-amber-400" /></th>
