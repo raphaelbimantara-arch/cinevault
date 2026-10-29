@@ -1,7 +1,7 @@
 import React, { startTransition, useEffect, useState, useMemo, useRef } from 'react';
 import { Search, User, Plus, LayoutGrid, List, GalleryHorizontal, Trash2, X, ArrowUpDown, Star, Check, ChevronDown, ChevronUp, Pencil, Save, Undo2 } from 'lucide-react';
 import { Movie, ViewMode } from '../types';
-import { ActorProfile, getActorProfiles, getActorProfile, updateActorStatuses } from '../data/actorsData';
+import { ActorProfile, getActorProfiles, getActorProfile, getRegisteredActorNames, updateActorStatuses } from '../data/actorsData';
 import { formatActorDob, getActorAge, getActorBirthYear, getActorDobSortValue, normalizeActorDob } from '../utils/actorDob';
 import { ActorDobFields } from './ActorDobFields';
 import { getImageSource } from '../utils/googleDriveImage';
@@ -212,6 +212,11 @@ export const ActorsPage: React.FC<ActorsPageProps> = ({
         list.push(m);
         map.set(trimmed, list);
       });
+    });
+
+    // Include actors registered in the directory even when they are not linked to a movie yet.
+    getRegisteredActorNames().forEach((name) => {
+      if (name && !map.has(name)) map.set(name, []);
     });
 
     const profiles = getActorProfiles([...map.keys()]);

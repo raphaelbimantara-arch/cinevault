@@ -204,6 +204,13 @@ export function getCustomActors(): Record<
   return {};
 }
 
+// Names in the actor directory, including profiles that are not assigned to any movie yet.
+export function getRegisteredActorNames(): string[] {
+  return Object.keys(getCustomActors())
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 export function applySharedActorProfiles(profiles: ActorProfile[]): void {
   try {
     const current = getCustomActors();
