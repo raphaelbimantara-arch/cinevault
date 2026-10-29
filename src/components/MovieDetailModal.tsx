@@ -295,12 +295,12 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         )}
 
         <div className={`grid ${isEditing ? 'grid-cols-1 md:grid-cols-12' : 'grid-cols-1'} gap-0 rounded-none overflow-hidden h-full`}>
-          <div className={`${isEditing ? 'md:col-span-3' : 'col-span-1'} bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
+          <div className={`${isEditing ? 'md:col-span-3' : 'col-span-1'} bg-zinc-950/70 p-3 sm:p-4 h-[min(72vw,300px)] shrink-0 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
             
-            <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
+            <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 h-full rounded-none overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
               <img src={getImageSource(movie.posterUrl)} alt={`${movie.title} - Front`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
             </div>
-            <div onClick={() => setZoomedImageUrl(movie.backdropUrl || movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
+            <div onClick={() => setZoomedImageUrl(movie.backdropUrl || movie.posterUrl)} className="w-1/2 h-full rounded-none overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
               <img src={getImageSource(movie.backdropUrl || movie.posterUrl)} alt={`${movie.title} - Back`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
             </div>
 
