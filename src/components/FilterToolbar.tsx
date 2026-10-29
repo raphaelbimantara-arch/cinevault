@@ -99,19 +99,19 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                   'minutes-asc':'duration','minutes-desc':'duration','quality-asc':'quality','quality-desc':'quality',
                   'size-asc':'size','size-desc':'size','actor-asc':'actor','actor-desc':'actor',
                   'studio-asc':'studio','studio-desc':'studio','genre-asc':'genre','genre-desc':'genre',
-                  'date-added-asc':'dateAdded','date-added-desc':'dateAdded','date-modified-asc':'dateModified','date-modified-desc':'dateModified',
+                  'date-added-asc':'dateAdded','date-added-desc':'dateAdded','date-modified-asc':'dateModified','date-modified-desc':'dateModified','censor-asc':'censor','censor-desc':'censor',
                   'poster-missing-first':'frontCover','poster-available-first':'frontCover','backdrop-missing-first':'backCover','backdrop-available-first':'backCover'
                 };
                 return map[sortBy] || 'title';
               })()}
               onChange={(e) => {
                 const field = e.target.value;
-                const currentDesc = ['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','poster-available-first','backdrop-available-first'].includes(sortBy);
+                const currentDesc = ['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','censor-desc','poster-available-first','backdrop-available-first'].includes(sortBy);
                 const pairs: Record<string, [SortOption, SortOption]> = {
                   title:['alphabet-asc','alphabet-desc'], year:['year-asc','year-desc'], duration:['minutes-asc','minutes-desc'],
                   quality:['quality-asc','quality-desc'], size:['size-asc','size-desc'], actor:['actor-asc','actor-desc'],
                   studio:['studio-asc','studio-desc'], genre:['genre-asc','genre-desc'], dateAdded:['date-added-asc','date-added-desc'],
-                  dateModified:['date-modified-asc','date-modified-desc'], frontCover:['poster-missing-first','poster-available-first'],
+                  dateModified:['date-modified-asc','date-modified-desc'], censor:['censor-asc','censor-desc'], frontCover:['poster-missing-first','poster-available-first'],
                   backCover:['backdrop-missing-first','backdrop-available-first']
                 };
                 const pair = pairs[field];
@@ -123,6 +123,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
               <option value="year" className="bg-[#121520]">Year</option>
               <option value="dateAdded" className="bg-[#121520]">Date Added</option>
               <option value="dateModified" className="bg-[#121520]">Date Modified</option>
+              <option value="censor" className="bg-[#121520]">Censor</option>
               <option value="duration" className="bg-[#121520]">Duration</option>
               <option value="quality" className="bg-[#121520]">Quality</option>
               <option value="size" className="bg-[#121520]">Size</option>
@@ -134,8 +135,8 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
             </select>
             <button
               type="button"
-              aria-label={['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','poster-available-first','backdrop-available-first'].includes(sortBy) ? 'Descending sort; click for ascending' : 'Ascending sort; click for descending'}
-              title={['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','poster-available-first','backdrop-available-first'].includes(sortBy) ? 'Descending' : 'Ascending'}
+              aria-label={['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','censor-desc','poster-available-first','backdrop-available-first'].includes(sortBy) ? 'Descending sort; click for ascending' : 'Ascending sort; click for descending'}
+              title={['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','censor-desc','poster-available-first','backdrop-available-first'].includes(sortBy) ? 'Descending' : 'Ascending'}
               onClick={() => {
                 const pairs: Record<string, [SortOption, SortOption]> = {
                   'alphabet-asc':['alphabet-asc','alphabet-desc'],'alphabet-desc':['alphabet-asc','alphabet-desc'],
@@ -148,6 +149,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
                   'genre-asc':['genre-asc','genre-desc'],'genre-desc':['genre-asc','genre-desc'],
                   'date-added-asc':['date-added-asc','date-added-desc'],'date-added-desc':['date-added-asc','date-added-desc'],
                   'date-modified-asc':['date-modified-asc','date-modified-desc'],'date-modified-desc':['date-modified-asc','date-modified-desc'],
+                  'censor-asc':['censor-asc','censor-desc'],'censor-desc':['censor-asc','censor-desc'],
                   'poster-missing-first':['poster-missing-first','poster-available-first'],'poster-available-first':['poster-missing-first','poster-available-first'],
                   'backdrop-missing-first':['backdrop-missing-first','backdrop-available-first'],'backdrop-available-first':['backdrop-missing-first','backdrop-available-first']
                 };
@@ -156,7 +158,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
               }}
               className="rounded-md p-1 text-zinc-300 hover:bg-zinc-800 hover:text-amber-300"
             >
-              {['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','poster-available-first','backdrop-available-first'].includes(sortBy)
+              {['alphabet-desc','year-desc','minutes-desc','quality-desc','size-desc','actor-desc','studio-desc','genre-desc','date-added-desc','date-modified-desc','censor-desc','poster-available-first','backdrop-available-first'].includes(sortBy)
                 ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
             </button>
           </div>

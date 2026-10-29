@@ -148,7 +148,7 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditActors([...movie.actors]);
       setEditCastCount(movie.castCount === undefined ? '' : String(movie.castCount));
       setEditFavorite(movie.favorite === true);
-      setEditCensored(movie.censored ?? (movie.uncensored ? 'Uncensored' : ''));
+      setEditCensored(movie.censored ?? '');
       setNewActor('');
       setIsEditing(false);
       setEditSavedToast(null);

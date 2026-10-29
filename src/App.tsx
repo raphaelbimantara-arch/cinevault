@@ -563,7 +563,7 @@ export default function App() {
       setSortBy((current) => current === missing ? available : missing);
       return;
     }
-    const options = { title: ['alphabet-asc', 'alphabet-desc'], year: ['year-asc', 'year-desc'], size: ['size-asc', 'size-desc'], minutes: ['minutes-asc', 'minutes-desc'], resolution: ['quality-asc', 'quality-desc'], actors: ['actor-asc', 'actor-desc'], studio: ['studio-asc', 'studio-desc'], genre: ['genre-asc', 'genre-desc'], dateAdded: ['date-added-asc', 'date-added-desc'], dateModified: ['date-modified-asc', 'date-modified-desc'] } as const;
+    const options = { title: ['alphabet-asc', 'alphabet-desc'], year: ['year-asc', 'year-desc'], size: ['size-asc', 'size-desc'], minutes: ['minutes-asc', 'minutes-desc'], resolution: ['quality-asc', 'quality-desc'], actors: ['actor-asc', 'actor-desc'], studio: ['studio-asc', 'studio-desc'], genre: ['genre-asc', 'genre-desc'], dateAdded: ['date-added-asc', 'date-added-desc'], dateModified: ['date-modified-asc', 'date-modified-desc'], censor: ['censor-asc', 'censor-desc'] } as const;
     const [ascending, descending] = options[field]; setSortBy((current) => current === ascending ? descending : ascending);
   };
 
@@ -753,6 +753,8 @@ export default function App() {
         case 'date-added-desc': return !a.addedDate ? (!b.addedDate ? a.title.localeCompare(b.title) : 1) : !b.addedDate ? -1 : b.addedDate.localeCompare(a.addedDate) || a.title.localeCompare(b.title);
         case 'date-modified-asc': return !a.modifiedDate ? (!b.modifiedDate ? a.title.localeCompare(b.title) : 1) : !b.modifiedDate ? -1 : a.modifiedDate.localeCompare(b.modifiedDate) || a.title.localeCompare(b.title);
         case 'date-modified-desc': return !a.modifiedDate ? (!b.modifiedDate ? a.title.localeCompare(b.title) : 1) : !b.modifiedDate ? -1 : b.modifiedDate.localeCompare(a.modifiedDate) || a.title.localeCompare(b.title);
+        case 'censor-asc': return (a.censored ?? (a.uncensored ? 'Uncensored' : '')).localeCompare(b.censored ?? (b.uncensored ? 'Uncensored' : ''), undefined, { numeric: true }) || a.title.localeCompare(b.title);
+        case 'censor-desc': return (b.censored ?? (b.uncensored ? 'Uncensored' : '')).localeCompare(a.censored ?? (a.uncensored ? 'Uncensored' : ''), undefined, { numeric: true }) || a.title.localeCompare(b.title);
         default: return a.title.localeCompare(b.title);
       }
     });

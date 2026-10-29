@@ -48,7 +48,9 @@ export type SortOption =
   | 'date-added-asc'
   | 'date-added-desc'
   | 'date-modified-asc'
-  | 'date-modified-desc';
+  | 'date-modified-desc'
+  | 'censor-asc'
+  | 'censor-desc';
 
 export interface ActiveFilter {
   type: 'genre' | 'studio' | 'year' | 'minutes' | 'size' | 'resolution' | 'actor' | 'alphabet' | 'search';
