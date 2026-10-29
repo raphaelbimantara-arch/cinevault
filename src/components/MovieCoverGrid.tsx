@@ -127,7 +127,7 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
                 onClick={() => selectionMode ? onToggleMovieSelection(movie.id) : onSelectMovie(movie)}
                 aria-label={selectionMode ? `Select ${movie.title}` : `Open ${movie.title}`}
                 aria-pressed={selected}
-                className={`group relative block min-w-0 w-full overflow-hidden aspect-[2/3] cursor-pointer rounded-sm border bg-zinc-900 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 ${selected ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-zinc-800 hover:border-amber-500/70'}`}
+                className={`group relative block min-w-0 w-full overflow-hidden aspect-[2/3] cursor-pointer rounded-none border bg-black text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 ${selected ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-zinc-800 hover:border-amber-500/70'}`}
               >
                 <img
                   src={getImageSource(movie.posterUrl)}
@@ -136,7 +136,7 @@ export const MovieCoverGrid: React.FC<MovieCoverGridProps> = ({
                   loading="lazy"
                   decoding="async"
                   draggable={false}
-                  className="absolute inset-0 h-full w-full object-cover"
+                  className="absolute inset-0 h-full w-full object-contain"
                 />
                 {selectionMode && (
                   <span className={`absolute right-1 bottom-1 z-10 flex h-4 w-4 items-center justify-center rounded-sm border text-[10px] font-bold shadow ${selected ? 'border-amber-300 bg-amber-400 text-black' : 'border-white/70 bg-black/60 text-transparent'}`}>

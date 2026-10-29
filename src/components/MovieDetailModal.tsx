@@ -209,16 +209,24 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const handleNext = () => { if (movieIndex >= 0 && movieIndex < movies.length - 1) onNavigateMovie(movies[movieIndex + 1]); };
 
   useEffect(() => {
-    if (!movie || zoomedImageUrl) return;
+    if (!movie) return;
     const handleNavigationKeyDown = (event: KeyboardEvent) => {
+      if (isEditing || zoomedImageUrl || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
-      if (event.key === 'ArrowRight') { event.preventDefault(); handleNext(); }
-      else if (event.key === 'ArrowLeft') { event.preventDefault(); handlePrev(); }
+      if (event.key === 'ArrowRight' && movieIndex >= 0 && movieIndex < movies.length - 1) {
+        event.preventDefault();
+        event.stopPropagation();
+        onNavigateMovie(movies[movieIndex + 1]);
+      } else if (event.key === 'ArrowLeft' && movieIndex > 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        onNavigateMovie(movies[movieIndex - 1]);
+      }
     };
-    window.addEventListener('keydown', handleNavigationKeyDown);
-    return () => window.removeEventListener('keydown', handleNavigationKeyDown);
-  }, [movie, movieIndex, movies, onNavigateMovie, zoomedImageUrl]);
+    window.addEventListener('keydown', handleNavigationKeyDown, true);
+    return () => window.removeEventListener('keydown', handleNavigationKeyDown, true);
+  }, [movie, movieIndex, movies, onNavigateMovie, zoomedImageUrl, isEditing]);
 
   const swipeHandlers = useHorizontalSwipe(handleNext, handlePrev, !isEditing && !zoomedImageUrl);
   const longPressHandlers = useLongPress(() => setShowLongPressActions(true), !isEditing && !zoomedImageUrl);
@@ -297,11 +305,11 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         <div className={`grid ${isEditing ? 'grid-cols-1 md:grid-cols-12' : 'grid-cols-1'} gap-0 rounded-none overflow-hidden h-full`}>
           <div className={`${isEditing ? 'md:col-span-3' : 'col-span-1'} bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
             
-            <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
-              <img src={getImageSource(movie.posterUrl)} alt={`${movie.title} - Front`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+            <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-none overflow-hidden bg-black shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
+              <img src={getImageSource(movie.posterUrl)} alt={`${movie.title} - Front`} referrerPolicy="no-referrer" className="w-full h-full object-contain transition-transform" />
             </div>
-            <div onClick={() => setZoomedImageUrl(movie.backdropUrl || movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-lg overflow-hidden shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
-              <img src={getImageSource(movie.backdropUrl || movie.posterUrl)} alt={`${movie.title} - Back`} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+            <div onClick={() => setZoomedImageUrl(movie.backdropUrl || movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-none overflow-hidden bg-black shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
+              <img src={getImageSource(movie.backdropUrl || movie.posterUrl)} alt={`${movie.title} - Back`} referrerPolicy="no-referrer" className="w-full h-full object-contain transition-transform" />
             </div>
 
           </div>

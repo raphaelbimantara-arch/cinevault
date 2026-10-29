@@ -43,7 +43,7 @@ const PosterImage = ({ src, alt }: { src: string; alt: string }) => {
       referrerPolicy="no-referrer"
       draggable={false}
       onError={() => setHasError(true)}
-      className="w-full h-full object-cover transition-none"
+      className="w-full h-full object-contain transition-none"
       loading="lazy"
     />
   );
@@ -170,9 +170,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
                   >
                     {movie.title}
                   </h3>
-                  {(movie.censored ?? (movie.uncensored ? 'Uncensored' : '')) === 'Uncensored' && (
-                    <span className="text-[10px] sm:text-xs font-bold leading-tight text-rose-500">Uncensored</span>
-                  )}
                   {(movie.censored ?? (movie.uncensored ? 'Uncensored' : '')) === 'Reduced Mosaic' && (
                     <span className="text-[10px] sm:text-xs font-bold leading-tight text-amber-400">RM</span>
                   )}
