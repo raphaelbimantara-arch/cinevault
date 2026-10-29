@@ -150,7 +150,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setEditFavorite(movie.favorite === true);
       setEditCensored(movie.censored ?? '');
       setNewActor('');
-      setIsEditing(false);
       setEditSavedToast(null);
     }
   }, [movie?.id]);
@@ -271,35 +270,6 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
             </button>
           </div>
         )}
-        {
-            movieIndex > 0 && (
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={(e) => e.stopPropagation()}
-                onPointerCancel={(e) => e.stopPropagation()}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePrev(); }}
-                className="absolute -left-14 sm:-left-20 top-1/2 -translate-y-1/2 z-50 flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-400 hover:bg-amber-400 hover:text-zinc-950 transition-all border border-zinc-700/50 backdrop-blur-md shadow-lg cursor-pointer"
-                title="Previous movie"
-              >
-                <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
-              </button>
-            )}
-
-            {movieIndex >= 0 && movieIndex < movies.length - 1 && (
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={(e) => e.stopPropagation()}
-                onPointerCancel={(e) => e.stopPropagation()}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleNext(); }}
-                className="absolute -right-14 sm:-right-20 top-1/2 -translate-y-1/2 z-50 flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-400 hover:bg-amber-400 hover:text-zinc-950 transition-all border border-zinc-700/50 backdrop-blur-md shadow-lg cursor-pointer"
-                title="Next movie"
-              >
-                <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
-              </button>
-            )}
-
         {showLongPressActions && (
           <div data-long-press-actions className="flex flex-wrap items-center gap-2 border-b border-zinc-800 bg-[#151926] px-3 py-2 sm:px-5 rounded-t-2xl" onPointerDown={(event) => event.stopPropagation()}>
             <span className="mr-auto text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Movie actions</span>
@@ -312,6 +282,34 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
 
         <div className={`grid ${isEditing ? 'grid-cols-1 md:grid-cols-12' : 'grid-cols-1'} gap-0 rounded-none overflow-hidden h-full`}>
           <div className={`${isEditing ? 'md:col-span-3' : 'col-span-1'} bg-zinc-950/70 p-3 sm:p-4 flex gap-2 items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800/80 relative group/slider`}>
+            {isEditing && movieIndex > 0 && (
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerUp={(event) => event.stopPropagation()}
+                onPointerCancel={(event) => event.stopPropagation()}
+                onClick={(event) => { event.preventDefault(); event.stopPropagation(); handlePrev(); }}
+                className="absolute left-1 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700/70 bg-zinc-800/90 text-zinc-200 shadow-lg hover:bg-amber-400 hover:text-zinc-950"
+                title="Previous movie"
+                aria-label="Previous movie"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+            )}
+            {isEditing && movieIndex >= 0 && movieIndex < movies.length - 1 && (
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerUp={(event) => event.stopPropagation()}
+                onPointerCancel={(event) => event.stopPropagation()}
+                onClick={(event) => { event.preventDefault(); event.stopPropagation(); handleNext(); }}
+                className="absolute right-1 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700/70 bg-zinc-800/90 text-zinc-200 shadow-lg hover:bg-amber-400 hover:text-zinc-950"
+                title="Next movie"
+                aria-label="Next movie"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            )}
             
             <div onClick={() => setZoomedImageUrl(movie.posterUrl)} className="w-1/2 aspect-[3/4] rounded-none overflow-hidden bg-black shadow-xl border border-zinc-700/60 relative cursor-pointer group" title="Click to enlarge cover">
               <img src={getImageSource(movie.posterUrl)} alt={`${movie.title} - Front`} referrerPolicy="no-referrer" className="w-full h-full object-contain transition-transform" />
