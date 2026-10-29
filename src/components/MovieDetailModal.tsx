@@ -21,7 +21,7 @@ import { getImageSource } from '../utils/googleDriveImage';
 import { getMovieGenres } from '../utils/movieGenres';
 import { useHorizontalSwipe } from '../utils/useHorizontalSwipe';
 import { useLongPress } from '../utils/useLongPress';
-import { getCustomActors, getActorAliases, KNOWN_ACTORS } from '../data/actorsData';
+import { getCustomActors, getActorAliases, getActorProfile, KNOWN_ACTORS } from '../data/actorsData';
 
 interface MovieDetailModalProps {
   movie: Movie | null;
@@ -483,17 +483,20 @@ export const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                 <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Starring Cast{(movie.castCount ?? movie.actors.length) > 1 && ` (${movie.castCount ?? movie.actors.length})`}</div>
                 {/* PERUBAHAN: Font diperbesar (text-xs) dan padding ditambah (px-2.5 py-1.5) */}
                 <div className="flex flex-wrap gap-2">
-                  {movie.actors.map((actor) => (
-                    <button 
-                      key={actor} 
-                      type="button" 
-                      onClick={() => onSelectActor?.(actor)} 
-                      className="px-2.5 py-1.5 text-xs rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 text-zinc-300 border border-zinc-700 cursor-pointer transition-colors w-fit whitespace-nowrap" 
-                      title={`View actor ${actor}`}
-                    >
-                      {actor}
-                    </button>
-                  ))}
+                  {movie.actors.map((actor) => {
+                    const hasDob = Boolean(getActorProfile(actor).dob?.trim());
+                    return (
+                      <button
+                        key={actor}
+                        type="button"
+                        onClick={() => onSelectActor?.(actor)}
+                        className={`px-2.5 py-1.5 text-xs rounded-md bg-zinc-800 hover:bg-amber-400 hover:text-zinc-950 ${hasDob ? 'text-amber-400' : 'text-zinc-300'} border border-zinc-700 cursor-pointer transition-colors w-fit whitespace-nowrap`}
+                        title={`View actor ${actor}`}
+                      >
+                        {actor}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
